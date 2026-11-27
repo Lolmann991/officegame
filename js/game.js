@@ -6,17 +6,19 @@ import {
   PLAYABLE_STAGES, UPGRADES, TASKS, WERKE, KUNDEN, DAYS_IN_MONTH, MONTH_NAMES, PROJECT_TEMPLATES,
   TEAM_MAX, TEAM_BUDGET, TEAM_RATE_PER_SKILL, DINNER_COST, TRAITS, FIRST_NAMES, LAST_NAMES,
   PRODUCT_SPEC, PRODUCT_BASE_NEED, PRODUCT_BASE_Q, PRODUCT_MARKET, PRODUCT_HYPE, PRODUCT_COMMISSION, ORION_HOME,
-  CURRENCY, TEAM_MAX_BY_STAGE, RD_FP_PER_DM, TECHS, MARKETING, LINES, DEPT_COMMISSION,
+  CURRENCY, fmtDM, TEAM_MAX_BY_STAGE, RD_FP_PER_DM, TECHS, MARKETING, LINES, DEPT_COMMISSION,
   NET_CITIES, NET_NODE_COST, NET_NODE_UPKEEP, NET_ADOPTION, NET_UPGRADES, NET_COMPETITORS,
   CORP_START_CASH, CORP_SHARES, CORP_LEGACY_RESULT, CORP_LOAN_STEP, CORP_LOAN_RATE, DIVIDEND_POLICIES,
   HYPE_POINTS, ECONOMY_POINTS, STARTUPS, TAKEOVER, ACHIEVEMENTS,
+  futureName, futureCost, WORLD_REGIONS, LEGACY_KEY, PERKS, perkCost,
 } from './data.js';
-import { EVENTS, MAILS, DIALOGS, ON_MAIL_CHOICE, ON_DIALOG_DONE, ON_PROJECT_DONE, ENDLESS_EVENTS, warningVars } from './story.js';
+import { EVENTS, MAILS, DIALOGS, ON_MAIL_CHOICE, ON_DIALOG_DONE, ON_PROJECT_DONE, ENDLESS_EVENTS, SIDE_GOALS, warningVars } from './story.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 const round2 = (x) => Math.round(x * 100) / 100;
+const fmtDMs = (v) => fmtDM(v);
 
 function freshState(name, difficulty) {
   const price = 84.5;
@@ -41,6 +43,10 @@ function freshState(name, difficulty) {
     corp: { active: false, cash: 0, debt: 0, policy: 'mittel', shares: CORP_SHARES, base: 0, startPrice: 0, startIdx: 0, owned: [], offers: [], ipo: false, history: [], negMonths: 0, posAfter: 0, lastIssue: -99, legacyBoost: 0, perfShock: 0, lastDps: 0 },
     takeover: { active: false, done: false, won: false, orion: 0, offer: 0, hvMonth: 0, startMonth: 0, buyback: 0, buybacks: 0, campaignMonth: -1, leak: 0, history: [] },
     achievements: {},
+    sideDone: {},
+    world: { open: [], building: [] },
+    perks: {},
+    rush: null,
     net: { invest: 0, nodes: [], qLevel: 0, tariff: 19.9, marketing: 0, subs: 0, history: [], frozenUntil: -1 },
     product: { stage: 'none', spec: { mem: '16', drive: 'kassette', gfx: 'mono' }, quality: 0, price: 1995, units: 0, revenue: 0, months: 0, history: [] },
     mails: [],
@@ -58,6 +64,7 @@ export class Game {
     this.s = null;
     this.listeners = {};
     this.offlineMode = false;
+    this.slot = 1;
     this.shareTimer = 0;
     this.storyTimer = 0;
   }
@@ -68,6 +75,11 @@ export class Game {
   // ------------------------------------------------------------ Lebenszyklus
   newGame(name, difficulty) {
     this.s = freshState(name.trim() || 'Alex Berger', difficulty);
+    const perks = Game.readLegacy().perks || {};
+    this.s.perks = { ...perks };
+    this.s.player.cash += 3000 * (perks.kapital || 0);
+    this.s.player.rep += 3 * (perks.ruf || 0);
+    this.s.shares.owned += 10 * (perks.aktien || 0);
     this.newTask();
     this.syncCurrency();
     this.save();
@@ -87,6 +99,7 @@ export class Game {
       lines: { ...base.lines, ...obj.lines }, rd: { ...base.rd, ...obj.rd }, dept: { ...base.dept, ...obj.dept },
       net: { ...base.net, ...obj.net }, corp: { ...base.corp, ...obj.corp },
       takeover: { ...base.takeover, ...obj.takeover }, achievements: { ...base.achievements, ...obj.achievements },
+      sideDone: { ...base.sideDone, ...obj.sideDone }, world: { ...base.world, ...obj.world },
       settings: { ...base.settings, ...obj.settings },
     };
     if (!DIFFICULTIES[this.s.difficulty]) this.s.difficulty = 'normal';
@@ -95,9 +108,11 @@ export class Game {
     this.emit('reset');
   }
 
-  static readSave() {
+  // Drei Speicherplätze; Platz 1 nutzt den alten Schlüssel, damit bestehende Spielstände erhalten bleiben
+  static key(slot = 1) { return slot === 1 ? SAVE_KEY : `${SAVE_KEY}.slot${slot}`; }
+  static readSave(slot = 1) {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = localStorage.getItem(Game.key(slot));
       return raw ? JSON.parse(raw) : null;
     } catch { return null; }
   }
@@ -105,10 +120,10 @@ export class Game {
   save() {
     if (!this.s || this.s.gameOver) return false;
     this.s.lastSaved = Date.now();
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.s)); return true; } catch { return false; }
+    try { localStorage.setItem(Game.key(this.slot), JSON.stringify(this.s)); return true; } catch { return false; }
   }
 
-  static deleteSave() { try { localStorage.removeItem(SAVE_KEY); } catch { /* egal */ } }
+  static deleteSave(slot = 1) { try { localStorage.removeItem(Game.key(slot)); } catch { /* egal */ } }
 
   exportCode() {
     this.s.lastSaved = Date.now();
@@ -138,12 +153,14 @@ export class Game {
     this.emit('change');
   }
   passiveRate() {
-    return UPGRADES.reduce((sum, u) => sum + (this.owned(u.id) ? (u.passive || 0) : 0), BASE_PASSIVE) / this.F() + this.teamRate();
+    const perk = 1 + 0.1 * (this.s.perks?.fleiss || 0);
+    return (UPGRADES.reduce((sum, u) => sum + (this.owned(u.id) ? (u.passive || 0) : 0), BASE_PASSIVE) * perk) / this.F() + this.teamRate();
   }
   perMonth(rate) { return rate * this.monthSeconds(); }
   ownRate() { return this.passiveRate() - this.teamRate(); }
   taskMult() {
-    return UPGRADES.reduce((m, u) => m + (this.owned(u.id) ? (u.taskMult || 0) : 0), 1);
+    const f = this.s.story.flags;
+    return UPGRADES.reduce((m, u) => m + (this.owned(u.id) ? (u.taskMult || 0) : 0), 1) + (f.cobol ? 0.15 : 0);
   }
   streakBonus() { return Math.min(0.5, this.s.player.streak * 0.05); }
   // Aufträge behalten ihren Wert: ein längerer Monat lässt mehr Zeit für dieselbe Zahl an Aufträgen
@@ -177,6 +194,7 @@ export class Game {
     while (this.shareTimer >= step) { this.shareTimer -= step; this.stepShare(); }
 
     if (!this.offlineMode) {
+      this.rushTick(dt);
       this.storyTimer += dt;
       if (this.storyTimer >= 1) { this.storyTimer = 0; this.checkStory(); }
     }
@@ -316,7 +334,7 @@ export class Game {
       reason, year: t.year, months: t.totalMonths + 1,
       date: `${DAYS_IN_MONTH[t.month]}. ${MONTH_NAMES[t.month]} ${t.year}`,
     };
-    Game.deleteSave();
+    Game.deleteSave(this.slot);
     this.emit('gameover', this.s.gameOver);
   }
 
@@ -333,6 +351,17 @@ export class Game {
   submitTask(input) {
     const norm = (x) => x.toUpperCase().replace(/[\s\-–_.]/g, '');
     const p = this.s.player;
+    const rush = this.s.rush;
+    if (rush && norm(input) === norm(rush.codes[rush.idx].code)) {
+      const value = this.taskValue() * 2;
+      this.addWork(value);
+      p.tasksDone++; p.streak++; p.maxStreak = Math.max(p.maxStreak || 0, p.streak);
+      const done = rush.codes[rush.idx].code;
+      rush.idx++;
+      if (rush.idx >= rush.codes.length) this.finishRush(true);
+      this.emit('change');
+      return { ok: true, value, code: done, rush: true };
+    }
     if (norm(input) === norm(this.s.task.code)) {
       const value = this.taskValue();
       this.addWork(value);
@@ -346,6 +375,45 @@ export class Game {
     }
     p.streak = 0;
     return { ok: false };
+  }
+
+  // ------------------------------------------------------------ Eilaufträge
+  rushReward() { return Math.round(250 * Math.pow(this.s.player.stage + 1, 1.4) / 10) * 10; }
+  rushTick(dt) {
+    const s = this.s;
+    if (s.rush) {
+      s.rush.left -= dt;
+      if (s.rush.left <= 0) this.finishRush(false);
+      return;
+    }
+    if (s.time.totalMonths < 1 || s.dialogQueue.length || this.dialogActive) return;
+    // im Schnitt etwa alle anderthalb Monate
+    if (Math.random() < dt / (this.monthSeconds() * 1.5)) this.startRush();
+  }
+  startRush() {
+    const codes = [];
+    for (let i = 0; i < 3; i++) {
+      const tpl = pick(TASKS);
+      const n = String(Math.floor(rand(100, 9999))).padStart(4, '0');
+      codes.push({ code: `${tpl.p}-${n}-E`, title: tpl.t.replace('{n}', n).replace('{w}', pick(WERKE)).replace('{k}', pick(KUNDEN)) });
+    }
+    this.s.rush = { codes, idx: 0, left: 45, total: 45 };
+    this.emit('rush', 'start');
+  }
+  finishRush(ok) {
+    const p = this.s.player;
+    if (ok) {
+      const r = this.rushReward();
+      p.cash = round2(p.cash + r);
+      p.rushes = (p.rushes || 0) + 1;
+      this.addRep(1, true);
+      this.emit('toast', { text: `Eilauftrag erledigt: +${fmtDMs(r)} Sonderprämie, Ruf +1`, kind: 'good' });
+    } else {
+      this.emit('toast', { text: 'Eilauftrag nicht rechtzeitig fertig', kind: 'bad' });
+    }
+    this.s.rush = null;
+    this.emit('rush', ok ? 'done' : 'fail');
+    this.emit('change');
   }
 
   // ------------------------------------------------------------ Aktien & Shop
@@ -450,8 +518,22 @@ export class Game {
     }
   }
 
+  checkSideGoals() {
+    const list = SIDE_GOALS[this.s.player.stage] || [];
+    for (const sg of list) {
+      if (this.s.sideDone[sg.id] || !sg.check(this)) continue;
+      this.s.sideDone[sg.id] = this.dateText();
+      const r = sg.reward;
+      if (r.cash) this.s.player.cash = round2(this.s.player.cash + r.cash);
+      if (r.rep) this.addRep(r.rep, true);
+      if (r.upgrade) this.giveUpgrade(r.upgrade);
+      this.emit('side', sg);
+    }
+  }
+
   checkStory() {
     this.checkAchievements();
+    this.checkSideGoals();
     for (const ev of EVENTS) {
       if (this.s.story.fired[ev.id] || this.s.gameOver) continue;
       if (ev.when(this)) {
@@ -813,6 +895,13 @@ export class Game {
   techAvailable(t) { return !this.techDone(t.id) && t.req.every((r) => this.techDone(r)); }
   setRdBudget(x) { this.s.rd.budget = x; this.emit('dept'); this.emit('change'); }
   selectTech(id) {
+    if (id === 'future') {
+      if (!this.futureAvailable()) return false;
+      this.s.rd.current = 'future';
+      this.tryResearch();
+      this.emit('dept');
+      return true;
+    }
     const t = TECHS.find((x) => x.id === id);
     if (!t || !this.techAvailable(t)) return false;
     this.s.rd.current = id;
@@ -823,6 +912,16 @@ export class Game {
   rdPerMonth() { return Math.round(this.s.rd.budget * RD_FP_PER_DM * (1 + this.creativeBonus())); }
   tryResearch() {
     const rd = this.s.rd;
+    if (rd.current === 'future') {
+      const n = rd.futureDone || 0, cost = futureCost(n);
+      if (rd.pool < cost) return;
+      rd.pool -= cost;
+      rd.futureDone = n + 1;
+      rd.current = null;
+      this.mail('tech_done', { name: futureName(n), desc: '+1 Qualität für alle Produktlinien. Die Höchstqualität steigt ebenfalls um 1.' });
+      this.emit('dept');
+      return;
+    }
     const t = TECHS.find((x) => x.id === rd.current);
     if (!t || rd.pool < t.cost) return;
     rd.pool -= t.cost;
@@ -834,11 +933,13 @@ export class Game {
 
   // Produktlinien
   lineUnlocked(id) { const n = LINES[id].needs; return !n || this.techDone(n); }
-  techQ(id) { return TECHS.reduce((a, t) => a + (this.techDone(t.id) ? (t.q?.[id] || 0) : 0), 0); }
+  techQ(id) { return TECHS.reduce((a, t) => a + (this.techDone(t.id) ? (t.q?.[id] || 0) : 0), 0) + (this.s.rd.futureDone || 0); }
+  futureAvailable() { return this.s.player.stage >= 6; }
+  qualityCap() { return 10 + (this.s.rd.futureDone || 0); }
   lineQuality(id) {
     const ms = this.s.team.members;
     const avg = ms.length ? ms.reduce((a, m) => a + m.skill, 0) / ms.length : 3;
-    return Math.max(1, Math.min(10, Math.round(LINES[id].baseQ + this.techQ(id) + (avg - 3))));
+    return Math.max(1, Math.min(this.qualityCap(), Math.round(LINES[id].baseQ + this.techQ(id) + (avg - 3))));
   }
   modelName(id, gen) { return `${LINES[id].model} ${id === 'home' ? '-' + gen : gen}`.replace(' -', '-'); }
   startModel(id) {
@@ -877,7 +978,11 @@ export class Game {
   }
   setLinePrice(id, price) { const ln = this.s.lines[id]; if (ln.model) { ln.model.price = price; this.emit('product'); } }
   setMarketing(id, lvl) { this.s.lines[id].marketing = lvl; this.emit('product'); }
-  orionQ(id) { return Math.min(9, LINES[id].orionQ + Math.max(0, Math.floor((this.s.time.year - 1987) / 2))); }
+  orionQ(id) {
+    const y = this.s.time.year;
+    const cap = 9 + Math.max(0, Math.floor((y - 2009) / 2)); // im Endlosmodus forscht auch die Konkurrenz weiter
+    return Math.min(cap, LINES[id].orionQ + Math.max(0, Math.floor((y - 1987) / 2)));
+  }
   orionPrice(id) {
     const f = this.s.story.flags, mid = LINES[id].prices[1];
     return Math.round(mid * (f.price_war ? 0.85 : f.rau_deal ? 1.05 : 0.95));
@@ -901,7 +1006,7 @@ export class Game {
       const ln = this.s.lines[id];
       if (!ln.model) continue;
       const hype = PRODUCT_HYPE[Math.min(ln.model.months, PRODUCT_HYPE.length - 1)];
-      const size = (id === 'pc' && f.pc_compat ? def.sizeCompat : def.size) * hype * this.economy() * rand(0.92, 1.08);
+      const size = (id === 'pc' && f.pc_compat ? def.sizeCompat : def.size) * hype * this.economy() * this.worldFactor() * rand(0.92, 1.08);
       const sh = this.lineShare(id, ln.model.q, ln.model.price, ln.marketing);
       const units = Math.round((size * sh.kb) / sh.total);
       const orionUnits = Math.round((size * sh.orion) / sh.total);
@@ -921,7 +1026,9 @@ export class Game {
     revenue += netRes.revenue;
     mkt += netRes.mkt;
     const payroll = this.payroll();
-    const result = Math.round(gross - payroll - rd.budget - mkt);
+    const extra = dept.extraCost || 0; // einmalige Kosten oder Erlöse aus Ereignissen
+    dept.extraCost = 0;
+    const result = Math.round(gross - payroll - rd.budget - mkt - extra);
     rd.pool += this.rdPerMonth();
     this.tryResearch();
     dept.history.push({ label: `${MONTH_NAMES[this.s.time.month].slice(0, 3)} ${this.s.time.year}`, revenue, gross: Math.round(gross), payroll, rd: rd.budget, mkt, result, perLine });
@@ -943,7 +1050,7 @@ export class Game {
     return a + (b - a) * (t.month / 12);
   }
   netCovered() { return this.s.net.nodes.reduce((a, id) => a + (NET_CITIES.find((c) => c.id === id)?.pop || 0), 0); }
-  netQuality() { return Math.min(10, Math.round(3 + this.s.net.qLevel * 1.5 + (this.techDone('lan') ? 1 : 0))); }
+  netQuality() { return Math.min(10, Math.round(3 + this.s.net.qLevel * 1.5 + (this.techDone('lan') ? 1 : 0) + (this.s.net.qBonus || 0))); }
   netFrozen() { return this.s.time.totalMonths < this.s.net.frozenUntil; }
   buildNode(id) {
     const net = this.s.net, c = NET_CITIES.find((x) => x.id === id);
@@ -1107,7 +1214,8 @@ export class Game {
     const c = this.s.corp, f = this.s.story.flags;
     if (!c.active) return;
     const months = this.monthIndex() - c.startIdx;
-    const legacy = CORP_LEGACY_RESULT * this.economy() * Math.max(0.5, 1 - months * 0.004) + c.legacyBoost;
+    this.worldMonth();
+    const legacy = CORP_LEGACY_RESULT * this.economy() * Math.max(0.5, 1 - months * 0.004) + c.legacyBoost + (this.worldFactor() - 1) * 4e6;
     let bereich = this.s.dept.history.at(-1)?.result || 0;
     if (c.ipo) bereich -= 0.49 * (this.lastNetGross || 0);
     const startups = -c.owned.reduce((a, o) => a + (STARTUPS.find((x) => x.id === o.id)?.burn || 0), 0);
@@ -1157,7 +1265,7 @@ export class Game {
     const f = this.s.story.flags, c = this.s.corp;
     const blocks = [
       { label: 'Familie Kessler', pct: 10 + (f.kartell_lied ? 0 : 6) + (f.kessler_backs ? 4 : 0) },
-      { label: 'Belegschaft (Mitarbeiteraktien)', pct: 3 + (f.loyal_petra ? 4 : 0) + (f.job_cuts ? 0 : 3) + (f.salary_cut ? 2 : 0) },
+      { label: 'Belegschaft (Mitarbeiteraktien)', pct: 3 + (f.loyal_petra ? 4 : 0) + (f.job_cuts ? 0 : 3) + (f.salary_cut ? 2 : 0) + (f.emp_shares ? 3 : 0) },
       { label: 'KB-Pensionskasse', pct: 5 },
     ];
     if (f.knight) blocks.push({ label: 'Hayashi Denki (Weißer Ritter)', pct: 18 });
@@ -1244,6 +1352,69 @@ export class Game {
     const pool = ENDLESS_EVENTS.filter((e) => !recent.includes(e.id));
     const ev = pick(pool.length ? pool : ENDLESS_EVENTS);
     this.mail('endless', { meta: ev.id, subject: ev.subject, body: ev.body(this), choices: ev.choices(this) });
+  }
+
+  // ------------------------------------------------------------ Endlosmodus: Weltmarkt
+  worldFactor() { return 1 + (this.s.world?.open || []).reduce((a, id) => a + (WORLD_REGIONS.find((r) => r.id === id)?.factor || 0), 0); }
+  openRegion(id) {
+    const w = this.s.world, r = WORLD_REGIONS.find((x) => x.id === id), c = this.s.corp;
+    if (!r || this.s.player.stage < 6 || w.open.includes(id) || w.building.some((b) => b.id === id) || c.cash < r.cost) return false;
+    c.cash -= r.cost;
+    w.building.push({ id, ready: this.s.time.totalMonths + r.months });
+    this.emit('world');
+    return true;
+  }
+  worldMonth() {
+    const w = this.s.world;
+    for (const b of [...w.building]) {
+      if (this.s.time.totalMonths + 1 < b.ready) continue;
+      w.building = w.building.filter((x) => x !== b);
+      w.open.push(b.id);
+      const r = WORLD_REGIONS.find((x) => x.id === b.id);
+      this.mail('world_open', { name: r.name, factor: r.factor });
+    }
+    this.emit('world');
+  }
+
+  // ------------------------------------------------------------ Nachfolge (Prestige)
+  static readLegacy() {
+    try { return { points: 0, perks: {}, gallery: [], ...JSON.parse(localStorage.getItem(LEGACY_KEY) || '{}') }; }
+    catch { return { points: 0, perks: {}, gallery: [] }; }
+  }
+  static writeLegacy(l) { try { localStorage.setItem(LEGACY_KEY, JSON.stringify(l)); } catch { /* egal */ } }
+  static buyPerk(id) {
+    const l = Game.readLegacy(), perk = PERKS.find((x) => x.id === id);
+    const lvl = l.perks[id] || 0;
+    if (!perk || lvl >= perk.max || l.points < perkCost(lvl)) return false;
+    l.points -= perkCost(lvl);
+    l.perks[id] = lvl + 1;
+    Game.writeLegacy(l);
+    return true;
+  }
+  worth() { return this.s.player.cash + this.s.shares.owned * this.s.shares.price; }
+  legacyPoints() {
+    const s = this.s, f = s.story.flags;
+    return Math.floor(Math.max(0, this.worth()) / 1e5)
+      + Object.keys(s.achievements).length * 5
+      + Object.keys(s.sideDone).length * 2
+      + (s.world.open.length) * 4
+      + (s.rd.futureDone || 0) * 3
+      + (f.orion_bought ? 25 : f.takeover_won ? 15 : 0)
+      + Math.max(0, Math.floor(s.player.rep / 5));
+  }
+  canRetire() { return !!this.s.story.flags.endless; }
+  retire() {
+    if (!this.canRetire()) return null;
+    const pts = this.legacyPoints();
+    const l = Game.readLegacy();
+    l.points += pts;
+    l.gallery.unshift({ name: this.s.player.name, until: this.s.time.year, worth: Math.round(this.worth()), points: pts, ach: Object.keys(this.s.achievements).length });
+    l.gallery = l.gallery.slice(0, 12);
+    Game.writeLegacy(l);
+    Game.deleteSave(this.slot);
+    const summary = { points: pts, total: l.points, name: this.s.player.name, worth: this.worth() };
+    this.s.gameOver = { reason: 'ruhestand' };
+    return summary;
   }
 
   promote() {

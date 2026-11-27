@@ -662,6 +662,170 @@ Ingrid Bergmann`,
     subject: 'Entscheidung',
     body: (g, v) => `${v.body}\n\nBitte entscheiden Sie.\n\nKarin Sommer`,
   },
+  // ---------- Zusatzereignisse in allen Kapiteln
+  x_ausflug: {
+    from: 'W. Hoff · Abteilungsleiter',
+    subject: 'Betriebsausflug an den Edersee',
+    body: () => `Am Samstag fährt die Abteilung mit dem Bus an den Edersee. Dampferfahrt, Mittagessen, Rückkehr gegen 20 Uhr. Kostenbeitrag 30 DM.
+
+Wer nicht mitfährt, kann im Büro die Rückstände abarbeiten. Das Rechenzentrum ist offen.
+
+Hoff`,
+    choices: ['Mitfahren (30 DM)', 'Im Büro bleiben und Rückstände abarbeiten (+120 Leistung)'],
+  },
+  x_lotto: {
+    from: 'Petra Lang',
+    subject: 'Lotto-Tippgemeinschaft',
+    body: () => `Die halbe Abteilung spielt zusammen Lotto, jeden Samstag. 5 DM im Monat, und wenn wir gewinnen, wird geteilt.
+
+Bist du dabei?
+
+Petra`,
+    choices: ['Ich bin dabei', 'Nein danke'],
+  },
+  x_lotto_win: {
+    from: 'Petra Lang',
+    subject: 'WIR HABEN GEWONNEN!!!',
+    body: () => `Vier Richtige mit Zusatzzahl! Das sind 380 DM für jeden. Ich habe dir deinen Anteil schon aufs Konto überwiesen.
+
+Hoff hat gefragt, ob er nächstes Mal mitspielen darf.
+
+Petra`,
+  },
+  x_messe: {
+    from: 'W. Hoff · Abteilungsleiter',
+    subject: 'Hannover-Messe',
+    body: (g) => `${first(g)},
+
+KB braucht auf der Hannover-Messe Leute am Stand, die erklären können, was ein Rechenzentrum macht. Eine Woche, viel Kaffee, wenig Schlaf.
+
+Freiwillige vor. Ihre Arbeit bleibt allerdings liegen.
+
+Hoff`,
+    choices: ['Am Stand mitarbeiten (−200 Leistung, Ruf +2)', 'Lieber im Büro bleiben'],
+  },
+  x_kurs: {
+    from: 'Volkshochschule Kassel',
+    subject: 'Abendkurs: Programmieren in COBOL',
+    body: () => `Lernen Sie die Sprache der Großrechner. Zwölf Abende, jeweils dienstags und donnerstags, Kursgebühr 400 DM.
+
+Absolventen arbeiten nachweislich schneller und sicherer.
+
+Ihre Volkshochschule`,
+    choices: ['Anmelden (400 DM, +15 % pro Auftrag)', 'Kein Interesse'],
+  },
+  x_praktikant: {
+    from: 'I. Bergmann · Personalabteilung',
+    subject: 'Praktikumsanfrage',
+    body: () => `Ein junger Mann namens Tobias Engel, 19, möchte unbedingt in Ihrer Gruppe ein Praktikum machen. Er hat einen selbst gebauten Computer mitgebracht und uns eine halbe Stunde lang erklärt, wie er funktioniert.
+
+Kosten: 600 DM im Monat aus Ihrem Personalbudget.
+
+Bergmann`,
+    choices: ['Aufnehmen', 'Ablehnen'],
+  },
+  x_vegas: {
+    from: 'KB-Reisestelle',
+    subject: 'Computermesse in Las Vegas',
+    body: () => `Für die große Computermesse in Las Vegas ist noch ein Kontingent frei. Flug, Hotel und Messeeintritt für Sie und Ihre Gruppe: 3.000 DM, die Hälfte trägt KB.
+
+Bitte bis Freitag Bescheid geben.
+
+Reisestelle`,
+    choices: ['Mit dem ganzen Team fliegen (3.000 DM privat, Moral +12)', 'Allein fliegen (Ruf +1)'],
+  },
+  x_virus: {
+    from: 'Produktentwicklung',
+    subject: 'Dringend: Virus auf ausgelieferten Disketten',
+    body: () => `Auf einem Teil der mit dem KB PC ausgelieferten Systemdisketten ist ein Computervirus. Er löscht keine Daten, zeigt aber am Freitag, dem 13., eine Laufschrift.
+
+Ein Rückruf kostet etwa 2 Millionen DM. Alternativ verschicken wir eine bereinigte Diskette per Post an alle, die sich beschweren.
+
+Produktentwicklung`,
+    choices: ['Rückruf (2 Mio. DM, Ruf +2)', 'Diskette per Post nachschicken'],
+  },
+  x_uni: {
+    from: 'Gesamthochschule Kassel',
+    subject: 'Forschungskooperation',
+    body: () => `Sehr geehrte Damen und Herren,
+
+unser Fachbereich Informatik sucht einen Partner aus der Industrie. Für 150.000 DM stellen wir Ihnen für ein Jahr zwei Doktoranden und Rechenzeit zur Verfügung.
+
+Prof. Dr. Albers`,
+    choices: ['Zusagen (150 TDM, +250 Forschungspunkte)', 'Ablehnen'],
+  },
+  x_portal: {
+    from: 'KB-Net Redaktion',
+    subject: 'Eigenes Nachrichtenportal?',
+    body: () => `Die Kunden wählen sich ein, lesen ihre E-Mails und wählen sich wieder ab. Mit einem eigenen Nachrichtenportal, Wetter, Börsenkursen und Kleinanzeigen würden sie bleiben.
+
+Aufbau: 2 Millionen DM aus dem Investitionsbudget.
+
+KB-Net Redaktion`,
+    choices: ['Starten (2 Mio. DM, Qualität +1)', 'Nein'],
+  },
+  x_foren: {
+    from: 'KB-Net Redaktion',
+    subject: 'Ärger in den Foren',
+    body: () => `In einigen Foren von KB-Net geht es inzwischen ziemlich rau zu. Eine Zeitung hat schon angefragt.
+
+Wir könnten Moderatoren einstellen (1 Million DM aus dem Investitionsbudget) oder es laufen lassen.
+
+KB-Net Redaktion`,
+    choices: ['Moderatoren einstellen (1 Mio. DM, Ruf +2)', 'Ignorieren'],
+  },
+  x_y2k: {
+    from: 'IT-Leitung',
+    subject: 'Jahr-2000-Problem',
+    body: () => `Viele alte Programme speichern Jahreszahlen nur zweistellig. Am 1. Januar 2000 könnten sie glauben, es sei 1900.
+
+Wir können ein Notfallteam über Silvester bereitstellen und alle Systeme vorher prüfen. Kosten: 20 Millionen DM.
+
+IT-Leitung`,
+    choices: ['Notfallteam (20 Mio. DM)', 'Wird schon gutgehen'],
+  },
+  x_y2k_fail: {
+    from: 'KB-Hausnachrichten',
+    subject: 'Panne zum Jahreswechsel',
+    body: () => `KASSEL. In der Neujahrsnacht sind bei KB mehrere Abrechnungssysteme ausgefallen. Tausende Kunden erhielten Rechnungen über 100 Jahre Rechenzeit.
+
+Der Fehler ist behoben, der Spott bleibt.`,
+  },
+  x_stiftung: {
+    from: 'H. Kessler · Vorstandsvorsitzender',
+    subject: 'Computer für Schulen',
+    body: (g) => `${first(g)},
+
+ich gründe eine Stiftung, die Schulen in Nordhessen mit Computern ausstattet. Ich frage alle Vorstände, ob sie sich beteiligen.
+
+Kessler`,
+    choices: ['Privat 50.000 DM spenden (Ruf +3)', 'KB spendet 5 Mio. DM (Ruf +1)'],
+  },
+  x_interview: {
+    from: 'Pressestelle',
+    subject: 'Interviewanfrage: Wirtschaftsmagazin',
+    body: () => `Das größte Wirtschaftsmagazin will ein Interview zur Übernahmeschlacht. Wie sollen wir die Linie festlegen?
+
+Pressestelle`,
+    choices: ['Angriff: „Rau will KB plündern“', 'Sachlich: über Zahlen und Zukunft reden'],
+  },
+  x_mitarbeiteraktien: {
+    from: 'Personalvorstand',
+    subject: 'Sonderprogramm Mitarbeiteraktien',
+    body: () => `Wir könnten der Belegschaft KB-Aktien zum halben Preis anbieten. Die Differenz trägt der Konzern, etwa 50 Millionen DM. Die Aktien wären damit in treuen Händen.
+
+Personalvorstand`,
+    choices: ['Auflegen (50 Mio. DM)', 'Nein'],
+  },
+  world_open: {
+    from: 'Auslandsvertrieb',
+    subject: 'Neuer Markt erschlossen',
+    body: (g, v) => `Die Niederlassung ${v.name} ist eröffnet. Unsere Produktlinien verkaufen sich ab sofort auch dort.
+
+Zusätzliche Marktgröße: +${Math.round(v.factor * 100)} %.
+
+Auslandsvertrieb`,
+  },
   // ---------- Euro und Kapitel 7
   euro: {
     from: 'Konzern-Controlling',
@@ -1124,7 +1288,7 @@ export const MISSIONS = [
   [
     { id: 'survive', text: 'Bring KB mit positiver Kasse durch den Crash (bis April 2001)', prog: (g) => [g.s.story.flags.crisis_survived ? 1 : 0, 1] },
     { id: 'pos', text: 'Konzernergebnis nach dem Crash 3 Monate in Folge positiv', prog: (g) => [g.s.corp.posAfter, 3] },
-    { id: 'kurs', text: 'Bring die KB-Aktie über den Wert vor dem Hype (in DM)', prog: (g) => [Math.round(g.s.shares.price), Math.round(g.s.corp.base * 0.9)] },
+    { id: 'kurs', text: 'Bring die KB-Aktie wieder auf 80 % ihres Werts vor dem Hype (in DM)', prog: (g) => [Math.round(g.s.shares.price), Math.round(g.s.corp.base * 0.8)] },
     { id: 'shares', text: 'Besitze 300 KB-Aktien', prog: (g) => [g.s.shares.owned, 300] },
     { id: 'kartell', text: 'Keine Altlasten: Kartellverfahren abgeschlossen', prog: (g) => { const f = g.s.story.flags; return [!f.rau_deal || f.kartell_confessed || f.kartell_closed ? 1 : 0, 1]; } },
   ],
@@ -1303,7 +1467,7 @@ export const EVENTS = [
   { id: 'c6_start', when: (g) => g.s.player.stage >= 5,
     run: (g) => {
       const f = g.s.story.flags, tm = t(g);
-      if (tm.year < 1999 || (tm.year === 1999 && tm.month < 6)) { tm.year = 1999; tm.month = 6; tm.monthProgress = 0; }
+      if (tm.year < 1999 || (tm.year === 1999 && tm.month < 9)) { tm.year = 1999; tm.month = 9; tm.monthProgress = 0; }
       f.c6_month = tm.totalMonths;
       g.startCorp();
       g.mail('c6_finanzen');
@@ -1330,6 +1494,26 @@ export const EVENTS = [
     run: (g) => { g.s.story.flags.mobilnet_kept = true; g.mail('c6_mobilnet'); } },
   { id: 'promotion6', when: (g) => g.s.player.stage === 5 && missionsDone(g) && g.idle(),
     run: (g) => g.dialog('kessler_ceo') },
+
+  // ---------- Zusatzereignisse
+  { id: 'x_ausflug', when: (g) => g.s.player.stage === 0 && t(g).totalMonths >= 1 && mp(g) > 0.6, run: (g) => g.mail('x_ausflug') },
+  { id: 'x_lotto', when: (g) => g.s.player.stage <= 1 && t(g).totalMonths >= 3 && mp(g) > 0.3, run: (g) => g.mail('x_lotto') },
+  { id: 'x_lotto_win', when: (g) => g.s.story.flags.lotto != null && t(g).totalMonths >= g.s.story.flags.lotto + 3,
+    run: (g) => { g.s.player.cash += 380; g.mail('x_lotto_win'); } },
+  { id: 'x_messe', when: (g) => g.s.player.stage === 1 && t(g).totalMonths >= g.s.story.flags.c2_month + 1 && mp(g) > 0.6, run: (g) => g.mail('x_messe') },
+  { id: 'x_kurs', when: (g) => g.s.player.stage === 1 && t(g).totalMonths >= g.s.story.flags.c2_month + 2 && mp(g) > 0.3, run: (g) => g.mail('x_kurs') },
+  { id: 'x_praktikant', when: (g) => g.s.player.stage === 2 && t(g).totalMonths >= g.s.story.flags.c3_month + 1 && mp(g) > 0.5, run: (g) => g.mail('x_praktikant') },
+  { id: 'x_vegas', when: (g) => g.s.player.stage === 2 && g.s.product.stage === 'dev' && mp(g) > 0.7, run: (g) => g.mail('x_vegas') },
+  { id: 'x_virus', when: (g) => g.s.player.stage === 3 && g.s.lines.pc.model && mp(g) > 0.6, run: (g) => g.mail('x_virus') },
+  { id: 'x_uni', when: (g) => g.s.player.stage === 3 && t(g).totalMonths >= g.s.story.flags.c4_month + 2 && mp(g) > 0.4, run: (g) => g.mail('x_uni') },
+  { id: 'x_portal', when: (g) => g.s.player.stage === 4 && g.s.net.nodes.length >= 3 && mp(g) > 0.5, run: (g) => g.mail('x_portal') },
+  { id: 'x_foren', when: (g) => g.s.player.stage === 4 && g.s.net.subs >= 15000 && mp(g) > 0.4, run: (g) => g.mail('x_foren') },
+  { id: 'x_y2k', when: (g) => g.s.corp.active && g.monthIndex() >= 10.3 && g.monthIndex() < 12, run: (g) => g.mail('x_y2k') },
+  { id: 'x_y2k_fail', when: (g) => g.s.story.flags.y2k_risk && g.monthIndex() >= 12,
+    run: (g) => { g.addRep(-3); g.shareShock(-0.04); g.mail('x_y2k_fail'); } },
+  { id: 'x_stiftung', when: (g) => g.s.corp.active && g.s.player.stage === 5 && g.monthIndex() >= 18 && mp(g) > 0.5, run: (g) => g.mail('x_stiftung') },
+  { id: 'x_interview', when: (g) => g.s.takeover.active && !g.s.takeover.done && t(g).totalMonths >= g.s.takeover.startMonth + 1 && mp(g) > 0.7, run: (g) => g.mail('x_interview') },
+  { id: 'x_mitarbeiteraktien', when: (g) => g.s.takeover.active && !g.s.takeover.done && t(g).totalMonths >= g.s.takeover.startMonth + 3, run: (g) => g.mail('x_mitarbeiteraktien') },
 
   // ---------- Euro und Kapitel 7
   { id: 'euro', when: (g) => g.s.time.year >= 2002, run: (g) => g.mail('euro') },
@@ -1363,6 +1547,32 @@ export const EVENTS = [
 
 // ---------------------------------------------------------------- Reaktionen auf Entscheidungen
 export const ON_MAIL_CHOICE = {
+  x_ausflug: (g, i) => { if (i === 0) { g.s.player.cash -= 30; g.addRep(1); } else g.addWork(120); },
+  x_lotto: (g, i) => { if (i === 0) { g.s.story.flags.lotto = t(g).totalMonths; g.s.player.cash -= 5; } },
+  x_messe: (g, i) => { if (i === 0) { g.s.player.perf = Math.max(0, g.s.player.perf - 200); g.addRep(2); } },
+  x_kurs: (g, i) => { if (i === 0) { g.s.player.cash -= 400; g.s.story.flags.cobol = true; } },
+  x_praktikant: (g, i) => {
+    if (i === 0 && g.s.team.members.length < g.teamMax()) {
+      const m = g.makeMember({ name: 'Tobias Engel', skill: 1, trait: 'kreativ', salary: 600, morale: 90, longHair: true });
+      m.since = t(g).totalMonths;
+      g.s.team.members.push(m);
+      g.emit('team');
+    }
+  },
+  x_vegas: (g, i) => {
+    if (i === 0) { g.s.player.cash -= 3000; g.s.team.members.forEach((m) => g.changeMorale(m, 12)); g.emit('team'); } else g.addRep(1);
+  },
+  x_virus: (g, i) => {
+    if (i === 0) { g.s.dept.extraCost = (g.s.dept.extraCost || 0) + 2e6; g.addRep(2); }
+    else { g.addRep(-2); const m = g.s.lines.pc.model; if (m) m.q = Math.max(1, m.q - 1); }
+  },
+  x_uni: (g, i) => { if (i === 0) { g.s.dept.extraCost = (g.s.dept.extraCost || 0) + 150000; g.s.rd.pool += 250; g.tryResearch(); } },
+  x_portal: (g, i) => { if (i === 0) { g.s.net.invest = Math.max(0, g.s.net.invest - 2e6); g.s.net.qBonus = (g.s.net.qBonus || 0) + 1; g.emit('net'); } },
+  x_foren: (g, i) => { if (i === 0) { g.s.net.invest = Math.max(0, g.s.net.invest - 1e6); g.addRep(2); } else g.addRep(-2); },
+  x_y2k: (g, i) => { if (i === 0) { g.s.corp.cash -= 20e6; g.s.story.flags.y2k_safe = true; g.addRep(1); } else g.s.story.flags.y2k_risk = true; },
+  x_stiftung: (g, i) => { if (i === 0) { g.s.player.cash -= 50000; g.addRep(3); } else { g.s.corp.cash -= 5e6; g.addRep(1); } },
+  x_interview: (g, i) => { if (i === 0) { g.addRep(1); g.s.takeover.leak += 0.01; } else g.s.corp.perfShock += 0.04; },
+  x_mitarbeiteraktien: (g, i) => { if (i === 0) { g.s.corp.cash -= 50e6; g.s.story.flags.emp_shares = true; g.emit('takeover'); } },
   c7_mobilnet_offer: (g, idx) => {
     if (idx === 0) { const v = g.sellStartup('mobilnet'); g.s.story.flags.mobilnet_sold = v; }
     else { g.s.story.flags.mobilnet_future = true; g.addRep(1); }
@@ -1659,4 +1869,45 @@ export const ENDLESS_EVENTS = [
     body: () => 'Die Strategieabteilung schlägt ein Werk in Malaysia vor. Günstiger als Kassel, aber in Kassel wird man das nicht gern hören.',
     choices: (g) => [`Bauen (${fmtDM(300e6)})`, 'Nein, wir bleiben in Kassel'],
     apply: (g, i) => { if (i === 0) { cash(g, -300e6); g.s.corp.legacyBoost += 3.5e6; g.addRep(-2); } else g.addRep(2); } },
+];
+
+// ---------------------------------------------------------------- Nebenziele je Karrierestufe
+// Freiwillig. Werden jede Sekunde geprüft und sofort belohnt.
+const allLines = (g) => Object.values(g.s.lines);
+export const SIDE_GOALS = [
+  [
+    { id: 's0_a', text: 'Schließe einen Monat mit Note A ab', check: (g) => g.s.player.grades.includes('A'), reward: { cash: 150 }, rewardText: '150 DM' },
+    { id: 's0_streak', text: '15 Aufträge in Folge ohne Tippfehler', check: (g) => (g.s.player.maxStreak || 0) >= 15, reward: { upgrade: 'lochkarte' }, rewardText: 'Goldene Lochkarte' },
+    { id: 's0_rush', text: 'Erledige einen Eilauftrag', check: (g) => (g.s.player.rushes || 0) >= 1, reward: { cash: 200 }, rewardText: '200 DM' },
+  ],
+  [
+    { id: 's1_proj', text: 'Schließe 3 Projekte ab', check: (g) => g.s.projects.done.length >= 3, reward: { cash: 600 }, rewardText: '600 DM' },
+    { id: 's1_kurs', text: 'Bilde dich an der Volkshochschule weiter', check: (g) => !!g.s.story.flags.cobol, reward: { rep: 1 }, rewardText: 'Ruf +1' },
+    { id: 's1_aktien', text: 'Besitze 60 KB-Aktien', check: (g) => g.s.shares.owned >= 60, reward: { cash: 400 }, rewardText: '400 DM' },
+  ],
+  [
+    { id: 's2_moral', text: 'Alle im Team mit Moral ab 80 %', check: (g) => g.s.team.members.length >= 3 && g.s.team.members.every((m) => m.morale >= 80), reward: { rep: 2 }, rewardText: 'Ruf +2' },
+    { id: 's2_q8', text: 'Bring den HC-1 mit Qualität 8 oder besser heraus', check: (g) => g.s.product.quality >= 8, reward: { cash: 1500 }, rewardText: '1.500 DM' },
+    { id: 's2_30k', text: 'Verkaufe 30.000 HC-1', check: (g) => g.s.product.units >= 30000, reward: { upgrade: 'hc1modell' }, rewardText: 'Modell des HC-1' },
+  ],
+  [
+    { id: 's3_linien', text: 'Alle drei Produktlinien gleichzeitig im Handel', check: (g) => allLines(g).every((l) => l.model), reward: { cash: 5000 }, rewardText: '5.000 DM' },
+    { id: 's3_q10', text: 'Ein Modell mit Qualität 10', check: (g) => allLines(g).some((l) => l.model && l.model.q >= 10), reward: { rep: 2 }, rewardText: 'Ruf +2' },
+    { id: 's3_anteil', text: 'Über 40 % aller Käufer einer Linie in einem Monat', check: (g) => allLines(g).some((l) => l.last && l.last.share >= 0.4), reward: { cash: 3000 }, rewardText: '3.000 DM' },
+  ],
+  [
+    { id: 's4_staedte', text: 'Alle 12 Städte an KB-Net angeschlossen', check: (g) => g.s.net.nodes.length >= 12, reward: { cash: 8000 }, rewardText: '8.000 DM' },
+    { id: 's4_q8', text: 'KB-Net mit Qualität 8 oder besser', check: (g) => g.netQuality() >= 8, reward: { rep: 2 }, rewardText: 'Ruf +2' },
+    { id: 's4_100k', text: '100.000 Kunden bei KB-Net', check: (g) => g.s.net.subs >= 100000, reward: { cash: 10000 }, rewardText: '10.000 DM' },
+  ],
+  [
+    { id: 's5_raus', text: 'Verkaufe eine Beteiligung mit Gewinn', check: (g) => (g.s.corp.sold || []).some((x) => x.got > x.paid), reward: { cash: 20000 }, rewardText: '20.000 DM' },
+    { id: 's5_kasse', text: 'Konzernkasse über 1 Mrd. DM', check: (g) => g.s.corp.cash >= 1e9, reward: { cash: 25000 }, rewardText: '25.000 DM' },
+    { id: 's5_y2k', text: 'Kein Ausfall zum Jahr 2000', check: (g) => !!g.s.story.flags.y2k_safe, reward: { rep: 2 }, rewardText: 'Ruf +2' },
+  ],
+  [
+    { id: 's6_klar', text: 'Gewinne die Übernahmeschlacht mit Orion unter 30 %', check: (g) => g.s.takeover.done && g.s.takeover.won && g.s.takeover.orion < 30, reward: { cash: 50000 }, rewardText: '50.000 DM' },
+    { id: 's6_ausland', text: 'Erschließe den ersten Auslandsmarkt', check: (g) => (g.s.world?.open || []).length >= 1, reward: { upgrade: 'globus' }, rewardText: 'Globus' },
+    { id: 's6_zukunft', text: 'Erforsche 3 Zukunftstechnologien', check: (g) => (g.s.rd.futureDone || 0) >= 3, reward: { cash: 100000 }, rewardText: '100.000 DM' },
+  ],
 ];

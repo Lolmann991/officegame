@@ -57,7 +57,7 @@ export const CHAPTERS = [
   { no: 5, title: 'Die Netz-Wette', stage: 4, jumpYear: 1993,
     intro: 'Sechs Jahre später, Januar 1993. Du leitest den Geschäftsbereich Netz, mit größerem Büro und Sitzecke. Neu ist das Programm NETZ: Baue den Onlinedienst KB-Net auf, Stadt für Stadt. Aber im Vorstand hat das Netz nicht nur Freunde.' },
   { no: 6, title: 'Im Vorstand', stage: 5, jumpYear: 1999,
-    intro: 'Sommer 1999. Du sitzt im Vorstand und verantwortest die Finanzen. An der Börse ist alles möglich, jede Firma mit „.de“ im Namen ist Millionen wert. Neu ist das Programm FIN. Aber Kessler sagt: Was so schnell steigt, fällt auch so schnell.' },
+    intro: 'Herbst 1999. Du sitzt im Vorstand und verantwortest die Finanzen. An der Börse ist alles möglich, jede Firma mit „.de“ im Namen ist Millionen wert. Neu ist das Programm FIN. Aber Kessler sagt: Was so schnell steigt, fällt auch so schnell.' },
   { no: 7, title: 'Die Übernahme', stage: 6, jumpYear: 2008,
     intro: 'Januar 2008. Du führst KB seit sechs Jahren als Vorstandsvorsitzender, Kessler sitzt dem Aufsichtsrat vor. Die Zeiten scheinen ruhig. Aber in Frankfurt plant jemand seine Rückkehr.' },
 ];
@@ -148,6 +148,12 @@ export const UPGRADES = [
     desc: '+4 Leistung/s. Mit Korrekturband.' },
   { id: 'pokal', name: 'Pokal „Ideenwettbewerb 1980“', price: 0, rep: 3, kind: 'Status', shop: false,
     desc: 'Vom Vorstand überreicht.' },
+  { id: 'lochkarte', name: 'Goldene Lochkarte', price: 0, rep: 1, kind: 'Status', shop: false,
+    desc: 'Belohnung für 15 fehlerfreie Aufträge in Folge.' },
+  { id: 'hc1modell', name: 'Modell des HC-1', price: 0, rep: 1, kind: 'Status', shop: false,
+    desc: 'Ein Geschenk der Gruppe Heimcomputer.' },
+  { id: 'globus', name: 'Globus', price: 0, rep: 1, kind: 'Status', shop: false,
+    desc: 'Für den ersten Schritt ins Ausland.' },
 ];
 
 export const TASKS = [
@@ -304,3 +310,34 @@ export const ACHIEVEMENTS = [
   { id: 'unabhaengig', name: 'Unabhängig', desc: 'Die Übernahme durch Orion abwehren' },
   { id: 'pacman', name: 'Den Spieß umgedreht', desc: 'Orion selbst übernehmen' },
 ];
+
+// ---------------------------------------------------------------- Endlosmodus: Zukunftsforschung
+export const FUTURE_PREFIX = ['Quanten', 'Neuro', 'Photonen', 'Graphen', 'Orbital', 'Bio', 'Holo', 'Nano', 'Fusions', 'Schwarm'];
+export const FUTURE_CAT = ['Rechenkern', 'Speicher', 'Netz', 'Display', 'Akku', 'Sensorik', 'Assistent', 'Betriebssystem'];
+export const futureName = (n) => `${FUTURE_PREFIX[n % FUTURE_PREFIX.length]}-${FUTURE_CAT[(n * 3) % FUTURE_CAT.length]} · Gen. ${Math.floor(n / FUTURE_PREFIX.length) + 1}`;
+export const futureCost = (n) => Math.round((900 * Math.pow(1.3, n)) / 10) * 10;
+
+// ---------------------------------------------------------------- Endlosmodus: Weltmarkt
+// factor = zusätzliche Marktgröße für alle Produktlinien. x/y/w/h = Lage auf der Pixelkarte (64×32).
+export const WORLD_REGIONS = [
+  { id: 'benelux', name: 'Benelux', cost: 150e6, factor: 0.15, months: 2, x: 30, y: 8, w: 2, h: 2 },
+  { id: 'frankreich', name: 'Frankreich', cost: 300e6, factor: 0.25, months: 3, x: 28, y: 10, w: 3, h: 3 },
+  { id: 'uk', name: 'Großbritannien', cost: 300e6, factor: 0.25, months: 3, x: 27, y: 6, w: 2, h: 3 },
+  { id: 'skandinavien', name: 'Skandinavien', cost: 200e6, factor: 0.12, months: 2, x: 32, y: 3, w: 4, h: 4 },
+  { id: 'osteuropa', name: 'Osteuropa', cost: 250e6, factor: 0.2, months: 3, x: 35, y: 7, w: 5, h: 4 },
+  { id: 'nordamerika', name: 'Nordamerika', cost: 1.2e9, factor: 0.9, months: 6, x: 6, y: 5, w: 14, h: 9 },
+  { id: 'suedamerika', name: 'Südamerika', cost: 400e6, factor: 0.3, months: 4, x: 14, y: 17, w: 7, h: 11 },
+  { id: 'japan', name: 'Japan', cost: 600e6, factor: 0.35, months: 4, x: 56, y: 9, w: 2, h: 4 },
+  { id: 'china', name: 'China', cost: 800e6, factor: 0.6, months: 5, x: 46, y: 8, w: 8, h: 7 },
+  { id: 'indien', name: 'Indien', cost: 500e6, factor: 0.4, months: 4, x: 43, y: 14, w: 4, h: 5 },
+];
+
+// ---------------------------------------------------------------- Nachfolge: dauerhafte Boni
+export const LEGACY_KEY = 'konzern.legacy.v1';
+export const PERKS = [
+  { id: 'kapital', name: 'Familienvermögen', desc: '+3.000 DM Startkapital je Stufe', max: 5 },
+  { id: 'fleiss', name: 'Arbeitsmoral', desc: '+10 % Grundleistung je Stufe', max: 5 },
+  { id: 'ruf', name: 'Guter Name', desc: '+3 Ruf zum Start je Stufe', max: 3 },
+  { id: 'aktien', name: 'Erbe', desc: '+10 KB-Aktien zum Start je Stufe', max: 5 },
+];
+export const perkCost = (level) => 15 * (level + 1);

@@ -83,7 +83,7 @@ button { font: inherit; color: inherit; }
 }
 .form-sheet.collapsed > :not(.sheet-head):not(#ng-open) { display: none; }
 .form-sheet:not(.collapsed) #ng-open { display: none; }
-.sheet-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--paper-ink); padding-bottom: 8px; }
+.sheet-head { display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--paper-ink); padding-bottom: 8px; }
 .sheet-head b { font-family: var(--f-display); font-size: 14px; letter-spacing: 0.06em; }
 .sheet-head span { font-size: 12px; color: var(--paper-dim); }
 .field { display: grid; gap: 4px; font-size: 13px; color: var(--paper-dim); }
@@ -109,6 +109,24 @@ legend { font-size: 13px; color: var(--paper-dim); margin-bottom: 4px; }
 .import-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .import label.btn input { display: none; }
 #t-import-msg { color: var(--bad); margin: 0; min-height: 1em; }
+.slots { display: grid; gap: 8px; }
+.slot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--line); padding: 10px 12px; }
+.slot .info { font-family: var(--f-term); font-size: 19px; line-height: 1.2; min-width: 0; }
+.slot .info b { font-family: var(--f-display); font-size: 12px; letter-spacing: 0.06em; color: var(--orange); display: block; }
+.slot .acts { display: flex; gap: 6px; }
+.slot .btn { padding: 8px 10px; }
+.slot.empty .info { color: var(--ink-dim); }
+.slot-pick { display: flex; gap: 6px; flex-wrap: wrap; }
+.slot-pick label { border: 1px solid #cdc6b2; padding: 6px 10px; cursor: pointer; font-size: 13px; }
+.slot-pick label:has(input:checked) { border-color: var(--paper-ink); background: #e9e3d1; }
+.slot-pick input { accent-color: var(--orange); }
+.perks-note { font-size: 13px; color: var(--paper-dim); margin: 0; }
+.legacy { background: var(--panel); border: 1px solid var(--orange); padding: 12px 14px; display: grid; gap: 8px; }
+.legacy h3 { font-family: var(--f-display); font-size: 13px; letter-spacing: 0.06em; color: var(--orange); margin: 0; display: flex; justify-content: space-between; }
+.legacy .perk { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; font-size: 14px; }
+.legacy .perk small { color: var(--ink-dim); display: block; }
+.legacy .btn { padding: 6px 10px; font-size: 11px; }
+.legacy ol { margin: 0; padding-left: 18px; font-family: var(--f-term); font-size: 18px; color: var(--ink-dim); }
 
 /* ---------------------------------------------------------------- HUD */
 .hud {
@@ -135,6 +153,7 @@ legend { font-size: 13px; color: var(--paper-dim); margin-bottom: 4px; }
 }
 .hud-decide { border-color: var(--orange); color: #ffb37a; }
 .hud-pause { color: var(--ink-dim); justify-self: start; }
+.hud-decide.rush { border-color: var(--bad); color: var(--bad); animation: pulse 1.2s ease-in-out infinite; }
 .hud-pause.on { border-color: var(--orange); color: var(--orange); }
 body.paused .scene-canvas { filter: grayscale(0.7) brightness(0.8); }
 
@@ -221,6 +240,9 @@ button.toast { cursor: pointer; }
 .tbar[data-grade="D"] > span { background: #ff9a7a; box-shadow: 0 0 6px #ff9a7a; }
 .task { margin-top: 14px; border: 1px solid var(--phos-dim); padding: 10px 12px; }
 .task-title { font-size: 1.1em; margin: 2px 0; color: #c9ffd6; }
+.task.rush { border-color: #ff9a7a; border-width: 2px; animation: rushpulse 1.2s ease-in-out infinite; }
+@keyframes rushpulse { 50% { border-color: transparent; } }
+.task.rush .tbar > span { background: #ff9a7a; box-shadow: none; }
 .task-code b { letter-spacing: 0.08em; }
 .prompt { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; font-size: 1.3em; }
 .task-input {
@@ -423,6 +445,25 @@ button.toast { cursor: pointer; }
   .mail { grid-template-columns: 1fr; }
   .hud { width: auto; right: max(16px, env(safe-area-inset-right, 0px)); }
 }
+@media (pointer: coarse) {
+  .crt-nav button { padding: 4px 8px; min-height: 32px; }
+  .tbtn { padding: 6px 12px; min-height: 36px; }
+  .tbtn.small { padding: 4px 8px; min-height: 32px; }
+  .hint { padding: 14px 18px; }
+}
+@media (max-width: 560px) {
+  .title { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .pc { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); align-items: start; overflow: auto; }
+  .hud { font-size: 17px; padding: 8px 10px; gap: 3px; }
+  .hud-role, .hud-mail { font-size: 15px; }
+  .crt { padding: 10px 10px 18px; }
+  .crt-glass { font-size: 18px; }
+  .crt-top { flex-direction: column; gap: 0; }
+  .toasts { max-width: calc(100vw - 32px); }
+  .toast { font-size: 16px; }
+  .dialog { padding: 12px 14px; }
+  .dlg-text { font-size: 17px; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -440,9 +481,7 @@ button.toast { cursor: pointer; }
     <div class="title-facts"><span>Kapitel 1 von 7</span><span>Idle-Wirtschaft</span><span>Speichert automatisch</span></div>
   </div>
   <div class="title-panel">
-    <div id="t-continue" class="continue" hidden>
-      <button type="button" id="t-continue-btn" class="btn primary">Weiterarbeiten<small id="t-continue-info"></small></button>
-    </div>
+    <div id="t-slots" class="slots"></div>
     <form id="newgame" class="form-sheet" autocomplete="off">
       <div class="sheet-head"><b>Personalbogen</b><span>Formular P-12 · Einstellung</span></div>
       <button type="button" id="ng-open" class="btn">Neues Spiel beginnen</button>
@@ -453,7 +492,12 @@ button.toast { cursor: pointer; }
         <legend>Schwierigkeitsgrad (später nicht änderbar)</legend>
         <div id="ng-diffs" style="display:grid;gap:6px"></div>
       </fieldset>
-      <p id="ng-overwrite" class="overwrite" hidden>Ein neues Spiel überschreibt den gespeicherten Spielstand.</p>
+      <fieldset>
+        <legend>Speicherplatz</legend>
+        <div id="ng-slots" class="slot-pick"></div>
+      </fieldset>
+      <p id="ng-overwrite" class="overwrite" hidden>Dieser Speicherplatz ist belegt und wird überschrieben.</p>
+      <p id="ng-perks" class="perks-note" hidden></p>
       <button type="submit" class="btn primary">Arbeitsvertrag unterschreiben</button>
     </form>
     <details class="import">
@@ -467,6 +511,7 @@ button.toast { cursor: pointer; }
         <p id="t-import-msg" role="status"></p>
       </div>
     </details>
+    <section id="t-legacy" class="legacy" hidden></section>
   </div>
 </section>
 
@@ -480,6 +525,7 @@ button.toast { cursor: pointer; }
   <div class="meter thin" title="Fortschritt des Monats"><span id="hud-month-bar"></span></div>
   <div id="hud-mail" class="hud-mail"></div>
   <button type="button" id="hud-decide" class="hud-decide" hidden></button>
+  <button type="button" id="hud-rush" class="hud-decide rush" hidden></button>
   <button type="button" id="hud-pause" class="hud-pause">PAUSE [P]</button>
 </aside>
 

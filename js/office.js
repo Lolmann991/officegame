@@ -172,6 +172,19 @@ function buildTextures() {
     c.fillStyle = '#444'; c.fillRect(3, 12, 2, 1);
   });
   TEX.leather = tex(8, 8, (c, w, h) => noiseFill(c, w, h, [62, 44, 36], 10, 31));
+  TEX.goldcard = tex(24, 12, (c) => {
+    c.fillStyle = '#d8b44e'; c.fillRect(0, 0, 24, 12);
+    c.fillStyle = '#a8842a'; c.fillRect(0, 0, 3, 3);
+    c.fillStyle = '#5a4612';
+    const rnd = rng(77);
+    for (let x = 4; x < 23; x += 1) for (let y = 2; y < 11; y += 2) if (rnd() > 0.7) c.fillRect(x, y, 1, 1);
+  });
+  TEX.globe = tex(32, 16, (c) => {
+    c.fillStyle = '#2f6fa8'; c.fillRect(0, 0, 32, 16);
+    c.fillStyle = '#5a9a4a';
+    [[3, 3, 6, 4], [6, 8, 3, 5], [14, 3, 4, 3], [15, 7, 4, 6], [20, 3, 8, 5], [25, 10, 4, 3]].forEach(([x, y, w, h]) => c.fillRect(x, y, w, h));
+    c.fillStyle = '#e8eef2'; c.fillRect(0, 0, 32, 1); c.fillRect(0, 15, 32, 1);
+  });
   TEX.keypad = tex(8, 8, (c) => {
     c.fillStyle = '#6f6a5c'; c.fillRect(0, 0, 8, 8);
     c.fillStyle = '#efe9d8';
@@ -418,10 +431,26 @@ export class Office {
 
     const el = r.domElement;
     window.addEventListener('mousemove', (e) => {
+      if (this.touching) return; // von Touch erzeugte Mausereignisse ignorieren
       this.look.tx = (e.clientX / window.innerWidth) * 2 - 1;
       this.look.ty = (e.clientY / window.innerHeight) * 2 - 1;
       this.updateHover(e);
     });
+    // Touch: Wischen zum Umsehen, Tippen auf den Monitor öffnet den PC (normaler click)
+    let drag = null;
+    const clamp = (v) => Math.max(-1, Math.min(1, v));
+    el.addEventListener('touchstart', (e) => {
+      const t = e.touches[0];
+      drag = { x: t.clientX, y: t.clientY, lx: this.look.tx, ly: this.look.ty };
+      this.touching = true;
+    }, { passive: true });
+    el.addEventListener('touchmove', (e) => {
+      if (!drag) return;
+      const t = e.touches[0];
+      this.look.tx = clamp(drag.lx - ((t.clientX - drag.x) / window.innerWidth) * 2.5);
+      this.look.ty = clamp(drag.ly - ((t.clientY - drag.y) / window.innerHeight) * 2.5);
+    }, { passive: true });
+    el.addEventListener('touchend', () => { drag = null; setTimeout(() => { this.touching = false; }, 400); });
     el.addEventListener('click', (e) => {
       if (this.mode !== 'desk') return;
       if (this.pickMonitor(e)) this.onMonitorClick();
@@ -679,6 +708,32 @@ export class Office {
     cyl(0.012, 0.012, 0.07, 6, 0xc9a646, 0, 0.075, 0, pokal);
     cyl(0.05, 0.02, 0.08, 8, 0xd8b44e, 0, 0.15, 0, pokal);
     s.add(pokal); U.pokal = pokal;
+
+    // Belohnungen aus Nebenzielen auf dem Beistellschrank
+    const card = new THREE.Group();
+    card.position.set(1.27, 0.72, -0.12);
+    card.rotation.y = -0.9;
+    box(0.2, 0.14, 0.015, 0x2b2a28, 0, 0.09, 0, card);
+    plane(0.17, 0.11, TEX.goldcard, 0, 0.09, 0.009, 0, card);
+    box(0.02, 0.1, 0.06, 0x2b2a28, 0, 0.05, -0.03, card);
+    s.add(card); U.lochkarte = card;
+    const hc = new THREE.Group();
+    hc.position.set(0.98, 0.72, 0.24);
+    hc.rotation.y = -0.5;
+    box(0.16, 0.03, 0.09, 0xd8cfb4, 0, 0.015, 0, hc);
+    box(0.13, 0.008, 0.05, [mat(0xd8cfb4), mat(0xd8cfb4), mat(TEX.keyboard), mat(0xd8cfb4), mat(0xd8cfb4), mat(0xd8cfb4)], 0, 0.034, 0.015, hc);
+    box(0.08, 0.06, 0.06, 0xd8cfb4, 0, 0.06, -0.03, hc);
+    plane(0.06, 0.04, 0x2a4a3a, 0, 0.06, 0.0005, 0, hc);
+    s.add(hc); U.hc1modell = hc;
+    const globe = new THREE.Group();
+    globe.position.set(1.3, 0.72, 0.26);
+    cyl(0.05, 0.06, 0.02, 8, 0x5a3a22, 0, 0.01, 0, globe);
+    box(0.012, 0.12, 0.012, 0xb08a2e, 0, 0.07, 0, globe);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), mat(TEX.globe));
+    ball.position.set(0, 0.15, 0);
+    ball.rotation.z = 0.4;
+    globe.add(ball);
+    s.add(globe); U.globus = globe;
 
     Object.values(U).forEach((o) => { o.visible = false; });
 

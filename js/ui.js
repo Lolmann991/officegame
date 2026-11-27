@@ -1,7 +1,7 @@
 // Oberflächen über dem 3D-Büro: Titel, HUD, Dialoge, Abrechnungen, Hinweise, Game Over.
 // Steuert außerdem, wann die Spielzeit läuft.
 
-import { DIFFICULTIES, MONTH_NAMES, STAGES, CHAPTERS, GRADE_COMMENTS, fmtDM, fmtNum, fmtInt, fmtPct, fmtAt, numAt } from './data.js';
+import { DIFFICULTIES, MONTH_NAMES, STAGES, CHAPTERS, GRADE_COMMENTS, PERKS, perkCost, fmtDM, fmtNum, fmtInt, fmtPct, fmtAt, numAt } from './data.js';
 import { PROJECTS } from './story.js';
 import { DIALOGS, PEOPLE } from './story.js';
 import { Game } from './game.js';
@@ -45,12 +45,24 @@ export class UI {
       this.pc.rerender(['erf']);
     });
     game.on('takeover', () => this.pc.rerender(['abwehr', 'fin', 'karr']));
+    game.on('world', () => this.pc.rerender(['welt', 'karr']));
+    game.on('rush', (st) => {
+      this.pc.rerender(['aufg']);
+      if (st === 'start' && !this.game.offlineMode) { this.toast('EILAUFTRAG! Drei Codes in 45 Sekunden', 'bad', () => this.openPC('aufg')); sfx.ring(); }
+    });
+    game.on('side', (sg) => {
+      if (this.game.offlineMode) return;
+      this.toast(`Nebenziel erreicht: ${sg.text} · ${sg.rewardText}`, 'good', () => this.openPC('karr'));
+      sfx.achievement();
+      this.pc.rerender(['karr']);
+    });
     $('#hud-decide').addEventListener('click', () => {
       const m = this.game.s?.mails.find((x) => x.choices && x.chosen == null);
       if (m) { this.pc.mailSel = m.uid; this.pc.panes[0] = 'post'; }
       this.openPC('post');
     });
     $('#hud-pause').addEventListener('click', () => this.togglePause());
+    $('#hud-rush').addEventListener('click', () => this.openPC('aufg'));
     game.on('upgrade', () => { this.office.setUpgrades(this.game.s.upgrades); this.pc.rerender(['shop', 'karr']); });
     game.on('payslip', ({ slip, offline }) => this.onPayslip(slip, offline));
     game.on('dialog', () => this.nextDialog());
@@ -89,28 +101,66 @@ export class UI {
     $('#hud').hidden = true;
     $('#hint').hidden = true;
     $('#gameover').hidden = true;
-    const save = Game.readSave();
-    const t = $('#title');
-    t.hidden = false;
-    const contBox = $('#t-continue');
-    if (save && !newGame) {
-      const st = STAGES[save.player.stage] || STAGES[0];
-      contBox.hidden = false;
-      $('#t-continue-info').textContent = `${save.player.name} · ${st.title} · ${MONTH_NAMES[save.time.month]} ${save.time.year}`;
-    } else {
-      contBox.hidden = true;
+    $('#title').hidden = false;
+    this.confirmDel = null;
+    this.renderTitle(newGame);
+  }
+
+  renderTitle(newGame = false) {
+    const saves = [1, 2, 3].map((n) => Game.readSave(n));
+    const any = saves.some(Boolean);
+    $('#t-slots').innerHTML = saves.map((sv, i) => {
+      const n = i + 1;
+      if (!sv) return `<div class="slot empty"><div class="info"><b>Platz ${n}</b>leer</div></div>`;
+      const st = STAGES[sv.player.stage] || STAGES[0];
+      const del = this.confirmDel === n ? 'Wirklich löschen?' : 'Löschen';
+      return `<div class="slot"><div class="info"><b>Platz ${n}</b>${esc(sv.player.name)} · ${esc(st.title)}<br>${MONTH_NAMES[sv.time.month]} ${sv.time.year} · ${esc(DIFFICULTIES[sv.difficulty]?.label || '')}</div>
+        <div class="acts"><button type="button" class="btn primary" data-slot-load="${n}">Weiter</button><button type="button" class="btn" data-slot-del="${n}">${del}</button></div></div>`;
+    }).join('');
+    const firstEmpty = saves.findIndex((x) => !x) + 1 || 1;
+    const sel = this.ngSlot || firstEmpty;
+    $('#ng-slots').innerHTML = saves.map((sv, i) => `<label><input type="radio" name="ng-slot" value="${i + 1}" ${sel === i + 1 ? 'checked' : ''}> Platz ${i + 1}${sv ? ' (belegt)' : ''}</label>`).join('');
+    $('#ng-overwrite').hidden = !saves[sel - 1];
+    $('#newgame').classList.toggle('collapsed', any && !newGame);
+    // Vermächtnis aus früheren Karrieren
+    const l = Game.readLegacy();
+    const perkTotal = Object.values(l.perks).reduce((a, b) => a + b, 0);
+    $('#ng-perks').hidden = !perkTotal;
+    $('#ng-perks').textContent = perkTotal ? `Dein Vermächtnis wirkt: ${PERKS.filter((p) => l.perks[p.id]).map((p) => `${p.name} ${l.perks[p.id]}`).join(', ')}.` : '';
+    const box = $('#t-legacy');
+    box.hidden = !(l.points > 0 || l.gallery.length);
+    if (!box.hidden) {
+      box.innerHTML = `<h3><span>Vermächtnis</span><span>${l.points} Punkte</span></h3>
+        ${PERKS.map((p) => {
+          const lvl = l.perks[p.id] || 0, cost = perkCost(lvl);
+          return `<div class="perk"><div>${esc(p.name)} · Stufe ${lvl}/${p.max}<small>${esc(p.desc)}</small></div>
+            ${lvl >= p.max ? '<span class="dim">voll</span>' : `<button type="button" class="btn" data-perk="${p.id}" ${l.points < cost ? 'disabled' : ''}>${cost} Punkte</button>`}</div>`;
+        }).join('')}
+        ${l.gallery.length ? `<h3><span>Ahnengalerie</span></h3><ol>${l.gallery.map((x) => `<li>${esc(x.name)}, bis ${x.until} · ${fmtDM(x.worth)} · ${x.points} Punkte</li>`).join('')}</ol>` : ''}
+        <small class="dim">Boni gelten für neue Spiele.</small>`;
     }
-    $('#ng-overwrite').hidden = !save;
-    $('#newgame').classList.toggle('collapsed', !!save && !newGame);
   }
 
   bindTitle() {
-    $('#t-continue-btn').addEventListener('click', () => this.continueGame());
+    $('#title').addEventListener('click', (e) => {
+      const load = e.target.closest('[data-slot-load]');
+      if (load) { this.continueGame(Number(load.dataset.slotLoad)); return; }
+      const del = e.target.closest('[data-slot-del]');
+      if (del) {
+        const n = Number(del.dataset.slotDel);
+        if (this.confirmDel === n) { Game.deleteSave(n); this.confirmDel = null; } else this.confirmDel = n;
+        this.renderTitle(); return;
+      }
+      const perk = e.target.closest('[data-perk]');
+      if (perk && !perk.disabled) { Game.buyPerk(perk.dataset.perk); this.renderTitle(!$('#newgame').classList.contains('collapsed')); }
+    });
+    $('#ng-slots').addEventListener('change', (e) => { this.ngSlot = Number(e.target.value); this.renderTitle(true); });
     $('#ng-open').addEventListener('click', () => { $('#newgame').classList.remove('collapsed'); $('#ng-name').focus(); });
     $('#newgame').addEventListener('submit', (e) => {
       e.preventDefault();
       const name = $('#ng-name').value.trim() || 'Alex Berger';
       const diff = document.querySelector('input[name="ng-diff"]:checked')?.value || 'normal';
+      this.game.slot = Number(document.querySelector('input[name="ng-slot"]:checked')?.value || 1);
       this.game.newGame(name, diff);
       this.enterGame();
     });
@@ -134,17 +184,19 @@ export class UI {
   }
 
   importSave(obj) {
+    if (this.screen === 'title') this.game.slot = Number(document.querySelector('input[name="ng-slot"]:checked')?.value || 1);
     this.game.loadFrom(obj);
     this.game.s.gameOver = null;
     this.game.save();
     this.pc.hide();
     this.enterGame();
-    this.toast('Spielstand geladen', 'good');
+    this.toast(`Spielstand geladen (Platz ${this.game.slot})`, 'good');
   }
 
-  continueGame() {
-    const save = Game.readSave();
+  continueGame(slot = 1) {
+    const save = Game.readSave(slot);
     if (!save) { this.toTitle(true); return; }
+    this.game.slot = slot;
     this.game.loadFrom(save);
     const away = (Date.now() - (save.lastSaved || Date.now())) / 1000;
     this.enterGame();
@@ -153,6 +205,25 @@ export class UI {
       this.game.save();
       if (sum && sum.months > 0) this.showAwaySummary(sum);
     }
+  }
+
+  // In den Ruhestand: Vermächtnis-Punkte gutschreiben, zurück zum Titel
+  retire() {
+    const sum = this.game.retire();
+    if (!sum) return;
+    this.toTitle();
+    this.modal(`
+      <div class="sheet">
+        <div class="eyebrow">Ruhestand</div>
+        <h2>Ein Platz in der Ahnengalerie</h2>
+        <p>${esc(sum.name)} übergibt die Kessler &amp; Brandt Rechenwerke AG an die nächste Generation. Privatvermögen: ${fmtDM(sum.worth)}.</p>
+        <dl class="sheet-dl">
+          <dt>Vermächtnis-Punkte</dt><dd>+${sum.points}</dd>
+          <dt>Insgesamt</dt><dd>${sum.total}</dd>
+        </dl>
+        <p class="dim">Gib die Punkte auf dem Titelbildschirm für dauerhafte Boni aus. Sie gelten für jedes neue Spiel.</p>
+        <button type="button" class="btn primary" data-close>Zum Titelbildschirm</button>
+      </div>`, 'm-sheet');
   }
 
   enterGame() {
@@ -219,6 +290,8 @@ export class UI {
     $('#hud-month-bar').style.width = `${(g.s.time.monthProgress / g.monthSeconds()) * 100}%`;
     const open = g.s.mails.filter((m) => m.choices && m.chosen == null).length;
     $('#hud-decide').hidden = !open;
+    $('#hud-rush').hidden = !g.s.rush;
+    if (g.s.rush) $('#hud-rush').textContent = `! Eilauftrag ${g.s.rush.idx + 1}/3 · ${Math.ceil(g.s.rush.left)} s`;
     $('#hud-decide').textContent = `! ${open} Entscheidung${open > 1 ? 'en' : ''} offen`;
     const u = g.unreadCount();
     $('#hud-mail').textContent = u ? `${u} neue Nachricht${u > 1 ? 'en' : ''}` : 'Keine neuen Nachrichten';

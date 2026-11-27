@@ -1,4 +1,4 @@
-# KONZERN (v0.7)
+# KONZERN (v0.8)
 
 Idle-Wirtschaftsspiel im Browser. Du beginnst 1978 als Junior-Sachbearbeiter bei der fiktiven
 Kessler & Brandt Rechenwerke AG und arbeitest dich hoch. Gespielt wird am Schreibtisch in einem
@@ -24,8 +24,19 @@ Das Spiel enthält die komplette Story in sieben Kapiteln und danach einen Endlo
    Im Programm ABWEHR kämpfst du mit Aktienrückkäufen, Kampagnen oder einem Gegenangebot um die Mehrheit.
    Entscheidungen aus allen Kapiteln bestimmen, wer zu KB hält (Kessler, Belegschaft, Sauer, ein weißer Ritter).
 
-Nach dem Finale läuft das Spiel endlos weiter: neue Projekte, Produktgenerationen, Konkurrenz und Zufallsereignisse,
-über die du als CEO entscheidest.
+In jedem Kapitel gibt es außerdem Eilaufträge mit Zeitlimit, drei freiwillige Nebenziele mit Belohnung
+(im Programm KARR) und zusätzliche Ereignisse mit Entscheidungen.
+
+## Endlosmodus
+
+Nach dem Finale läuft das Spiel endlos weiter:
+
+- **Zukunftsforschung** (Programm F&E): unendlich viele Technologie-Generationen, jede hebt Qualität und Höchstqualität.
+- **Weltmarkt** (Programm WELT): zehn Auslandsregionen von Benelux bis China vergrößern den Markt aller Produktlinien.
+- **Zufallsereignisse** mit Entscheidungen als CEO.
+- **Nachfolge**: Im Programm KARR gehst du in den Ruhestand. Das Spiel endet, du erhältst Vermächtnis-Punkte und kaufst
+  auf dem Titelbildschirm dauerhafte Boni für neue Spiele (Startkapital, Grundleistung, Ruf, Aktien).
+  Frühere Karrieren stehen in der Ahnengalerie.
 
 ## Komfort
 
@@ -36,6 +47,8 @@ Nach dem Finale läuft das Spiel endlos weiter: neue Projekte, Produktgeneration
 - **Erfolge** im Programm ERFOLGE.
 - **Offene Entscheidungen** zeigt das HUD an; ein Klick öffnet die Mail.
 - Ab 2002 rechnet das Spiel in **Euro**, alte Abrechnungen bleiben in DM.
+- **Drei Speicherplätze** auf dem Titelbildschirm. Platz 1 übernimmt bestehende Spielstände.
+- **Handy**: Wischen zum Umsehen, Tippen auf den Monitor öffnet den PC, größere Tasten.
 
 Konzept, Story und Roadmap: [Game Design Document](https://claude.ai/artifact/FPW1vS3g2BwqXAwNP99H65)
 
@@ -83,7 +96,7 @@ gebraucht. Nur die Schriften kommen von Google Fonts; ohne Internet greifen Ersa
 | `js/data.js` | Balancing und Konstanten: Stufen, Upgrades, Schwierigkeitsgrade, Auftragsvorlagen |
 | `js/story.js` | Story: Figuren, Projekte, Mails, Dialoge, Ereignisse, Missionen, Entscheidungen |
 | `js/office.js` | Three.js-Büro: Geometrie, Canvas-Pixeltexturen, Kamera, Figuren |
-| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, PERS, PROD, F&E, ABT, NETZ, FIN, ABWEHR, LOHN, DEPOT, BEDARF, KARR, ERFOLGE, SYS |
+| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, PERS, PROD, F&E, ABT, NETZ, FIN, ABWEHR, WELT, LOHN, DEPOT, BEDARF, KARR, ERFOLGE, SYS |
 | `js/sound.js` | Kleine Geräusche über die Web Audio API, ohne Audiodateien |
 | `js/ui.js` | Titel, HUD, Dialogablauf, Entgeltabrechnung, Offline-Zusammenfassung, Game Over |
 

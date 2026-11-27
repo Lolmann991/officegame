@@ -7,10 +7,10 @@ import {
   TECHS, LINES, MARKETING, RD_BUDGETS, DEPT_COMMISSION,
   NET_CITIES, NET_NODE_COST, NET_NODE_UPKEEP, NET_TARIFFS, NET_UPGRADES,
   STARTUPS, DIVIDEND_POLICIES, CORP_LOAN_STEP, CORP_LOAN_RATE,
-  TAKEOVER, ACHIEVEMENTS, fmtDM, fmtNum, fmtInt, fmtPct, cur, toCur, numAt,
+  TAKEOVER, ACHIEVEMENTS, WORLD_REGIONS, futureName, futureCost, fmtDM, fmtNum, fmtInt, fmtPct, cur, toCur, numAt,
 } from './data.js';
 import { sfx, setSound } from './sound.js';
-import { MISSIONS, missionsDone } from './story.js';
+import { MISSIONS, SIDE_GOALS, missionsDone } from './story.js';
 import { Game } from './game.js';
 
 const APPS = [
@@ -24,6 +24,7 @@ const APPS = [
   { id: 'netz', label: 'NETZ', title: 'KB-Net', minStage: 4 },
   { id: 'fin', label: 'FIN', title: 'Finanzen', minStage: 5 },
   { id: 'abwehr', label: 'ABWEHR', title: 'Übernahmeabwehr', minStage: 6 },
+  { id: 'welt', label: 'WELT', title: 'Weltmarkt', minStage: 6 },
   { id: 'lohn', label: 'LOHN', title: 'Entgeltabrechnungen' },
   { id: 'depot', label: 'DEPOT', title: 'Konto und Depot' },
   { id: 'shop', label: 'BEDARF', title: 'Bürobedarf' },
@@ -94,6 +95,7 @@ export class PC {
     body.innerHTML = this['app_' + app](i);
     this.root.querySelectorAll(`.crt[data-pane="${i}"] .crt-nav button`).forEach((b) => b.classList.toggle('on', b.dataset.app === app));
     if (app === 'depot') this.drawChart(i);
+    if (app === 'welt') this.drawMap(i);
   }
 
   // Programme mit gleichem Namen in allen Fenstern neu zeichnen (z. B. nach Kauf)
@@ -142,6 +144,7 @@ export class PC {
       teamRate: `${fmtInt(g.perMonth(g.teamRate()))} Pkt/Monat (${s.team.members.length} Leute)`,
       payroll: `${fmtDM(g.payroll())} / ${fmtDM(s.team.budget)}`,
       morale: fmtPct(g.avgMorale() / 100),
+      rushLeft: s.rush ? String(Math.max(0, Math.ceil(s.rush.left))) : '',
       projPP: s.projects.active ? `${fmtInt(s.projects.active.pp)} / ${fmtInt(s.projects.active.need)} (${fmtPct(s.projects.active.pp / s.projects.active.need)})` : '',
       projEta: s.projects.active ? this.projEta() : '',
     };
@@ -154,6 +157,7 @@ export class PC {
     set('[data-bar="month"] > span', s.time.monthProgress / g.monthSeconds());
     if (s.projects.active) set('[data-bar="proj"] > span', s.projects.active.pp / s.projects.active.need);
     set('[data-bar="payroll"] > span', g.payroll() / (s.team.budget || 1));
+    if (s.rush) set('[data-bar="rush"] > span', s.rush.left / s.rush.total);
     set('[data-bar="morale"] > span', g.avgMorale() / 100);
     this.root.querySelectorAll('[data-bar="perf"]').forEach((el) => {
       const r = p.perf / target;
@@ -204,8 +208,15 @@ export class PC {
         <span>GRUNDLEISTUNG</span><span data-live="rate"></span>
         ${g.s.team.members.length ? '<span>DAVON TEAM</span><span data-live="teamRate"></span>' : ''}
       </div>
+      ${g.s.rush ? `<div class="task rush">
+        <div class="err">EILAUFTRAG ${g.s.rush.idx + 1}/${g.s.rush.codes.length} · NOCH <b data-live="rushLeft"></b> SEKUNDEN</div>
+        <div class="task-title">${esc(g.s.rush.codes[g.s.rush.idx].title)}</div>
+        <div class="task-code">AUFTRAGSCODE: <b>${esc(g.s.rush.codes[g.s.rush.idx].code)}</b> · DOPPELTE PUNKTE</div>
+        <span class="tbar" data-bar="rush"><span></span></span>
+        <div class="dim">ALLE DREI RECHTZEITIG: SONDERPRÄMIE ${fmtDM(g.rushReward())} UND RUF +1</div>
+      </div>` : ''}
       <div class="task">
-        <div class="dim">AKTUELLER AUFTRAG</div>
+        <div class="dim">AKTUELLER AUFTRAG${g.s.rush ? ' · DU KANNST AUCH HIER DEN EILCODE EINGEBEN' : ''}</div>
         <div class="task-title">${esc(t.title)}</div>
         <div class="task-code">AUFTRAGSCODE: <b>${esc(t.code)}</b></div>
         <label class="prompt" for="task-input-${i}">&gt;
@@ -438,7 +449,7 @@ export class PC {
 
   app_fue() {
     const g = this.game, rd = g.s.rd;
-    const curTech = TECHS.find((x) => x.id === rd.current);
+    const curTech = rd.current === 'future' ? { name: futureName(rd.futureDone || 0), cost: futureCost(rd.futureDone || 0) } : TECHS.find((x) => x.id === rd.current);
     const list = TECHS.map((t) => {
       const done = g.techDone(t.id), avail = g.techAvailable(t), isCur = rd.current === t.id;
       const req = t.req.length ? ` · BRAUCHT ${t.req.map((r) => TECHS.find((x) => x.id === r).name).join(', ')}` : '';
@@ -456,6 +467,10 @@ export class PC {
       ${curTech ? `<span class="tbar big"><span style="width:${Math.min(100, (rd.pool / curTech.cost) * 100).toFixed(1)}%"></span></span>` : ''}
       <div class="row"><span class="dim">BUDGET</span>${RD_BUDGETS.map((b) => `<button type="button" class="tbtn small ${rd.budget === b ? 'chosen' : ''}" data-act="rd-budget" data-arg="${b}">${b ? `${fmtInt(toCur(b) / 1000)} T${cur()}` : 'KEINS'}</button>`).join('')}</div>
       <h3>TECHNOLOGIEN ${rd.done.length}/${TECHS.length}</h3>${list}
+      ${g.futureAvailable() ? `<h3>ZUKUNFTSFORSCHUNG <span class="dim">${rd.futureDone || 0} ERFORSCHT · HÖCHSTQUALITÄT ${g.qualityCap()}</span></h3>
+      <div class="shop-row"><div><b>${rd.current === 'future' ? '[>]' : '[ ]'} ${esc(futureName(rd.futureDone || 0))}</b> <span class="dim">${fmtInt(futureCost(rd.futureDone || 0))} FP</span><br>
+        <span class="dim">+1 Qualität für alle Linien und +1 Höchstqualität. Danach folgt die nächste Generation.</span></div>
+        <div class="r">${rd.current === 'future' ? '<span class="ok">IN ARBEIT</span>' : '<button type="button" class="tbtn small" data-act="tech" data-arg="future">FORSCHEN</button>'}</div></div>` : ''}
       <p class="dim">Kreative Leute im Team erhöhen die Forschungspunkte.</p>`;
   }
 
@@ -573,6 +588,44 @@ export class PC {
       <div class="row"><button type="button" class="tbtn" data-act="pacman" ${c.cash < g.orionTakeoverPrice() ? 'disabled' : ''}>GEGENANGEBOT: ORION KAUFEN · ${fmtDM(g.orionTakeoverPrice())}</button></div>
       <p class="dim">Für das Gegenangebot brauchst du genug Geld in der Konzernkasse. Kredite gibt es im Programm FIN.</p>`}
       ${rows ? `<h3>VERLAUF</h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">ORION</th><th class="r">TREU</th><th class="r">FREI</th></tr></thead><tbody>${rows}</tbody></table>` : ''}`;
+  }
+
+  app_welt(i) {
+    const g = this.game, w = g.s.world, c = g.s.corp;
+    const rows = WORLD_REGIONS.map((r) => {
+      const open = w.open.includes(r.id), b = w.building.find((x) => x.id === r.id);
+      const state = open ? '<span class="ok">AKTIV</span>' : b ? `<span class="dim">IM AUFBAU · NOCH ${Math.max(1, b.ready - g.s.time.totalMonths)} MON.</span>`
+        : `<button type="button" class="tbtn small" data-act="region" data-arg="${r.id}" ${c.cash < r.cost ? 'disabled' : ''}>ERÖFFNEN · ${fmtDM(r.cost)}</button>`;
+      return `<div class="shop-row ${open ? 'owned' : ''}"><div><b>${esc(r.name)}</b> <span class="dim">+${Math.round(r.factor * 100)} % MARKT · ${r.months} MONATE AUFBAU</span></div><div class="r">${state}</div></div>`;
+    }).join('');
+    return `<h2>WELTMARKT <span class="dim">NIEDERLASSUNGEN</span></h2>
+      <canvas class="chart map" id="map-${i}" width="320" height="160" aria-label="Weltkarte mit Niederlassungen"></canvas>
+      <p class="dim">GRÜN: AKTIV · ORANGE: IM AUFBAU · ROT: KASSEL</p>
+      <div class="kv">
+        <span>MARKTGRÖSSE</span><span><b>${fmtPct(g.worldFactor())}</b> DES HEIMATMARKTS</span>
+        <span>KONZERNKASSE</span><span>${fmtDM(c.cash)}</span>
+      </div>
+      <p class="dim">Jede Niederlassung vergrößert den Markt aller Produktlinien und bringt zusätzliches Stammgeschäft.</p>
+      ${rows}`;
+  }
+
+  drawMap(i) {
+    const cv = this.root.querySelector(`#map-${i}`) || this.root.querySelector('.map');
+    if (!cv) return;
+    const c = cv.getContext('2d'), w = this.game.s.world;
+    const S = 5; // 64×32 Raster
+    const two = this.game.era() >= 2;
+    c.fillStyle = two ? '#cfe0ef' : '#06180c'; c.fillRect(0, 0, 320, 160);
+    // grobe Kontinente
+    const land = two ? '#b9b6ac' : '#1d5c2e';
+    c.fillStyle = land;
+    [[4, 3, 18, 12], [12, 15, 10, 15], [26, 2, 16, 12], [28, 14, 10, 14], [40, 4, 20, 12], [42, 14, 6, 6], [52, 20, 8, 6]].forEach(([x, y, ww, h]) => c.fillRect(x * S, y * S, ww * S, h * S));
+    for (const r of WORLD_REGIONS) {
+      const open = w.open.includes(r.id), b = w.building.some((x) => x.id === r.id);
+      c.fillStyle = open ? (two ? '#2f9a55' : '#4dff7c') : b ? '#f2b134' : (two ? '#8f8b80' : '#2c9b4e');
+      c.fillRect(r.x * S, r.y * S, r.w * S, r.h * S);
+    }
+    c.fillStyle = '#d0662a'; c.fillRect(31 * S, 9 * S, S, S); // Kassel
   }
 
   app_erf() {
@@ -694,7 +747,12 @@ export class PC {
       </div>
       <h3>ZIELE FÜR DIE BEFÖRDERUNG</h3>
       <ul class="tlist">${missions}</ul>
-      ${s.story.flags.endless ? '<p class="ok">Die Geschichte ist erzählt. KB gehört dir. Ab jetzt läuft der Endlosmodus mit neuen Projekten, Produkten und Ereignissen.</p>' : missionsDone(g) && p.stage < 6 ? '<p class="ok">Alle Ziele erreicht. Bald wird jemand mit dir sprechen.</p>' : ''}
+      ${s.story.flags.endless ? `<p class="ok">Die Geschichte ist erzählt. KB gehört dir. Ab jetzt läuft der Endlosmodus mit neuen Projekten, Produkten und Ereignissen.</p>
+      <h3>NACHFOLGE</h3>
+      <p>Wenn du in den Ruhestand gehst, endet dieses Spiel. Du erhältst <b>${g.legacyPoints()} Vermächtnis-Punkte</b> für dauerhafte Boni in neuen Spielen.</p>
+      <div class="row">${this.confirmRetire ? '<span class="err">WIRKLICH? DER SPIELSTAND WIRD GESCHLOSSEN.</span><button type="button" class="tbtn" data-act="retire-yes">JA, RUHESTAND</button><button type="button" class="tbtn" data-act="retire-no">NEIN</button>' : '<button type="button" class="tbtn" data-act="retire">IN DEN RUHESTAND GEHEN …</button>'}</div>` : missionsDone(g) && p.stage < 6 ? '<p class="ok">Alle Ziele erreicht. Bald wird jemand mit dir sprechen.</p>' : ''}
+      <h3>NEBENZIELE <span class="dim">FREIWILLIG, MIT BELOHNUNG</span></h3>
+      <ul class="tlist">${(SIDE_GOALS[p.stage] || []).map((sg) => `<li class="${s.sideDone[sg.id] ? 'ok' : ''}">[${s.sideDone[sg.id] ? 'X' : ' '}] ${esc(sg.text)} <span class="dim">→ ${esc(sg.rewardText)}</span></li>`).join('') || '<li class="dim">Keine.</li>'}</ul>
       <h3>LAUFBAHN BEI KB</h3>
       <ul class="tlist ladder">${ladder}</ul>`;
   }
@@ -827,6 +885,10 @@ export class PC {
       case 'net-up': if (g.upgradeNet()) this.ui.toast('Modempool ausgebaut', 'good'); this.rerender(['netz']); break;
       case 'tariff': g.setTariff(Number(arg)); this.rerender(['netz']); break;
       case 'policy': g.setPolicy(arg); this.rerender(['fin']); break;
+      case 'region': if (g.openRegion(arg)) this.ui.toast('Niederlassung im Aufbau', 'good'); this.rerender(['welt', 'fin']); break;
+      case 'retire': this.confirmRetire = true; this.rerender(['karr']); break;
+      case 'retire-no': this.confirmRetire = false; this.rerender(['karr']); break;
+      case 'retire-yes': this.confirmRetire = false; this.ui.retire(); break;
       case 'month-len': g.setMonthSeconds(Number(arg)); this.ui.toast(`Ein Monat dauert jetzt ${Number(arg) / 60} Minute${Number(arg) === 60 ? '' : 'n'}`); this.rerender(['sys', 'aufg']); break;
       case 'buyback': { const v = g.buyback(); if (v) this.ui.toast(`Aktienrückkauf: ${fmtDM(v)}`, 'good'); this.rerender(['abwehr', 'fin']); break; }
       case 'campaign': if (g.campaign()) this.ui.toast('Kampagne läuft: Anzeigen in allen Wirtschaftszeitungen', 'good'); this.rerender(['abwehr', 'fin']); break;
