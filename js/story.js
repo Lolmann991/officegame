@@ -4,6 +4,7 @@
 import { DIFFICULTIES, STAGES, TEAM_BUDGET, DEPT_TEAM_BUDGET, ORION_HOME, fmtDM, fmtPct, fmtInt, MONTH_NAMES } from './data.js';
 
 const first = (g) => g.s.player.name.split(' ')[0];
+const mp = (g) => g.s.time.monthProgress / g.monthSeconds(); // Anteil des laufenden Monats
 
 // ---------------------------------------------------------------- Figuren
 export const PEOPLE = {
@@ -14,6 +15,7 @@ export const PEOPLE = {
   brenner:  { name: 'Klaus Brenner', role: 'Personalberater, am Telefon' },
   sauer:    { name: 'Dr. Hartwig Sauer', role: (g) => (g.s.player.stage >= 5 ? 'Vorstand Strategie' : 'Finanzvorstand'), suit: 0x26262b, shirt: 0xf2f0ea, hair: 0x4a3a2c, tie: 0x1f3a6a, glasses: true },
   rau:      { name: 'Dr. Viktor Rau', role: 'Vorstandschef von Orion Datentechnik, am Telefon' },
+  hayashi:  { name: 'Kenji Hayashi', role: 'Vorstandschef von Hayashi Denki, Osaka, am Telefon' },
   uwe:      { name: 'Uwe Krämer', role: 'Senior-Entwickler, seit 1961 bei KB', suit: 0x55585a, shirt: 0xd9d2bd, hair: 0xa8a49a, tie: 0x2f3f2a, glasses: true },
 };
 
@@ -655,6 +657,115 @@ Ihr neues Grundgehalt beträgt ${fmtDM(STAGES[6].salary * (1 + (g.s.player.salar
 Ich gehe nächstes Jahr in Rente. Ich hätte mir keinen schöneren Abschied wünschen können.
 Ingrid Bergmann`,
   },
+  endless: {
+    from: 'K. Sommer · Vorstandsbüro',
+    subject: 'Entscheidung',
+    body: (g, v) => `${v.body}\n\nBitte entscheiden Sie.\n\nKarin Sommer`,
+  },
+  // ---------- Euro und Kapitel 7
+  euro: {
+    from: 'Konzern-Controlling',
+    subject: 'Umstellung auf Euro',
+    body: () => `Seit dem 1. Januar 2002 ist der Euro unser Zahlungsmittel. Alle Beträge im Konzern, auf Ihrer Entgeltabrechnung und auf Ihrem Konto werden ab sofort in Euro geführt.
+
+Umrechnungskurs: 1 Euro = 1,95583 DM.
+
+Alte Abrechnungen bleiben in DM archiviert.
+
+Konzern-Controlling`,
+  },
+  c7_ceo: {
+    from: 'H. Kessler · Aufsichtsratsvorsitzender',
+    subject: 'Sechs Jahre',
+    body: (g) => `${first(g)},
+
+sechs Jahre sind Sie jetzt Vorstandsvorsitzender. Ich lese die Quartalszahlen inzwischen mit einer Lupe, aber ich lese sie noch.
+
+Eine Sache macht mir Sorgen: Viktor Rau ist zurück. Er ist wieder Vorstandschef bei Orion, und hinter ihm steht Hawk Capital, ein Finanzinvestor aus London mit sehr viel Geld und sehr wenig Geduld.
+
+Rau hat nie vergessen, was zwischen Orion und KB war. Seien Sie wachsam.
+
+Heinrich Kessler`,
+  },
+  c7_mobilnet_offer: {
+    from: 'Pomona Inc. · Cupertino',
+    subject: 'Angebot für MobilNet',
+    body: (g) => `Dear Board of KB,
+
+wir möchten Ihre Beteiligung MobilNet AG übernehmen. Die Software Ihrer Karlsruher Kollegen passt perfekt zu unserem neuen Smartphone.
+
+Unser Angebot: ${fmtDM(g.startupValue('mobilnet'))}, in bar.
+
+Best regards,
+Pomona Inc.`,
+    choices: ['Verkaufen, das Geld gibt uns Spielraum', 'Behalten, MobilNet ist unsere Zukunft'],
+  },
+  c7_lehman: {
+    from: 'KB-Hausnachrichten',
+    subject: 'Bankenkrise: Börsen weltweit im freien Fall',
+    body: () => `NEW YORK / FRANKFURT. Nach dem Zusammenbruch einer großen amerikanischen Investmentbank sind die Börsen weltweit eingebrochen. Banken leihen sich gegenseitig kein Geld mehr, Unternehmen stoppen Investitionen.
+
+Auch die KB-Aktie verliert stark. Analysten warnen: Wer jetzt billig ist, wird zum Übernahmekandidaten.`,
+  },
+  c7_bid_news: {
+    from: 'KB-Hausnachrichten',
+    subject: 'Orion greift nach KB',
+    body: (g) => `FRANKFURT. Orion Datentechnik hat ein Übernahmeangebot für die Kessler & Brandt Rechenwerke AG vorgelegt: ${fmtDM(g.s.takeover.offer)} je Aktie, deutlich über dem aktuellen Kurs. Finanziert wird das Angebot von Hawk Capital.
+
+Orion hält nach eigenen Angaben bereits ${fmtInt(g.s.takeover.orion)} % der KB-Aktien. Für die Übernahme braucht Orion mehr als 50 %.
+
+Die Hauptversammlung von KB findet in sieben Monaten statt. Bis dahin entscheidet sich, wem KB gehört. Den Stand siehst du im Programm ABWEHR.`,
+  },
+  c7_petra: {
+    from: 'Petra Lang · Betriebsratsvorsitzende',
+    subject: 'Wir stehen hinter dir',
+    body: (g) => `${first(g)},
+
+wir kennen uns seit dem Lochkartenstapel von 1978. Ich hätte nie gedacht, dass ich dir mal als Betriebsratsvorsitzende schreibe.
+
+Die Belegschaft hat abgestimmt: Wer Mitarbeiteraktien hat, verkauft nicht an Orion. Keiner. Wir wissen, was Hawk Capital mit Firmen macht, die sie kaufen.
+
+Petra`,
+  },
+  c7_betriebsrat: {
+    from: 'Betriebsrat der KB AG',
+    subject: 'Stellungnahme zum Übernahmeangebot',
+    body: (g) => `Sehr geehrter Vorstand,
+
+der Betriebsrat hat das Angebot von Orion beraten. Wir empfehlen den Kolleginnen und Kollegen, ihre Mitarbeiteraktien nicht zu verkaufen.
+
+${g.s.story.flags.job_cuts ? 'Wir haben allerdings nicht vergessen, wer 2000 die 2.000 Stellen gestrichen hat. Viele Kollegen sind unentschlossen.' : 'Der Vorstand hat in der Krise 2000 keine Stellen gestrichen. Das zählt jetzt.'}
+
+Der Betriebsrat`,
+  },
+  c7_sommer_warn: {
+    from: 'K. Sommer · Vorstandsbüro',
+    subject: 'Vertraulich',
+    body: () => `Entschuldigen Sie, dass ich mich einmische.
+
+Dr. Sauer hat sich in den letzten Wochen dreimal mit Herrn Rau getroffen, zweimal in Frankfurt, einmal hier in Kassel im Hotel. Ich habe die Termine in seinem Kalender gesehen.
+
+Ich dachte, Sie sollten das wissen.
+
+Karin Sommer`,
+    choices: ['Sauer zur Rede stellen und entlassen', 'Abwarten und beobachten'],
+  },
+  c7_state_rescue: {
+    from: 'KB-Hausnachrichten',
+    subject: 'Land Hessen steigt bei KB ein',
+    body: () => `WIESBADEN. Um eine Zerschlagung zu verhindern, hat das Land Hessen kurzfristig ein Aktienpaket an der Kessler & Brandt Rechenwerke AG erworben. Die Übernahme durch Orion ist damit gescheitert.`,
+  },
+  c7_victory: {
+    from: 'KB-Hausnachrichten',
+    subject: 'KB bleibt unabhängig',
+    body: (g) => g.s.story.flags.orion_bought
+      ? `KASSEL. Paukenschlag: Statt übernommen zu werden, hat KB den Spieß umgedreht und Orion Datentechnik gekauft. Dr. Viktor Rau verlässt das Unternehmen. Hawk Capital zieht sich zurück.
+
+„Ich habe in vierzig Jahren viel gesehen“, sagt Aufsichtsratschef Heinrich Kessler. „Aber das noch nicht.“`
+      : `KASSEL. Die Übernahme der Kessler & Brandt Rechenwerke AG durch Orion ist gescheitert. Auf der Hauptversammlung kam Orion auf ${fmtInt(g.s.takeover.orion)} % der Stimmen, zu wenig für eine Mehrheit.
+
+Hawk Capital hat angekündigt, die gesammelten Aktien zu verkaufen. Dr. Rau war für eine Stellungnahme nicht zu erreichen.`,
+  },
   promotion_letter: {
     from: 'I. Bergmann · Personalabteilung',
     subject: 'Beförderung zum Sachbearbeiter',
@@ -907,6 +1018,56 @@ export const DIALOGS = {
     ],
     choices: ['Danke, Herr Kessler. Für alles.'],
   },
+  rau_bid: {
+    who: 'rau', phone: true,
+    lines: [
+      (g) => `${g.s.player.name}. Rau. Ich wollte, dass Sie es von mir hören und nicht aus der Zeitung.`,
+      'Orion hält seit heute früh 15 Prozent an KB. Leise gekauft, über Jahre. Morgen veröffentlichen wir unser Angebot an Ihre Aktionäre.',
+      'Ihre Aktie ist so billig wie seit zwanzig Jahren nicht. Ihre Aktionäre werden verkaufen, glauben Sie mir. In sieben Monaten ist Hauptversammlung. Danach gehört KB mir.',
+      (g) => (g.s.story.flags.kartell_confessed || g.s.story.flags.kartell_closed ? 'Sie haben mich damals beim Kartellamt verraten. Das hier ist persönlich.' : 'Nehmen Sie es nicht persönlich. Oder doch.'),
+    ],
+    choices: ['Wir sehen uns auf der Hauptversammlung, Herr Rau.'],
+  },
+  kessler_ch7: {
+    who: 'kessler',
+    lines: [
+      'Ich bin mit dem Taxi gekommen. Der Arzt sagt, ich soll nicht mehr Auto fahren. Der Arzt sagt vieles.',
+      (g) => `Meine Familie hält ${fmtInt(g.loyalBlocks()[0].pct)} Prozent an KB. Rau hat meinem Neffen gestern ein Angebot gemacht.`,
+      (g) => (g.s.story.flags.kartell_lied ? 'Ich will ehrlich sein: Seit der Sache mit dem Kartellamt ist meine Familie Ihnen gegenüber misstrauisch. Sie haben damals gelogen.' : 'Meine Familie vertraut Ihnen. Ich auch.'),
+      'Was soll ich ihnen sagen?',
+    ],
+    choices: ['Ich bitte Sie und Ihre Familie um Ihre Stimmen.', 'Halten Sie sich raus, Herr Kessler. Das ist meine Schlacht.'],
+  },
+  sauer_turn: {
+    who: 'sauer',
+    lines: [
+      'Machen Sie die Tür zu. Bitte.',
+      'Rau hat mich angesprochen. Dreimal. Er bietet mir Ihren Posten an, wenn ich ihm helfe.',
+      'Ich habe nie verheimlicht, dass ich CEO werden wollte. Aber nicht so. Nicht als Raus Marionette.',
+      'Ich habe Freunde unter den Aktionären. Ihre Stimmen gehören Ihnen. Sagen Sie Kessler nicht, dass ich das gesagt habe.',
+    ],
+    choices: ['Danke, Herr Sauer. Das vergesse ich Ihnen nicht.'],
+  },
+  hayashi_call: {
+    who: 'hayashi', phone: true,
+    lines: [
+      'Guten Tag. Hayashi aus Osaka. Verzeihen Sie die späte Stunde, bei uns ist es früher Morgen.',
+      'Hayashi Denki baut seit 1951 Rechner. Wie KB. Wir haben Ihr Haus immer bewundert.',
+      'Wir würden gern 18 Prozent an KB erwerben, als freundlicher Partner. Wir würden nie gegen den Vorstand stimmen. Wir möchten nur einen Sitz im Aufsichtsrat.',
+    ],
+    choices: ['Willkommen, Herr Hayashi. Wir nehmen an.', 'Danke, aber KB bleibt in deutscher Hand.'],
+  },
+  kessler_final: {
+    who: 'kessler',
+    lines: [
+      'Es ist vorbei. KB gehört sich selbst.',
+      (g) => (g.s.story.flags.orion_bought ? 'Sie haben Orion gekauft. Raus Orion. Ich habe in der Sitzung gelacht, zum ersten Mal seit Jahren.' : `Orion kam auf ${fmtInt(g.s.takeover.orion)} Prozent. Es hat gereicht. Knapp, aber es hat gereicht.`),
+      'Ich lege nächsten Monat den Vorsitz im Aufsichtsrat nieder. Diesmal wirklich.',
+      (g) => `Wissen Sie noch, 1978? Ich habe Sie gefragt, wohin die Reise geht. ${g.s.story.flags.vision_pc ? 'Sie haben gesagt: ein Computer auf jedem Schreibtisch. Sie hatten recht.' : 'Sie haben gesagt: Großrechner. Sie lagen falsch. Und trotzdem sind Sie hier.'}`,
+      'Das Haus gehört jetzt Ihnen. Machen Sie etwas daraus.',
+    ],
+    choices: ['Danke, Heinrich.'],
+  },
   hoff_promotion: {
     who: 'hoff',
     lines: [
@@ -967,7 +1128,9 @@ export const MISSIONS = [
     { id: 'shares', text: 'Besitze 300 KB-Aktien', prog: (g) => [g.s.shares.owned, 300] },
     { id: 'kartell', text: 'Keine Altlasten: Kartellverfahren abgeschlossen', prog: (g) => { const f = g.s.story.flags; return [!f.rau_deal || f.kartell_confessed || f.kartell_closed ? 1 : 0, 1]; } },
   ],
-  [],
+  [
+    { id: 'takeover', text: 'Wehre die Übernahme durch Orion ab', prog: (g) => [g.s.story.flags.takeover_won ? 1 : 0, 1] },
+  ],
 ];
 
 export function missionsDone(g) {
@@ -1167,10 +1330,53 @@ export const EVENTS = [
     run: (g) => { g.s.story.flags.mobilnet_kept = true; g.mail('c6_mobilnet'); } },
   { id: 'promotion6', when: (g) => g.s.player.stage === 5 && missionsDone(g) && g.idle(),
     run: (g) => g.dialog('kessler_ceo') },
+
+  // ---------- Euro und Kapitel 7
+  { id: 'euro', when: (g) => g.s.time.year >= 2002, run: (g) => g.mail('euro') },
+  { id: 'c7_start', when: (g) => g.s.player.stage >= 6,
+    run: (g) => {
+      const f = g.s.story.flags, tm = t(g);
+      if (tm.year < 2008) { tm.year = 2008; tm.month = 0; tm.monthProgress = 0; }
+      g.syncCurrency();
+      f.c7_month = tm.totalMonths;
+      g.mail('c7_ceo');
+      g.emit('era');
+      if (!f.seen_ch7) { f.seen_ch7 = true; g.emit('chapter', 7); }
+    } },
+  { id: 'c7_mobilnet', when: (g) => g.s.corp.owned.some((o) => o.id === 'mobilnet') && g.monthIndex() >= 109,
+    run: (g) => g.mail('c7_mobilnet_offer') },
+  { id: 'c7_lehman', when: (g) => g.s.player.stage >= 6 && g.monthIndex() >= 116.5,
+    run: (g) => g.mail('c7_lehman') },
+  { id: 'c7_bid', when: (g) => g.s.player.stage >= 6 && g.monthIndex() >= 117 && g.idle(),
+    run: (g) => g.dialog('rau_bid') },
+  { id: 'c7_kessler', when: (g) => g.s.takeover.active && !g.s.takeover.done && mp(g) > 0.4 && g.idle(),
+    run: (g) => g.dialog('kessler_ch7') },
+  { id: 'c7_belegschaft', when: (g) => g.s.takeover.active && t(g).totalMonths >= g.s.takeover.startMonth + 1 && mp(g) > 0.2,
+    run: (g) => g.mail(g.s.story.flags.loyal_petra ? 'c7_petra' : 'c7_betriebsrat') },
+  { id: 'c7_sauer', when: (g) => g.s.takeover.active && !g.s.takeover.done && t(g).totalMonths >= g.s.takeover.startMonth + 1 && mp(g) > 0.5 && g.idle(),
+    run: (g) => { if (g.s.story.flags.sauer_ally) g.dialog('sauer_turn'); else g.mail('c7_sommer_warn'); } },
+  { id: 'c7_knight', when: (g) => g.s.takeover.active && !g.s.takeover.done && t(g).totalMonths >= g.s.takeover.startMonth + 2 && mp(g) > 0.3 && g.idle(),
+    run: (g) => g.dialog('hayashi_call') },
+  { id: 'c7_final', when: (g) => g.s.takeover.done && g.s.takeover.won && g.idle(),
+    run: (g) => { g.mail('c7_victory'); g.dialog('kessler_final'); } },
 ];
 
 // ---------------------------------------------------------------- Reaktionen auf Entscheidungen
 export const ON_MAIL_CHOICE = {
+  c7_mobilnet_offer: (g, idx) => {
+    if (idx === 0) { const v = g.sellStartup('mobilnet'); g.s.story.flags.mobilnet_sold = v; }
+    else { g.s.story.flags.mobilnet_future = true; g.addRep(1); }
+  },
+  c7_sommer_warn: (g, idx) => {
+    if (idx === 0) { g.s.story.flags.sauer_fired = true; g.s.takeover.leak = -0.02; g.addRep(-1); }
+    else g.s.takeover.leak = 0.02;
+    g.emit('takeover');
+  },
+  endless: (g, idx, mail) => {
+    const ev = ENDLESS_EVENTS.find((e) => e.id === mail.meta);
+    ev?.apply(g, idx);
+    g.emit('corp');
+  },
   c6_kartell2: (g, idx) => {
     const f = g.s.story.flags;
     g.s.corp.cash -= 60e6;
@@ -1359,6 +1565,16 @@ export const ON_DIALOG_DONE = {
     g.promote();
     g.mail('promotion_ceo');
   },
+  rau_bid: (g) => { g.startTakeover(); g.mail('c7_bid_news'); g.emit('takeover'); },
+  kessler_ch7: (g, idx) => { if (idx === 0) g.s.story.flags.kessler_backs = true; else g.addRep(1); g.emit('takeover'); },
+  sauer_turn: (g) => { g.s.story.flags.sauer_turned = true; g.emit('takeover'); },
+  hayashi_call: (g, idx) => { if (idx === 0) g.s.story.flags.knight = true; g.emit('takeover'); },
+  kessler_final: (g) => {
+    g.s.story.flags.endless = true;
+    if (g.s.story.flags.orion_bought) g.s.story.flags.orion_gone = true;
+    g.emit('chapter', 8);
+    g.emit('change');
+  },
   kessler_vorstand: (g) => {
     g.promote();
     g.mail('promotion_vorstand');
@@ -1398,3 +1614,49 @@ export function warningVars(g, ratio, monthIdx) {
       : `Nach ${d.warningsLimit} Abmahnungen wird das Arbeitsverhältnis beendet.`,
   };
 }
+
+// ---------------------------------------------------------------- Endlosmodus: Zufallsereignisse
+// Erscheinen nach dem Finale mit etwa 30 % Wahrscheinlichkeit pro Monat als Mail mit zwei Entscheidungen.
+const cash = (g, v) => { g.s.corp.cash += v; };
+export const ENDLESS_EVENTS = [
+  { id: 'cyber', subject: 'Cyberangriff auf KB-Net',
+    body: () => 'Unbekannte haben sich Zugang zu den Servern von KB-Net verschafft. Die IT will das Netz für zwei Tage abschalten, um die Lücke zu schließen.',
+    choices: (g) => [`Abschalten und reparieren (${fmtDM(20e6)})`, 'Weiterlaufen lassen und leise flicken'],
+    apply: (g, i) => { if (i === 0) { cash(g, -20e6); g.addRep(1); } else { g.addRep(-3); g.shareShock(-0.05); } } },
+  { id: 'staat', subject: 'Großauftrag vom Bund',
+    body: () => 'Das Bundesfinanzministerium sucht einen Partner für ein neues Rechenzentrum. Die Konkurrenz wirft KB vor, zu gute Kontakte nach Berlin zu haben.',
+    choices: (g) => [`Annehmen (+${fmtDM(120e6)})`, 'Ablehnen, um Ärger zu vermeiden'],
+    apply: (g, i) => { if (i === 0) { cash(g, 120e6); g.addRep(-1); } else g.addRep(1); } },
+  { id: 'chips', subject: 'Chipmangel',
+    body: () => 'Ein Erdbeben in Asien hat eine wichtige Chipfabrik lahmgelegt. Der Einkauf kann Ersatz beschaffen, aber nur zu Wucherpreisen.',
+    choices: (g) => [`Teuer nachkaufen (${fmtDM(40e6)})`, 'Produktion drosseln'],
+    apply: (g, i) => { if (i === 0) cash(g, -40e6); else { g.shareShock(-0.04); g.s.corp.perfShock -= 0.03; } } },
+  { id: 'startup', subject: 'Ein Startup klopft an',
+    body: () => 'Drei Absolventinnen aus Darmstadt haben eine Software gebaut, mit der Rechenzentren ein Drittel weniger Strom verbrauchen. Sie wollen verkaufen.',
+    choices: (g) => [`Kaufen (${fmtDM(80e6)})`, 'Ablehnen'],
+    apply: (g, i) => { if (i === 0) { cash(g, -80e6); g.s.corp.legacyBoost += 1.5e6; g.addRep(1); g.shareShock(0.03); } } },
+  { id: 'daten', subject: 'Datenpanne',
+    body: () => 'Durch einen Fehler waren 20.000 Kundendaten von KB-Net eine Nacht lang öffentlich einsehbar. Noch weiß es niemand außerhalb des Hauses.',
+    choices: () => ['Öffentlich machen und entschuldigen', 'Schweigen'],
+    apply: (g, i) => { if (i === 0) g.addRep(-1); else { g.addRep(-4); g.shareShock(-0.06); } } },
+  { id: 'streik', subject: 'Warnstreik im Werk Kassel',
+    body: () => 'Die Gewerkschaft fordert 5 % mehr Lohn. Vor dem Werkstor stehen 800 Leute mit Trillerpfeifen.',
+    choices: (g) => [`Lohnerhöhung zustimmen (${fmtDM(2e6)} pro Monat)`, 'Hart bleiben'],
+    apply: (g, i) => { if (i === 0) { g.s.corp.legacyBoost -= 2e6; g.addRep(2); } else { g.addRep(-3); g.s.team.members.forEach((m) => g.changeMorale(m, -10)); } } },
+  { id: 'hype', subject: 'Neuer Technologie-Hype',
+    body: () => 'Alle reden von künstlicher Intelligenz. Analysten fragen bei jeder Telefonkonferenz, was KB plant.',
+    choices: (g) => [`Großes Forschungsprogramm (${fmtDM(150e6)})`, 'Abwarten'],
+    apply: (g, i) => { if (i === 0) { cash(g, -150e6); g.shareShock(0.08); g.s.corp.perfShock += 0.05; } } },
+  { id: 'preis', subject: 'Auszeichnung: Arbeitgeber des Jahres',
+    body: () => 'Ein Wirtschaftsmagazin hat KB zum Arbeitgeber des Jahres gewählt.',
+    choices: (g) => [`Fest für die Belegschaft (${fmtDM(2e6)})`, 'Pressemitteilung'],
+    apply: (g, i) => { if (i === 0) { cash(g, -2e6); g.s.team.members.forEach((m) => g.changeMorale(m, 10)); g.addRep(1); } else g.addRep(2); } },
+  { id: 'patent', subject: 'Patentklage',
+    body: () => 'Eine Firma aus Texas, die nichts herstellt, verklagt KB wegen eines Patents auf „Daten über ein Netzwerk übertragen“.',
+    choices: (g) => [`Vergleich (${fmtDM(30e6)})`, 'Vor Gericht kämpfen'],
+    apply: (g, i) => { if (i === 0) cash(g, -30e6); else { g.shareShock(-0.02); g.addRep(1); } } },
+  { id: 'fabrik', subject: 'Neues Werk in Asien?',
+    body: () => 'Die Strategieabteilung schlägt ein Werk in Malaysia vor. Günstiger als Kassel, aber in Kassel wird man das nicht gern hören.',
+    choices: (g) => [`Bauen (${fmtDM(300e6)})`, 'Nein, wir bleiben in Kassel'],
+    apply: (g, i) => { if (i === 0) { cash(g, -300e6); g.s.corp.legacyBoost += 3.5e6; g.addRep(-2); } else g.addRep(2); } },
+];

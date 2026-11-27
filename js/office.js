@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { PEOPLE } from './story.js';
-import { fmtInt, fmtNum } from './data.js';
+import { fmtInt, fmtNum, cur, toCur } from './data.js';
 
 const PIXEL = 2; // 1 Renderpixel = 2×2 Bildschirmpixel
 
@@ -162,6 +162,14 @@ function buildTextures() {
     c.fillStyle = '#9fc48a'; c.fillRect(1, 1, 4, 4);
     c.fillStyle = '#c9ccd2';
     for (let y = 7; y < 12; y += 2) for (let x = 1; x < 6; x += 2) c.fillRect(x, y, 1, 1);
+  });
+  TEX.smartphone = tex(8, 14, (c) => {
+    c.fillStyle = '#0d0e10'; c.fillRect(0, 0, 8, 14);
+    c.fillStyle = '#1d3d6a'; c.fillRect(1, 1, 6, 11);
+    const cols = ['#e2574c', '#f2b134', '#4bb35e', '#3a8fd8', '#a865d4', '#f2f2f2'];
+    let k = 0;
+    for (let y = 2; y < 11; y += 2) for (let x = 1; x < 7; x += 2) { c.fillStyle = cols[k++ % cols.length]; c.fillRect(x, y, 1, 1); }
+    c.fillStyle = '#444'; c.fillRect(3, 12, 2, 1);
   });
   TEX.leather = tex(8, 8, (c, w, h) => noiseFill(c, w, h, [62, 44, 36], 10, 31));
   TEX.keypad = tex(8, 8, (c) => {
@@ -824,6 +832,13 @@ export class Office {
     this.scene.add(handy);
     this.era3Objs = [handy];
     handy.visible = false;
+    const phone = new THREE.Group();
+    phone.position.set(0.34, 0.752, 0.22);
+    phone.rotation.y = -0.3;
+    box(0.065, 0.01, 0.125, [mat(0x0d0e10), mat(0x0d0e10), mat(TEX.smartphone), mat(0x0d0e10), mat(0x0d0e10), mat(0x0d0e10)], 0, 0.005, 0, phone);
+    phone.visible = false;
+    this.scene.add(phone);
+    this.era4Objs = [phone];
     // Vorstandsetage: Vorzimmer mit Sekretärin statt Großraum
     const vz = new THREE.Group();
     buildDesk(vz, 0.4, -2.7, Math.PI);
@@ -850,7 +865,12 @@ export class Office {
     this.era = era;
     const two = era >= 2;
     this.era2Objs.forEach((o) => { o.visible = two && era < 3 || o === this.era2Objs[1] && two; });
-    this.era3Objs.forEach((o) => { o.visible = era >= 3; });
+    this.era3Objs.forEach((o) => { o.visible = era === 3; });
+    this.era4Objs.forEach((o) => { o.visible = era >= 4; });
+    const wide = era >= 4 ? 1.25 : 1;
+    this.flat1.group.scale.set(wide, 1, 1);
+    this.flat2.group.scale.set(wide, 1, 1);
+    this.flat2.group.position.x = era >= 4 ? 0.66 : 0.58;
     this.applyMonitors();
     this.monitor1.group.position.y = two ? 0.86 : 0.75;
     const mats = this.keyboard.material;
@@ -899,7 +919,17 @@ export class Office {
     plane(1.55, 1.47, glass, 2.225, 1.635, -0.655, 0, g);
     box(0.05, 2.4, 0.07, frame, 3.0, 1.2, -0.66, g);
     box(1.6, 0.06, 0.07, frame, 2.22, 2.37, -0.66, g);
-    box(0.08, 2.9, 3.2, TEX.wall, 3.04, 1.45, 0.92, g);
+    this.loungeWall = box(0.08, 2.9, 3.2, TEX.wall, 3.04, 1.45, 0.92, g);
+    // Eckbüro des CEO: Fenster mit Blick auf die Skyline
+    const corner = new THREE.Group();
+    box(0.08, 2.9, 2.2, TEX.wall, 3.04, 1.45, 1.42, corner);
+    box(0.08, 0.9, 1.0, TEX.wall, 3.04, 0.45, -0.18, corner);
+    box(0.08, 0.35, 1.0, TEX.wall, 3.04, 2.73, -0.18, corner);
+    for (const z of [-0.66, -0.18, 0.3]) box(0.1, 1.65, 0.06, 0xd8d4c8, 3.04, 1.73, z, corner);
+    plane(9, 5, new THREE.MeshBasicMaterial({ map: TEX.skyWide, fog: false }), 7.5, 1.6, -0.5, -Math.PI / 2, corner);
+    corner.visible = false;
+    g.add(corner);
+    this.cornerWindow = corner;
     // Sofa
     const sofa = new THREE.Group();
     sofa.position.set(2.62, 0, 0.15);
@@ -997,6 +1027,8 @@ export class Office {
     this.leftPartition.forEach((m) => { m.visible = !atWindow; });
     this.rightPartition.visible = atWindow && stage < 4;
     this.lounge.visible = stage >= 4;
+    this.loungeWall.visible = stage < 6;
+    this.cornerWindow.visible = stage >= 6;
     this.leftWall.forEach((m) => { m.visible = !atWindow; });
     this.leftSpots.forEach((g) => { g.visible = !atWindow; });
     const spots = this.wallSpots[stage >= 4 ? 'lounge' : atWindow ? 'right' : 'left'];
@@ -1037,14 +1069,14 @@ export class Office {
       draw(this.screenCanvas, ['KB-TERMINAL 3270', '', 'VERBINDUNG ...', blink ? '_' : '']);
     } else {
       draw(this.screenCanvas, [
-        this.era >= 3 ? 'KB-WINDOWS 2000' : two ? 'KB PC  KB-WINDOWS' : 'KB-TERMINAL 3270', info.date, '', `POST ${info.unread ? info.unread + ' NEU' : 'LEER'}`,
+        this.era >= 4 ? 'KB OS 2008' : this.era >= 3 ? 'KB-WINDOWS 2000' : two ? 'KB PC  KB-WINDOWS' : 'KB-TERMINAL 3270', info.date, '', `POST ${info.unread ? info.unread + ' NEU' : 'LEER'}`,
         `LST ${fmtInt(info.perf)}/${fmtInt(info.target)}`, { bar: info.perf / info.target },
-        `KONTO ${fmtInt(info.cash)} DM`, blink ? '>_' : '>',
+        `KONTO ${fmtInt(toCur(info.cash))} ${cur() === '€' ? 'EUR' : 'DM'}`, blink ? '>_' : '>',
       ]);
     }
     this.screenTex.needsUpdate = true;
     if (this.hasMonitor2 && info) {
-      draw(this.screen2Canvas, ['DEPOT', `KB-AKTIE ${fmtNum(info.price)}`, `BESTAND ${info.owned}`, '', '', '', '', '']);
+      draw(this.screen2Canvas, ['DEPOT', `KB-AKTIE ${fmtNum(toCur(info.price))}`, `BESTAND ${info.owned}`, '', '', '', '', '']);
       const c = this.screen2Canvas.getContext('2d');
       const h = info.history.slice(-40);
       const lo = Math.min(...h), hi = Math.max(...h);

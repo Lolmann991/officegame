@@ -1,10 +1,10 @@
-# KONZERN (Prototyp v0.6)
+# KONZERN (v0.7)
 
 Idle-Wirtschaftsspiel im Browser. Du beginnst 1978 als Junior-Sachbearbeiter bei der fiktiven
 Kessler & Brandt Rechenwerke AG und arbeitest dich hoch. Gespielt wird am Schreibtisch in einem
 3D-Büro (Low-Poly, Pixeltexturen) über den Firmen-PC.
 
-Der Prototyp enthält die Kapitel 1 bis 6:
+Das Spiel enthält die komplette Story in sieben Kapiteln und danach einen Endlosmodus:
 
 1. **Der erste Tag:** Einstieg im Großraum, Aufträge, Gehaltsabrechnung, Mitarbeiteraktien, Beförderung zum Sachbearbeiter.
 2. **Lochkarten und Ehrgeiz:** Platz am Fenster, eigene Projekte (Programm PROJ), Ideenwettbewerb des Vorstands,
@@ -20,8 +20,22 @@ Der Prototyp enthält die Kapitel 1 bis 6:
 6. **Im Vorstand (1999–2002):** Vorstandsetage mit Flachbildschirmen und Sekretärin, Finanzressort (Programm FIN):
    Konzernkasse, Kredite, Dividende, Kapitalerhöhung, Börsengang von KB-Net, Beteiligungen am Neuen Markt.
    Börsenhype, Crash und Krise, Rückkehr des Kartellverfahrens, Ernennung zum CEO.
+7. **Die Übernahme (2008/09):** Eckbüro mit Skyline, Finanzkrise, feindliche Übernahme durch Orion und Hawk Capital.
+   Im Programm ABWEHR kämpfst du mit Aktienrückkäufen, Kampagnen oder einem Gegenangebot um die Mehrheit.
+   Entscheidungen aus allen Kapiteln bestimmen, wer zu KB hält (Kessler, Belegschaft, Sauer, ein weißer Ritter).
 
-Danach läuft das Spiel endlos weiter, mit laufend neuen Projekten.
+Nach dem Finale läuft das Spiel endlos weiter: neue Projekte, Produktgenerationen, Konkurrenz und Zufallsereignisse,
+über die du als CEO entscheidest.
+
+## Komfort
+
+- **Monatslänge** im Programm SYS: 1, 2 (Standard), 3 oder 5 Minuten. Monatsziele bleiben gleich, ein längerer Monat
+  lässt mehr Zeit für die Aufträge.
+- **Pause** mit `P` oder über den Knopf im HUD.
+- **Töne** (Tastenanschläge, Nadeldrucker bei der Abrechnung, Telefon), im Programm SYS abschaltbar.
+- **Erfolge** im Programm ERFOLGE.
+- **Offene Entscheidungen** zeigt das HUD an; ein Klick öffnet die Mail.
+- Ab 2002 rechnet das Spiel in **Euro**, alte Abrechnungen bleiben in DM.
 
 Konzept, Story und Roadmap: [Game Design Document](https://claude.ai/artifact/FPW1vS3g2BwqXAwNP99H65)
 
@@ -69,7 +83,8 @@ gebraucht. Nur die Schriften kommen von Google Fonts; ohne Internet greifen Ersa
 | `js/data.js` | Balancing und Konstanten: Stufen, Upgrades, Schwierigkeitsgrade, Auftragsvorlagen |
 | `js/story.js` | Story: Figuren, Projekte, Mails, Dialoge, Ereignisse, Missionen, Entscheidungen |
 | `js/office.js` | Three.js-Büro: Geometrie, Canvas-Pixeltexturen, Kamera, Figuren |
-| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, PERS, PROD, F&E, ABT, NETZ, FIN, LOHN, DEPOT, BEDARF, KARR, SYS |
+| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, PERS, PROD, F&E, ABT, NETZ, FIN, ABWEHR, LOHN, DEPOT, BEDARF, KARR, ERFOLGE, SYS |
+| `js/sound.js` | Kleine Geräusche über die Web Audio API, ohne Audiodateien |
 | `js/ui.js` | Titel, HUD, Dialogablauf, Entgeltabrechnung, Offline-Zusammenfassung, Game Over |
 
 Neue Kapitel entstehen vor allem in `story.js` (Mails, Dialoge, `EVENTS`, `MISSIONS`) und `data.js`

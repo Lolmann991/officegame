@@ -58,7 +58,8 @@ export const CHAPTERS = [
     intro: 'Sechs Jahre später, Januar 1993. Du leitest den Geschäftsbereich Netz, mit größerem Büro und Sitzecke. Neu ist das Programm NETZ: Baue den Onlinedienst KB-Net auf, Stadt für Stadt. Aber im Vorstand hat das Netz nicht nur Freunde.' },
   { no: 6, title: 'Im Vorstand', stage: 5, jumpYear: 1999,
     intro: 'Sommer 1999. Du sitzt im Vorstand und verantwortest die Finanzen. An der Börse ist alles möglich, jede Firma mit „.de“ im Namen ist Millionen wert. Neu ist das Programm FIN. Aber Kessler sagt: Was so schnell steigt, fällt auch so schnell.' },
-  { no: 7, title: 'Die Übernahme', stage: 6 },
+  { no: 7, title: 'Die Übernahme', stage: 6, jumpYear: 2008,
+    intro: 'Januar 2008. Du führst KB seit sechs Jahren als Vorstandsvorsitzender, Kessler sitzt dem Aufsichtsrat vor. Die Zeiten scheinen ruhig. Aber in Frankfurt plant jemand seine Rückkehr.' },
 ];
 
 // ---------------------------------------------------------------- Team (ab Kapitel 3)
@@ -174,7 +175,15 @@ export const GRADE_COMMENTS = {
 // ---------- Formatierung ----------
 const dm = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const int = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
-export const fmtDM = (v) => `${dm.format(v)} DM`;
+// Währung: ab 2002 Euro. Intern rechnet das Spiel weiter in DM, angezeigt wird umgerechnet.
+export const EURO_RATE = 1.95583;
+export const CURRENCY = { euro: false };
+export const cur = () => (CURRENCY.euro ? '€' : 'DM');
+export const toCur = (v) => (CURRENCY.euro ? v / EURO_RATE : v);
+export const fmtDM = (v) => `${dm.format(toCur(v))} ${cur()}`;
+// Betrag in der Währung eines bestimmten Jahres (für alte Abrechnungen)
+export const fmtAt = (v, year) => (year >= 2002 ? `${dm.format(v / EURO_RATE)} €` : `${dm.format(v)} DM`);
+export const numAt = (v, year) => dm.format(year >= 2002 ? v / EURO_RATE : v);
 export const fmtNum = (v) => dm.format(v);
 export const fmtInt = (v) => int.format(Math.floor(v));
 export const fmtPct = (v, digits = 0) =>
@@ -253,12 +262,45 @@ export const DIVIDEND_POLICIES = [
   { id: 'hoch', label: 'HOCH', payout: 0.6, perf: 0.05 },
 ];
 // Börsenstimmung (Monatsindex ab Januar 1999) – Neuer-Markt-Hype und Crash
-export const HYPE_POINTS = [[0, 1.2], [14, 3.0], [20, 2.0], [26, 0.9], [32, 0.7], [41, 0.85], [53, 1.0]];
+export const HYPE_POINTS = [[0, 1.2], [14, 3.0], [20, 2.0], [26, 0.9], [32, 0.7], [41, 0.85], [53, 1.0], [108, 1.1], [116, 0.95], [118, 0.6], [123, 0.55], [134, 0.85], [150, 1.0]];
 // Wirtschaftslage für Absatz (1 = normal)
-export const ECONOMY_POINTS = [[0, 1], [20, 1], [26, 0.72], [36, 0.75], [48, 0.95], [56, 1]];
+export const ECONOMY_POINTS = [[0, 1], [20, 1], [26, 0.72], [36, 0.75], [48, 0.95], [56, 1], [116, 1], [119, 0.78], [128, 0.8], [140, 1]];
 export const STARTUPS = [
   { id: 'klickfix', name: 'Klickfix AG', desc: 'Online-Kaufhaus, das nie Gewinn gemacht hat', base: 80e6, burn: 2.5e6 },
   { id: 'webwelt', name: 'WebWelt AG', desc: 'Internetportal mit Chat, Horoskop und Wetter', base: 120e6, burn: 3.5e6 },
   { id: 'b2bplus', name: 'B2B-Plus AG', desc: 'Marktplatz für den Firmeneinkauf', base: 160e6, burn: 4e6 },
   { id: 'mobilnet', name: 'MobilNet AG', desc: 'Software für Handys. Klein, aber die Entwickler sind gut', base: 60e6, burn: 0.8e6, future: true },
+];
+
+// ---------------------------------------------------------------- Kapitel 7: Übernahmeschlacht
+export const TAKEOVER = {
+  orionStart: 15,          // Prozent, die Orion heimlich gesammelt hat
+  premium: 1.35,           // Angebot über dem Kurs bei Bekanntgabe
+  months: 7,               // bis zur Hauptversammlung
+  orionPrice: 2.4e9,       // DM, Preis für ein Gegenangebot auf Orion
+  campaignCost: 60e6,
+  buybackPct: 3,
+  maxBuybacks: 3,
+};
+
+// ---------------------------------------------------------------- Erfolge
+export const ACHIEVEMENTS = [
+  { id: 'lohn', name: 'Erster Lohn', desc: 'Die erste Entgeltabrechnung erhalten' },
+  { id: 'note_a', name: 'Klassenbester', desc: 'Einen Monat mit Note A abschließen' },
+  { id: 'serie', name: 'Fehlerfrei', desc: '15 Aufträge in Folge ohne Tippfehler' },
+  { id: 'aktie', name: 'Aktionär', desc: 'Die erste KB-Aktie kaufen' },
+  { id: 'auftraege', name: 'Fleißarbeit', desc: '250 Aufträge bearbeiten' },
+  { id: 'ausstattung', name: 'Bestens ausgestattet', desc: 'Alle Büro-Upgrades besitzen' },
+  { id: 'saubere_akte', name: 'Saubere Akte', desc: 'Abteilungsleiter werden, ohne je abgemahnt zu werden' },
+  { id: 'pokal', name: 'Ideengeber', desc: 'Den Ideenwettbewerb gewinnen' },
+  { id: 'team', name: 'Volles Haus', desc: 'Eine Abteilung mit 8 Leuten führen' },
+  { id: 'verkauf', name: 'Kassenschlager', desc: '100.000 Geräte verkaufen' },
+  { id: 'forscher', name: 'Forscher', desc: 'Alle Technologien erforschen' },
+  { id: 'online', name: 'Online-Pionier', desc: '100.000 Kunden bei KB-Net' },
+  { id: 'blase', name: 'Rechtzeitig raus', desc: 'Eine Beteiligung mit Gewinn verkaufen' },
+  { id: 'krise', name: 'Krisenmanager', desc: 'KB durch den Dotcom-Crash bringen' },
+  { id: 'millionaer', name: 'Millionär', desc: 'Privat eine Million DM besitzen (Konto und Aktien)' },
+  { id: 'ceo', name: 'Ganz oben', desc: 'Vorstandsvorsitzender werden' },
+  { id: 'unabhaengig', name: 'Unabhängig', desc: 'Die Übernahme durch Orion abwehren' },
+  { id: 'pacman', name: 'Den Spieß umgedreht', desc: 'Orion selbst übernehmen' },
 ];

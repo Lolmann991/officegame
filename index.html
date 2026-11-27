@@ -117,6 +117,7 @@ legend { font-size: 13px; color: var(--paper-dim); margin-bottom: 4px; }
   font-family: var(--f-term); font-size: 20px; line-height: 1.1; transition: opacity 0.3s; pointer-events: none;
 }
 .hud.faded { opacity: 0; }
+.hud.faded * { pointer-events: none !important; }
 .hud-co { font-family: var(--f-display); font-size: 11px; letter-spacing: 0.08em; color: var(--orange); text-transform: uppercase; }
 .hud-role { color: var(--ink-dim); font-size: 18px; }
 .hud-row { display: flex; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
@@ -128,6 +129,14 @@ legend { font-size: 13px; color: var(--paper-dim); margin-bottom: 4px; }
 .meter i { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--night); }
 .hud-mail { font-size: 18px; color: var(--ink-dim); }
 .hud-mail.has { color: var(--phos); }
+.hud-decide, .hud-pause {
+  pointer-events: auto; background: none; border: 1px solid var(--line); color: var(--ink); text-align: left;
+  font-family: var(--f-term); font-size: 18px; padding: 2px 8px; cursor: pointer;
+}
+.hud-decide { border-color: var(--orange); color: #ffb37a; }
+.hud-pause { color: var(--ink-dim); justify-self: start; }
+.hud-pause.on { border-color: var(--orange); color: var(--orange); }
+body.paused .scene-canvas { filter: grayscale(0.7) brightness(0.8); }
 
 .hint {
   position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
@@ -263,6 +272,13 @@ button.toast { cursor: pointer; }
 .mrow { display: flex; align-items: center; gap: 8px; }
 .mrow .tbar { flex: 1; }
 .tbar.low > span { background: #ff9a7a; box-shadow: 0 0 6px #ff9a7a; }
+.stack { display: flex; height: 22px; border: 1px solid var(--phos-dim); margin: 8px 0; position: relative; overflow: hidden; }
+.stack .seg { display: block; height: 100%; }
+.stack .orion { background: #ff7a5a; }
+.stack .float { background: repeating-linear-gradient(45deg, rgba(128, 128, 128, 0.35) 0 4px, transparent 4px 8px); }
+.stack .retired { background: rgba(128, 128, 128, 0.6); }
+.stack .loyal { background: var(--phos); margin-left: auto; }
+.stack .mid { position: absolute; left: 50%; top: -2px; bottom: -2px; border-left: 2px dashed currentColor; }
 
 /* Epoche 1987: helle Fensteroberfläche statt Grün-Terminal */
 .pc.era2 { --phos: #1b1b1b; --phos-dim: #5d5a52; --phos-bg: #dcd9d0; }
@@ -301,6 +317,17 @@ button.toast { cursor: pointer; }
 .pc.era3 .crt-top { background: linear-gradient(90deg, #0a246a, #a6caf0); }
 .pc.era3 .crt-nav button.on, .pc.era3 .tbtn:hover:not(:disabled), .pc.era3 .tbtn.chosen { background: #0a246a; }
 .pc.era3 .tbar > span { background: #0a246a; }
+
+/* Epoche 2008: moderne Oberfläche, Breitbild */
+.pc.era4 { --phos: #16202b; --phos-dim: #5b6775; --phos-bg: #f4f6f9; }
+.pc.era4 .crt { background: linear-gradient(#15171b, #0b0c0e); border-radius: 10px; }
+.pc.era4 .crt-top { background: linear-gradient(#2b3d52, #1b2838); }
+.pc.era4 .crt-nav { background: #e6eaf0; border-bottom: 1px solid #c5ccd6; }
+.pc.era4 .crt-nav button.on, .pc.era4 .tbtn:hover:not(:disabled), .pc.era4 .tbtn.chosen { background: #2a74c9; color: #fff; }
+.pc.era4 .tbtn { border: 1px solid #b9c2cf; background: #fff; border-radius: 4px; }
+.pc.era4 .tbar > span { background: #2a74c9; }
+.pc.era4 .member { background: #fff; border-color: #d5dbe3; }
+.pc.era4 .stack .loyal, .pc.era2 .stack .loyal { background: #2f9a55; }
 .tlist { list-style: none; padding: 0; margin: 4px 0; white-space: pre-wrap; }
 .ladder .here { color: #c9ffd6; }
 .ladder .past { color: var(--phos); }
@@ -448,10 +475,12 @@ button.toast { cursor: pointer; }
   <div id="hud-date"></div>
   <div id="hud-role" class="hud-role"></div>
   <div class="hud-row"><span class="dim">Konto</span><span id="hud-cash"></span></div>
-  <div class="hud-row"><span class="dim">Leistung</span><span id="hud-perf"></span></div>
+  <div class="hud-row"><span class="dim" id="hud-perf-label">Leistung</span><span id="hud-perf"></span></div>
   <div class="meter"><span id="hud-perf-bar"></span><i style="left:66.6%"></i></div>
   <div class="meter thin" title="Fortschritt des Monats"><span id="hud-month-bar"></span></div>
   <div id="hud-mail" class="hud-mail"></div>
+  <button type="button" id="hud-decide" class="hud-decide" hidden></button>
+  <button type="button" id="hud-pause" class="hud-pause">PAUSE [P]</button>
 </aside>
 
 <button type="button" id="hint" class="hint" hidden>Auf den Bildschirm klicken, um zu arbeiten</button>

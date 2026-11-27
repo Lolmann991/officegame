@@ -1,11 +1,12 @@
 // Oberflächen über dem 3D-Büro: Titel, HUD, Dialoge, Abrechnungen, Hinweise, Game Over.
 // Steuert außerdem, wann die Spielzeit läuft.
 
-import { DIFFICULTIES, MONTH_NAMES, STAGES, CHAPTERS, GRADE_COMMENTS, fmtDM, fmtNum, fmtInt, fmtPct } from './data.js';
+import { DIFFICULTIES, MONTH_NAMES, STAGES, CHAPTERS, GRADE_COMMENTS, fmtDM, fmtNum, fmtInt, fmtPct, fmtAt, numAt } from './data.js';
 import { PROJECTS } from './story.js';
 import { DIALOGS, PEOPLE } from './story.js';
 import { Game } from './game.js';
 import { PC } from './pc.js';
+import { sfx, setSound } from './sound.js';
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -24,6 +25,8 @@ export class UI {
     $('#pc-exit').addEventListener('click', () => this.closePC());
     $('#hint').addEventListener('click', () => this.openPC());
     window.addEventListener('keydown', (e) => {
+      const typing = ['INPUT', 'TEXTAREA'].includes(e.target.tagName);
+      if ((e.key === 'p' || e.key === 'P') && !typing && this.game.s && ['desk', 'pc'].includes(this.screen)) { this.togglePause(); return; }
       if (e.key !== 'Escape') return;
       if (this.modalOpen) { this.closeModal(); return; }
       if (this.screen === 'pc') this.closePC();
@@ -33,8 +36,21 @@ export class UI {
     game.on('mail', (m) => {
       if (this.screen === 'title') return;
       this.pc.rerender(['post']);
-      if (!this.game.offlineMode) this.toast(`Neue Nachricht: ${m.subject}`, 'mail', () => this.openPC('post'));
+      if (!this.game.offlineMode) { this.toast(`Neue Nachricht: ${m.subject}`, 'mail', () => this.openPC('post')); sfx.mail(); }
     });
+    game.on('achievement', (a) => {
+      if (this.screen === 'title' || this.game.offlineMode) return;
+      this.toast(`Erfolg: ${a.name}`, 'good', () => this.openPC('erf'));
+      sfx.achievement();
+      this.pc.rerender(['erf']);
+    });
+    game.on('takeover', () => this.pc.rerender(['abwehr', 'fin', 'karr']));
+    $('#hud-decide').addEventListener('click', () => {
+      const m = this.game.s?.mails.find((x) => x.choices && x.chosen == null);
+      if (m) { this.pc.mailSel = m.uid; this.pc.panes[0] = 'post'; }
+      this.openPC('post');
+    });
+    $('#hud-pause').addEventListener('click', () => this.togglePause());
     game.on('upgrade', () => { this.office.setUpgrades(this.game.s.upgrades); this.pc.rerender(['shop', 'karr']); });
     game.on('payslip', ({ slip, offline }) => this.onPayslip(slip, offline));
     game.on('dialog', () => this.nextDialog());
@@ -53,7 +69,14 @@ export class UI {
 
   // Läuft die Spielzeit gerade?
   get running() {
-    return (this.screen === 'desk' || this.screen === 'pc') && !this.dialog && this.game.s && !this.game.s.gameOver;
+    return (this.screen === 'desk' || this.screen === 'pc') && !this.dialog && !this.paused && this.game.s && !this.game.s.gameOver;
+  }
+
+  togglePause() {
+    this.paused = !this.paused;
+    $('#hud-pause').textContent = this.paused ? 'PAUSE · WEITER MIT [P]' : 'PAUSE [P]';
+    $('#hud-pause').classList.toggle('on', this.paused);
+    document.body.classList.toggle('paused', this.paused);
   }
 
   // ------------------------------------------------------------ Titelbildschirm
@@ -139,6 +162,7 @@ export class UI {
     this.office.setStage(this.game.s.player.stage);
     this.office.setTeam(this.game.s.player.stage, this.game.s.team.members);
     this.office.setEra(this.game.era());
+    setSound(this.game.s.settings.sound !== false);
     this.screen = 'desk';
     this.office.setMode('desk');
     $('#hud').hidden = false;
@@ -186,9 +210,16 @@ export class UI {
     $('#hud-role').textContent = `${g.stage.title} · ${g.stage.dept}`;
     $('#hud-cash').textContent = fmtDM(p.cash);
     $('#hud-cash').classList.toggle('neg', p.cash < 0);
-    $('#hud-perf').textContent = `${fmtInt(p.perf)} / ${fmtInt(target)}`;
-    $('#hud-perf-bar').style.width = `${Math.min(100, (p.perf / target) * 100 / 1.5)}%`;
-    $('#hud-month-bar').style.width = `${(g.s.time.monthProgress / 60) * 100}%`;
+    const board = p.stage >= 5 && g.s.corp.active;
+    const last = board ? g.s.corp.history.at(-1)?.result : null;
+    $('#hud-perf-label').textContent = board ? 'Konzernergebnis' : 'Leistung';
+    $('#hud-perf').textContent = board ? (last != null ? fmtDM(last) : '–') : `${fmtInt(p.perf)} / ${fmtInt(target)}`;
+    $('#hud-perf').classList.toggle('neg', board && last < 0);
+    $('#hud-perf-bar').style.width = board ? `${Math.max(0, Math.min(100, ((last || 0) / 30e6) * 100))}%` : `${Math.min(100, (p.perf / target) * 100 / 1.5)}%`;
+    $('#hud-month-bar').style.width = `${(g.s.time.monthProgress / g.monthSeconds()) * 100}%`;
+    const open = g.s.mails.filter((m) => m.choices && m.chosen == null).length;
+    $('#hud-decide').hidden = !open;
+    $('#hud-decide').textContent = `! ${open} Entscheidung${open > 1 ? 'en' : ''} offen`;
     const u = g.unreadCount();
     $('#hud-mail').textContent = u ? `${u} neue Nachricht${u > 1 ? 'en' : ''}` : 'Keine neuen Nachrichten';
     $('#hud-mail').classList.toggle('has', u > 0);
@@ -227,6 +258,7 @@ export class UI {
       // erst klingeln lassen, dann abnehmen
       this.office.setMode('desk');
       this.office.ring(1.6);
+      sfx.ring();
       this.toast('Das Telefon klingelt', 'mail');
       setTimeout(() => { if (this.dialog?.id === id) { this.office.setMode('phone'); setTimeout(open, 500); } }, 1600);
       return;
@@ -331,13 +363,14 @@ export class UI {
     this.pc.rerender(['lohn', 'karr']);
     if (this.game.s.gameOver) return;
     const label = `${MONTH_NAMES[slip.month]} ${slip.year}`;
-    if (this.game.s.settings.autoPayslip) this.showPayslip(slip);
+    if (this.game.s.settings.autoPayslip) { this.showPayslip(slip); sfx.print(); }
     else this.toast(`Entgeltabrechnung ${label}: ${fmtDM(slip.netto)} netto`, 'good', () => this.showPayslip(slip));
   }
 
   showPayslip(sl) {
     const p = this.game.s.player;
-    const row = (label, val, cls = '') => `<tr class="${cls}"><td>${label}</td><td class="r">${fmtNum(val)}</td></tr>`;
+    const row = (label, val, cls = '') => `<tr class="${cls}"><td>${label}</td><td class="r">${numAt(val, sl.year)}</td></tr>`;
+    const unit = sl.year >= 2002 ? '€' : 'DM';
     const html = `
       <div class="slip" role="dialog" aria-label="Entgeltabrechnung ${MONTH_NAMES[sl.month]} ${sl.year}">
         <div class="slip-paper">
@@ -350,7 +383,7 @@ export class UI {
             <span>${esc(sl.title)}, ${esc(sl.dept)}</span><span>Steuerklasse I</span>
           </div>
           <table class="slip-table">
-            <thead><tr><th>Bezüge</th><th class="r">DM</th></tr></thead>
+            <thead><tr><th>Bezüge</th><th class="r">${unit}</th></tr></thead>
             <tbody>
               ${row('Grundgehalt', sl.base)}
               ${(sl.extras || []).map((e) => row(esc(e.label), e.amount)).join('')}
@@ -359,7 +392,7 @@ export class UI {
               ${sl.kuerzung ? row('Gehaltskürzung', -sl.kuerzung) : ''}
               ${row('Gesamtbrutto', sl.brutto, 'sum')}
             </tbody>
-            <thead><tr><th>Abzüge</th><th class="r">DM</th></tr></thead>
+            <thead><tr><th>Abzüge</th><th class="r">${unit}</th></tr></thead>
             <tbody>
               ${row('Lohnsteuer', -sl.lst)}
               ${row('Rentenversicherung 9,0 %', -sl.rv)}
@@ -367,11 +400,13 @@ export class UI {
               ${row('Arbeitslosenversicherung 1,5 %', -sl.av)}
             </tbody>
           </table>
-          <div class="slip-net"><span>Auszahlungsbetrag</span><b>${fmtDM(sl.netto)}</b></div>
-          <div class="slip-bank">Überweisung auf Girokonto · abzüglich Lebenshaltung ${fmtDM(sl.living)}${sl.dispo ? ` · Dispozinsen ${fmtDM(sl.dispo)}` : ''} · neuer Kontostand ${fmtDM(sl.cashAfter)}</div>
+          <div class="slip-net"><span>Auszahlungsbetrag</span><b>${fmtAt(sl.netto, sl.year)}</b></div>
+          <div class="slip-bank">Überweisung auf Girokonto · abzüglich Lebenshaltung ${fmtAt(sl.living, sl.year)}${sl.dispo ? ` · Dispozinsen ${fmtAt(sl.dispo, sl.year)}` : ''} · neuer Kontostand ${fmtAt(sl.cashAfter, sl.year)}</div>
           <div class="slip-grade grade-${sl.grade}">
             <span class="stamp">${sl.grade}</span>
-            <div>Leistungsbeurteilung: ${fmtInt(sl.perf)} von ${fmtInt(sl.target)} Punkten (${fmtPct(sl.ratio)})<br><i>„${GRADE_COMMENTS[sl.grade]}“</i> W. Hoff</div>
+            <div>${sl.board != null
+              ? `Beurteilung durch den Aufsichtsrat: Konzernergebnis ${fmtAt(sl.board, sl.year)}<br><i>„${GRADE_COMMENTS[sl.grade]}“</i> Für den Aufsichtsrat`
+              : `Leistungsbeurteilung: ${fmtInt(sl.perf)} von ${fmtInt(sl.target)} Punkten (${fmtPct(sl.ratio)})<br><i>„${GRADE_COMMENTS[sl.grade]}“</i> W. Hoff`}</div>
           </div>
         </div>
         <button type="button" class="btn primary" data-close>Abheften</button>
@@ -458,6 +493,27 @@ export class UI {
       </div>`, 'm-sheet');
   }
 
+  showEndless() {
+    const s = this.game.s, f = s.story.flags;
+    const worth = s.player.cash + s.shares.owned * s.shares.price;
+    this.modal(`
+      <div class="sheet">
+        <div class="eyebrow">Kapitel 7 abgeschlossen · Die Übernahme</div>
+        <h2>KB gehört sich selbst</h2>
+        <p>${f.orion_bought ? 'Du hast Orion gekauft, statt gekauft zu werden.' : `Orion ist mit ${fmtInt(s.takeover.orion)} % gescheitert.`} Heinrich Kessler verabschiedet sich. Nach ${this.tenureText()} bei KB ist das Haus deins.</p>
+        <dl class="sheet-dl">
+          <dt>Treue Aktionäre</dt><dd>${fmtNum(this.game.loyalTotal())} %</dd>
+          <dt>Weißer Ritter</dt><dd>${f.knight ? 'Hayashi Denki' : 'keiner'}</dd>
+          <dt>Dr. Sauer</dt><dd>${f.sauer_turned ? 'hat dir geholfen' : f.sauer_fired ? 'entlassen' : 'blieb im Hintergrund'}</dd>
+          <dt>Privatvermögen</dt><dd>${fmtDM(worth)}</dd>
+          <dt>Erfolge</dt><dd>${Object.keys(s.achievements).length}</dd>
+        </dl>
+        <div class="eyebrow next">Endlosmodus</div>
+        <p>Die Geschichte ist erzählt, das Spiel geht weiter: neue Projekte, Produktgenerationen, Konkurrenz und jeden Monat mögliche Ereignisse, über die du als CEO entscheidest.</p>
+        <button type="button" class="btn primary" data-close>Weiterführen</button>
+      </div>`, 'm-sheet');
+  }
+
   // Zeit seit Eintritt im September 1978 (berücksichtigt Zeitsprünge zwischen Kapiteln)
   tenureText() {
     const t = this.game.s.time;
@@ -467,6 +523,7 @@ export class UI {
   }
 
   showChapterIntro(no) {
+    if (no === 8) { this.showEndless(); return; }
     const ch = CHAPTERS[no - 1];
     if (!ch?.intro) return;
     this.modal(`
@@ -492,7 +549,12 @@ export class UI {
     $('#hud').hidden = true;
     $('#hint').hidden = true;
     const s = this.game.s;
-    $('#go-letter').innerHTML = go.reason === 'abberufen' ? `
+    $('#go-letter').innerHTML = go.reason === 'uebernommen' ? `
+      <p class="r">Frankfurt, ${esc(go.date)}</p>
+      <p><b>Mitteilung der Orion Datentechnik AG</b></p>
+      <p>${esc(s.player.name)},</p>
+      <p>Orion hält mehr als 50 % der Stimmrechte an der Kessler &amp; Brandt Rechenwerke AG. Der neue Aufsichtsrat hat Sie heute als Vorstandsvorsitzenden abberufen. Ihr Nachfolger ist Dr. Hartwig Sauer.</p>
+      <p>Mit freundlichen Grüßen<br>Dr. Viktor Rau</p>` : go.reason === 'abberufen' ? `
       <p class="r">Kassel, ${esc(go.date)}</p>
       <p><b>Abberufung aus dem Vorstand</b></p>
       <p>${esc(s.player.name)},</p>

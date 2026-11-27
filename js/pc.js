@@ -7,8 +7,9 @@ import {
   TECHS, LINES, MARKETING, RD_BUDGETS, DEPT_COMMISSION,
   NET_CITIES, NET_NODE_COST, NET_NODE_UPKEEP, NET_TARIFFS, NET_UPGRADES,
   STARTUPS, DIVIDEND_POLICIES, CORP_LOAN_STEP, CORP_LOAN_RATE,
-  fmtDM, fmtNum, fmtInt, fmtPct,
+  TAKEOVER, ACHIEVEMENTS, fmtDM, fmtNum, fmtInt, fmtPct, cur, toCur, numAt,
 } from './data.js';
+import { sfx, setSound } from './sound.js';
 import { MISSIONS, missionsDone } from './story.js';
 import { Game } from './game.js';
 
@@ -22,10 +23,12 @@ const APPS = [
   { id: 'abt', label: 'ABT', title: 'Abteilung', minStage: 3 },
   { id: 'netz', label: 'NETZ', title: 'KB-Net', minStage: 4 },
   { id: 'fin', label: 'FIN', title: 'Finanzen', minStage: 5 },
+  { id: 'abwehr', label: 'ABWEHR', title: 'Übernahmeabwehr', minStage: 6 },
   { id: 'lohn', label: 'LOHN', title: 'Entgeltabrechnungen' },
   { id: 'depot', label: 'DEPOT', title: 'Konto und Depot' },
   { id: 'shop', label: 'BEDARF', title: 'Bürobedarf' },
   { id: 'karr', label: 'KARR', title: 'Karriere' },
+  { id: 'erf', label: 'ERFOLGE', title: 'Erfolge' },
   { id: 'sys', label: 'SYS', title: 'System' },
 ];
 
@@ -64,11 +67,12 @@ export class PC {
     this.screens.classList.toggle('dual', n === 2);
     this.root.classList.toggle('era2', this.game.era() >= 2);
     this.root.classList.toggle('era3', this.game.era() >= 3);
+    this.root.classList.toggle('era4', this.game.era() >= 4);
     this.screens.innerHTML = this.panes.slice(0, n).map((_, i) => `
       <section class="crt" data-pane="${i}">
         <div class="crt-glass">
           <header class="crt-top">
-            <span>${this.game.era() >= 3 ? 'KB WORKSTATION · KB-WINDOWS 2000' : this.game.era() === 2 ? (this.game.s.time.year >= 1992 ? 'KB PC 486 · KB-WINDOWS 3.1' : 'KB PC · KB-WINDOWS 1.0') : 'KB-TERMINAL 3270'} · ${i === 0 ? 'DISPLAY 1' : 'DISPLAY 2'}</span>
+            <span>${this.game.era() >= 4 ? 'KB BOOK PRO · KB OS 2008' : this.game.era() >= 3 ? 'KB WORKSTATION · KB-WINDOWS 2000' : this.game.era() === 2 ? (this.game.s.time.year >= 1992 ? 'KB PC 486 · KB-WINDOWS 3.1' : 'KB PC · KB-WINDOWS 1.0') : 'KB-TERMINAL 3270'} · ${i === 0 ? 'DISPLAY 1' : 'DISPLAY 2'}</span>
             <span data-live="date"></span>
           </header>
           <nav class="crt-nav" aria-label="Programme">
@@ -125,17 +129,17 @@ export class PC {
       footer: `KONTO ${fmtDM(p.cash)} · LEISTUNG ${fmtInt(p.perf)}/${fmtInt(target)}`,
       perf: `${fmtInt(p.perf)} / ${fmtInt(target)}`,
       perfPct: fmtPct(p.perf / target),
-      rate: `${fmtNum(g.passiveRate())} Pkt/s`,
+      rate: `${fmtInt(g.perMonth(g.passiveRate()))} Pkt/Monat`,
       taskValue: `${g.taskValue()} Pkt`,
       streak: p.streak ? `Serie ×${p.streak} (+${fmtPct(g.streakBonus())})` : 'keine Serie',
       cash: fmtDM(p.cash),
-      price: fmtNum(s.shares.price) + ' DM',
-      eprice: fmtNum(g.employeePrice()) + ' DM',
+      price: fmtDM(s.shares.price),
+      eprice: fmtDM(g.employeePrice()),
       depotValue: fmtDM(s.shares.owned * s.shares.price),
       owned: fmtInt(s.shares.owned),
       vote: fmtPct(s.shares.owned / SHARES_OUTSTANDING, 4),
       days: `${MONTH_NAMES[s.time.month]}: Tag ${g.day()}`,
-      teamRate: `${fmtNum(g.teamRate())} Pkt/s (${s.team.members.length} Leute)`,
+      teamRate: `${fmtInt(g.perMonth(g.teamRate()))} Pkt/Monat (${s.team.members.length} Leute)`,
       payroll: `${fmtDM(g.payroll())} / ${fmtDM(s.team.budget)}`,
       morale: fmtPct(g.avgMorale() / 100),
       projPP: s.projects.active ? `${fmtInt(s.projects.active.pp)} / ${fmtInt(s.projects.active.need)} (${fmtPct(s.projects.active.pp / s.projects.active.need)})` : '',
@@ -147,7 +151,7 @@ export class PC {
     });
     const set = (sel, f) => this.root.querySelectorAll(sel).forEach((el) => { el.style.width = `${Math.max(0, Math.min(100, f * 100)).toFixed(1)}%`; });
     set('[data-bar="perf"] > span', p.perf / target);
-    set('[data-bar="month"] > span', s.time.monthProgress / 60);
+    set('[data-bar="month"] > span', s.time.monthProgress / g.monthSeconds());
     if (s.projects.active) set('[data-bar="proj"] > span', s.projects.active.pp / s.projects.active.need);
     set('[data-bar="payroll"] > span', g.payroll() / (s.team.budget || 1));
     set('[data-bar="morale"] > span', g.avgMorale() / 100);
@@ -220,7 +224,7 @@ export class PC {
 
   projEta() {
     const g = this.game, pr = g.s.projects, act = pr.active;
-    const perMonth = g.passiveRate() * 60 * pr.share * (1 + (act.boost || 0));
+    const perMonth = g.perMonth(g.passiveRate()) * pr.share * (1 + (act.boost || 0));
     if (perMonth <= 0) return 'Ohne Arbeitszeit kommt das Projekt nicht voran.';
     const m = Math.ceil((act.need - act.pp) / perMonth);
     return `Nur mit Grundleistung fertig in ca. ${m} Monat${m === 1 ? '' : 'en'}. Aufträge beschleunigen das.`;
@@ -282,12 +286,12 @@ export class PC {
       return `<div class="member">
         <div><b>${esc(m.name)}</b> <span class="stars">${this.stars(m.skill)}</span> <span class="dim">[${esc(tr.label || m.trait).toUpperCase()}: ${esc(tr.desc || '')}]</span></div>
         <div class="kv">
-          <span>GEHALT</span><span>${fmtDM(m.salary)} · LEISTUNG ${fmtNum(g.memberRate(m))} PKT/S</span>
+          <span>GEHALT</span><span>${fmtDM(m.salary)} · LEISTUNG ${fmtInt(g.perMonth(g.memberRate(m)))} PKT/MONAT</span>
           <span>MORAL</span><span class="mrow">${bar(m.morale / 100, m.morale < 35 ? 'low' : '')} ${fmtInt(m.morale)} %</span>
         </div>
         <div class="row">
           <button type="button" class="tbtn small" data-act="praise" data-arg="${m.id}" ${m.praised === now ? 'disabled' : ''}>${m.praised === now ? 'GELOBT' : 'LOBEN'}</button>
-          <button type="button" class="tbtn small" data-act="raise" data-arg="${m.id}">+10 % GEHALT (+${fmtNum(Math.round(m.salary * 0.1 / 10) * 10)} DM)</button>
+          <button type="button" class="tbtn small" data-act="raise" data-arg="${m.id}">+10 % GEHALT (+${fmtDM(Math.round(m.salary * 0.1 / 10) * 10)})</button>
           ${fire}
         </div>
       </div>`;
@@ -406,9 +410,9 @@ export class PC {
         </div>
         <div class="row"><span class="dim">PREIS</span>${def.prices.map((pr) => {
           const sh = g.lineShare(id, m.q, pr, ln.marketing);
-          return `<button type="button" class="tbtn small ${m.price === pr ? 'chosen' : ''}" data-act="line-price" data-line="${id}" data-arg="${pr}">${fmtInt(pr)} · ~${fmtPct(sh.kb / sh.total)}</button>`;
+          return `<button type="button" class="tbtn small ${m.price === pr ? 'chosen' : ''}" data-act="line-price" data-line="${id}" data-arg="${pr}">${fmtInt(toCur(pr))} · ~${fmtPct(sh.kb / sh.total)}</button>`;
         }).join('')}</div>
-        <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => `<button type="button" class="tbtn small ${ln.marketing === k ? 'chosen' : ''}" data-act="line-mk" data-line="${id}" data-arg="${k}">${mk.label}${mk.cost ? ` ${fmtInt(mk.cost / 1000)} TDM` : ''}</button>`).join('')}</div>`;
+        <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => `<button type="button" class="tbtn small ${ln.marketing === k ? 'chosen' : ''}" data-act="line-mk" data-line="${id}" data-arg="${k}">${mk.label}${mk.cost ? ` ${fmtInt(toCur(mk.cost) / 1000)} T${cur()}` : ''}</button>`).join('')}</div>`;
       }
       if (ln.devGen) {
         const a = g.s.projects.active;
@@ -434,7 +438,7 @@ export class PC {
 
   app_fue() {
     const g = this.game, rd = g.s.rd;
-    const cur = TECHS.find((x) => x.id === rd.current);
+    const curTech = TECHS.find((x) => x.id === rd.current);
     const list = TECHS.map((t) => {
       const done = g.techDone(t.id), avail = g.techAvailable(t), isCur = rd.current === t.id;
       const req = t.req.length ? ` · BRAUCHT ${t.req.map((r) => TECHS.find((x) => x.id === r).name).join(', ')}` : '';
@@ -447,17 +451,17 @@ export class PC {
       <div class="kv">
         <span>BUDGET</span><span>${fmtDM(rd.budget)} / MONAT (GEHT VOM ERGEBNIS AB)</span>
         <span>GUTHABEN</span><span><b>${fmtInt(rd.pool)} FP</b> · +${fmtInt(g.rdPerMonth())} FP ZUM MONATSENDE</span>
-        <span>AKTUELL</span><span>${cur ? `${esc(cur.name)} · ${fmtInt(Math.min(rd.pool, cur.cost))}/${fmtInt(cur.cost)} FP` : '<span class="err">NICHTS AUSGEWÄHLT</span>'}</span>
+        <span>AKTUELL</span><span>${curTech ? `${esc(curTech.name)} · ${fmtInt(Math.min(rd.pool, curTech.cost))}/${fmtInt(curTech.cost)} FP` : '<span class="err">NICHTS AUSGEWÄHLT</span>'}</span>
       </div>
-      ${cur ? `<span class="tbar big"><span style="width:${Math.min(100, (rd.pool / cur.cost) * 100).toFixed(1)}%"></span></span>` : ''}
-      <div class="row"><span class="dim">BUDGET</span>${RD_BUDGETS.map((b) => `<button type="button" class="tbtn small ${rd.budget === b ? 'chosen' : ''}" data-act="rd-budget" data-arg="${b}">${b ? `${fmtInt(b / 1000)} TDM` : 'KEINS'}</button>`).join('')}</div>
+      ${curTech ? `<span class="tbar big"><span style="width:${Math.min(100, (rd.pool / curTech.cost) * 100).toFixed(1)}%"></span></span>` : ''}
+      <div class="row"><span class="dim">BUDGET</span>${RD_BUDGETS.map((b) => `<button type="button" class="tbtn small ${rd.budget === b ? 'chosen' : ''}" data-act="rd-budget" data-arg="${b}">${b ? `${fmtInt(toCur(b) / 1000)} T${cur()}` : 'KEINS'}</button>`).join('')}</div>
       <h3>TECHNOLOGIEN ${rd.done.length}/${TECHS.length}</h3>${list}
       <p class="dim">Kreative Leute im Team erhöhen die Forschungspunkte.</p>`;
   }
 
   app_abt() {
     const g = this.game, d = g.s.dept;
-    const T = (x) => fmtInt(Math.round(x / 1000));
+    const T = (x) => fmtInt(Math.round(toCur(x) / 1000));
     const rows = d.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${T(h.revenue)}</td><td class="r">${T(h.gross)}</td><td class="r">${T(h.payroll)}</td><td class="r">${T(h.rd)}</td><td class="r">${T(h.mkt)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${T(h.result)}</td></tr>`).join('');
     return `<h2>ABTEILUNGSERGEBNIS <span class="dim">${esc(g.stage.dept.toUpperCase())}</span></h2>
       <div class="kv">
@@ -465,7 +469,7 @@ export class PC {
         <span>SCHWARZE ZAHLEN</span><span>${d.posStreak} MONAT${d.posStreak === 1 ? '' : 'E'} IN FOLGE</span>
         <span>BETEILIGUNG</span><span>${fmtPct(DEPT_COMMISSION, 2)} DES POSITIVEN ERGEBNISSES AUF DEINER ABRECHNUNG</span>
       </div>
-      ${rows ? `<h3>LETZTE MONATE <span class="dim">IN TAUSEND DM</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">UMSATZ</th><th class="r">ROHERTR.</th><th class="r">PERSONAL</th><th class="r">F&amp;E</th><th class="r">MARKET.</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>`
+      ${rows ? `<h3>LETZTE MONATE <span class="dim">IN TAUSEND ${cur()}</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">UMSATZ</th><th class="r">ROHERTR.</th><th class="r">PERSONAL</th><th class="r">F&amp;E</th><th class="r">MARKET.</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>`
         : '<p class="dim">Die erste Abrechnung der Abteilung kommt zum Monatsende.</p>'}
       <p class="dim">Ergebnis = Rohertrag aller Linien minus Personal, Forschung und Marketing.</p>`;
   }
@@ -483,8 +487,8 @@ export class PC {
       </div>`;
     }).join('');
     const up = NET_UPGRADES[net.qLevel];
-    const comps = g.netCompetitors().map((c) => `${esc(c.name)} Q${c.q} · ${fmtNum(c.tariff)} DM`).join(' · ');
-    const rows = net.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${fmtInt(h.subs)}</td><td class="r ${h.delta >= 0 ? 'ok' : 'err'}">${h.delta >= 0 ? '+' : ''}${fmtInt(h.delta)}</td><td class="r">${fmtInt(h.revenue / 1000)}</td><td class="r">${fmtInt(h.cost / 1000)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${fmtInt(h.result / 1000)}</td></tr>`).join('');
+    const comps = g.netCompetitors().map((c) => `${esc(c.name)} Q${c.q} · ${fmtDM(c.tariff)}`).join(' · ');
+    const rows = net.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${fmtInt(h.subs)}</td><td class="r ${h.delta >= 0 ? 'ok' : 'err'}">${h.delta >= 0 ? '+' : ''}${fmtInt(h.delta)}</td><td class="r">${fmtInt(toCur(h.revenue) / 1000)}</td><td class="r">${fmtInt(toCur(h.cost) / 1000)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${fmtInt(toCur(h.result) / 1000)}</td></tr>`).join('');
     return `<h2>KB-NET <span class="dim">ONLINEDIENST</span></h2>
       ${frozen ? '<p class="err">INVESTITIONEN VOM VORSTAND EINGEFROREN</p>' : ''}
       <div class="kv">
@@ -495,17 +499,17 @@ export class PC {
         <span>BETRIEB</span><span>${fmtDM(NET_NODE_UPKEEP)} JE KNOTEN UND MONAT</span>
         <span>KONKURRENZ</span><span>${comps}</span>
       </div>
-      <div class="row"><span class="dim">TARIF/MONAT</span>${NET_TARIFFS.map((x) => `<button type="button" class="tbtn small ${net.tariff === x ? 'chosen' : ''}" data-act="tariff" data-arg="${x}">${fmtNum(x)} DM · ~${fmtPct(g.netShareEstimate(x))}</button>`).join('')}</div>
-      <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => `<button type="button" class="tbtn small ${net.marketing === k ? 'chosen' : ''}" data-act="net-mk" data-arg="${k}">${mk.label}${mk.cost ? ` ${fmtInt(mk.cost / 1000)} TDM` : ''}</button>`).join('')}</div>
+      <div class="row"><span class="dim">TARIF/MONAT</span>${NET_TARIFFS.map((x) => `<button type="button" class="tbtn small ${net.tariff === x ? 'chosen' : ''}" data-act="tariff" data-arg="${x}">${fmtDM(x)} · ~${fmtPct(g.netShareEstimate(x))}</button>`).join('')}</div>
+      <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => `<button type="button" class="tbtn small ${net.marketing === k ? 'chosen' : ''}" data-act="net-mk" data-arg="${k}">${mk.label}${mk.cost ? ` ${fmtInt(toCur(mk.cost) / 1000)} T${cur()}` : ''}</button>`).join('')}</div>
       ${up ? `<div class="row"><button type="button" class="tbtn" data-act="net-up" ${net.invest < up.cost || frozen ? 'disabled' : ''}>AUSBAU: ${esc(up.name.toUpperCase())} · ${fmtNum(up.cost / 1e6)} MIO.</button><span class="dim">+QUALITÄT</span></div>` : '<p class="ok">TECHNIK AUF DEM NEUESTEN STAND</p>'}
       <h3>EINWAHLKNOTEN ${net.nodes.length}/${NET_CITIES.length}</h3>${cities}
-      ${rows ? `<h3>LETZTE MONATE <span class="dim">UMSATZ/KOSTEN/ERGEBNIS IN TDM</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">KUNDEN</th><th class="r">NEU</th><th class="r">UMSATZ</th><th class="r">KOSTEN</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="dim">Die ersten Kunden kommen zum Monatsende, sobald ein Knoten steht.</p>'}`;
+      ${rows ? `<h3>LETZTE MONATE <span class="dim">UMSATZ/KOSTEN/ERGEBNIS IN T${cur()}</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">KUNDEN</th><th class="r">NEU</th><th class="r">UMSATZ</th><th class="r">KOSTEN</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="dim">Die ersten Kunden kommen zum Monatsende, sobald ein Knoten steht.</p>'}`;
   }
 
   app_fin() {
     const g = this.game, c = g.s.corp, sh = g.s.shares;
     if (!c.active) return '<h2>FINANZEN</h2><p class="dim">Noch nicht im Vorstand.</p>';
-    const M = (x) => `${fmtNum(x / 1e6)} MIO.`;
+    const M = (x) => `${fmtNum(toCur(x) / 1e6)} MIO. ${cur()}`;
     const last = c.history.at(-1);
     const owned = c.owned.map((o) => {
       const st = STARTUPS.find((x) => x.id === o.id), v = g.startupValue(o.id);
@@ -519,7 +523,7 @@ export class PC {
         KAUFPREIS ${M(v)} · VERBRENNT ${M(st.burn)} IM MONAT</div>
         <div class="r"><button type="button" class="tbtn small" data-act="buy-st" data-arg="${id}" ${c.cash < v ? 'disabled' : ''}>KAUFEN</button></div></div>`;
     }).join('');
-    const rows = c.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${fmtNum(h.legacy / 1e6)}</td><td class="r">${fmtNum(h.bereich / 1e6)}</td><td class="r">${fmtNum(h.startups / 1e6)}</td><td class="r">${fmtNum(-h.interest / 1e6)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${fmtNum(h.result / 1e6)}</td></tr>`).join('');
+    const rows = c.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${fmtNum(toCur(h.legacy) / 1e6)}</td><td class="r">${fmtNum(toCur(h.bereich) / 1e6)}</td><td class="r">${fmtNum(toCur(h.startups) / 1e6)}</td><td class="r">${fmtNum(toCur(-h.interest) / 1e6)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${fmtNum(toCur(h.result) / 1e6)}</td></tr>`).join('');
     return `<h2>FINANZEN <span class="dim">KONZERN · RESSORT ${esc(g.stage.title.toUpperCase())}</span></h2>
       <div class="kv">
         <span>KONZERNKASSE</span><span class="${c.cash < 0 ? 'err' : ''}"><b>${fmtDM(c.cash)}</b>${c.negMonths ? ` · ${c.negMonths} MONAT(E) IM MINUS` : ''}</span>
@@ -539,7 +543,43 @@ export class PC {
       <p class="dim">Eine Kapitalerhöhung bringt Geld, verwässert aber deinen Stimmanteil und drückt kurz den Kurs. Einmal pro Jahr möglich.</p>
       ${owned ? `<h3>BETEILIGUNGEN</h3>${owned}` : ''}
       ${offers ? `<h3>ANGEBOTE VOM NEUEN MARKT</h3>${offers}` : ''}
-      ${rows ? `<h3>KONZERNERGEBNIS <span class="dim">IN MIO. DM</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">STAMM</th><th class="r">BEREICHE</th><th class="r">BETEIL.</th><th class="r">ZINS</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="dim">Das erste Konzernergebnis kommt zum Monatsende.</p>'}`;
+      ${rows ? `<h3>KONZERNERGEBNIS <span class="dim">IN MIO. ${cur()}</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">STAMM</th><th class="r">BEREICHE</th><th class="r">BETEIL.</th><th class="r">ZINS</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="dim">Das erste Konzernergebnis kommt zum Monatsende.</p>'}`;
+  }
+
+  app_abwehr() {
+    const g = this.game, to = g.s.takeover, c = g.s.corp;
+    if (!to.active) return `<h2>ÜBERNAHMEABWEHR</h2><p class="dim">Noch ist alles ruhig. Behalte Orion im Auge.</p>`;
+    const blocks = g.loyalBlocks();
+    const loyal = g.loyalTotal(), float = g.floatPct();
+    const left = Math.max(0, to.hvMonth - g.s.time.totalMonths);
+    const seg = (pct, cls, label) => `<span class="seg ${cls}" style="width:${Math.max(0, pct).toFixed(1)}%" title="${esc(label)}"></span>`;
+    const rows = to.history.slice(-7).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r err">${fmtNum(h.orion)} %</td><td class="r ok">${fmtNum(h.loyal)} %</td><td class="r">${fmtNum(h.float)} %</td></tr>`).join('');
+    const status = to.done ? (to.won ? '<p class="ok">ABGEWEHRT. KB BLEIBT UNABHÄNGIG.</p>' : '<p class="err">ORION HAT DIE MEHRHEIT.</p>')
+      : `<p>HAUPTVERSAMMLUNG IN <b>${left} MONAT${left === 1 ? '' : 'EN'}</b>. ORION BRAUCHT 50 %.</p>`;
+    return `<h2>ÜBERNAHMEABWEHR <span class="dim">ORION GEGEN KB</span></h2>
+      ${status}
+      <div class="stack" aria-label="Stimmenverteilung">${seg(to.orion, 'orion', 'Orion')}${seg(float, 'float', 'Streubesitz')}${seg(to.buyback, 'retired', 'Zurückgekauft')}${seg(loyal, 'loyal', 'Treue Aktionäre')}<i class="mid"></i></div>
+      <div class="kv">
+        <span class="err">ORION</span><span><b>${fmtNum(to.orion)} %</b> · KAUFT MONATLICH CA. ${fmtPct(g.orionBuyRate())} DES STREUBESITZES</span>
+        <span>STREUBESITZ</span><span>${fmtNum(float)} % · KÖNNEN AN ORION VERKAUFEN</span>
+        <span class="ok">TREU ZU KB</span><span><b>${fmtNum(loyal)} %</b></span>
+        <span>ANGEBOT</span><span>${fmtDM(to.offer)} JE AKTIE · KURS ${fmtDM(g.s.shares.price)} (${fmtPct(to.offer / g.s.shares.price - 1)} AUFSCHLAG)</span>
+      </div>
+      <ul class="tlist">${blocks.map((b) => `<li>${fmtNum(b.pct)} % ${esc(b.label)}</li>`).join('')}</ul>
+      <p class="dim">Je höher der KB-Kurs im Vergleich zum Angebot, desto weniger Aktionäre verkaufen an Orion. Gute Ergebnisse und Kampagnen helfen.</p>
+      ${to.done ? '' : `<h3>MASSNAHMEN · KASSE ${fmtDM(c.cash)}</h3>
+      <div class="row"><button type="button" class="tbtn" data-act="buyback" ${to.buybacks >= TAKEOVER.maxBuybacks || c.cash < g.buybackCost() ? 'disabled' : ''}>AKTIENRÜCKKAUF −${TAKEOVER.buybackPct} % STREUBESITZ · ${fmtDM(g.buybackCost())}</button><span class="dim">${to.buybacks}/${TAKEOVER.maxBuybacks}</span></div>
+      <div class="row"><button type="button" class="tbtn" data-act="campaign" ${to.campaignMonth === g.s.time.totalMonths || c.cash < TAKEOVER.campaignCost ? 'disabled' : ''}>KAMPAGNE FÜR DIE AKTIONÄRE · ${fmtDM(TAKEOVER.campaignCost)}</button><span class="dim">STÜTZT DEN KURS, 1× PRO MONAT</span></div>
+      <div class="row"><button type="button" class="tbtn" data-act="pacman" ${c.cash < g.orionTakeoverPrice() ? 'disabled' : ''}>GEGENANGEBOT: ORION KAUFEN · ${fmtDM(g.orionTakeoverPrice())}</button></div>
+      <p class="dim">Für das Gegenangebot brauchst du genug Geld in der Konzernkasse. Kredite gibt es im Programm FIN.</p>`}
+      ${rows ? `<h3>VERLAUF</h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">ORION</th><th class="r">TREU</th><th class="r">FREI</th></tr></thead><tbody>${rows}</tbody></table>` : ''}`;
+  }
+
+  app_erf() {
+    const a = this.game.s.achievements;
+    const done = ACHIEVEMENTS.filter((x) => a[x.id]).length;
+    return `<h2>ERFOLGE <span class="dim">${done}/${ACHIEVEMENTS.length}</span></h2>
+      <ul class="tlist">${ACHIEVEMENTS.map((x) => `<li class="${a[x.id] ? 'ok' : 'dim'}">[${a[x.id] ? 'X' : ' '}] <b>${esc(x.name)}</b> · ${esc(x.desc)}${a[x.id] ? ` <span class="dim">(${esc(a[x.id])})</span>` : ''}</li>`).join('')}</ul>`;
   }
 
   app_lohn() {
@@ -547,14 +587,14 @@ export class PC {
     if (!slips.length) return `<h2>ENTGELTABRECHNUNGEN</h2><p class="dim">Die erste Abrechnung kommt zum Monatsende.</p>`;
     const rows = slips.slice().reverse().map((sl, ri) => {
       const idx = slips.length - 1 - ri;
-      return `<tr><td>${MONTH_SHORT[sl.month]} ${sl.year}</td><td class="c g-${sl.grade}">${sl.grade}</td><td class="r">${fmtNum(sl.brutto)}</td><td class="r">${fmtNum(sl.netto)}</td>
+      return `<tr><td>${MONTH_SHORT[sl.month]} ${sl.year}</td><td class="c g-${sl.grade}">${sl.grade}</td><td class="r">${numAt(sl.brutto, sl.year)}</td><td class="r">${numAt(sl.netto, sl.year)}</td>
         <td><button type="button" class="tbtn small" data-act="slip" data-arg="${idx}">ANSEHEN</button></td></tr>`;
     }).join('');
     const p = this.game.s.player;
     return `
       <h2>ENTGELTABRECHNUNGEN <span class="dim">PERS.-NR. ${esc(p.pnr)}</span></h2>
       <p class="dim">Netto seit Eintritt: ${fmtDM(p.totalNet)}</p>
-      <table class="ttable"><thead><tr><th>MONAT</th><th class="c">NOTE</th><th class="r">BRUTTO DM</th><th class="r">NETTO DM</th><th></th></tr></thead>
+      <table class="ttable"><thead><tr><th>MONAT</th><th class="c">NOTE</th><th class="r">BRUTTO</th><th class="r">NETTO</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table>`;
   }
 
@@ -622,9 +662,9 @@ export class PC {
       const own = g.owned(u.id);
       const locked = (u.minStage || 0) > g.s.player.stage;
       return `<div class="shop-row ${own ? 'owned' : ''} ${locked ? 'locked' : ''}">
-        <div><b>${esc(u.name)}</b> <span class="dim">[${u.kind.toUpperCase()}]</span><br><span class="dim">${esc(u.desc)}</span></div>
+        <div><b>${esc(u.name)}</b> <span class="dim">[${u.kind.toUpperCase()}]</span><br><span class="dim">${esc(u.desc.replace(/\+(\d+) Leistung\/s/, (m, n) => `+${n * 60} Leistung pro Monat`))}</span></div>
         <div class="r">${own ? '<span class="ok">AM PLATZ</span>' : locked ? `<span class="dim">AB ${esc(STAGES[u.minStage].title.toUpperCase())}</span>`
-          : `<button type="button" class="tbtn" data-act="upgrade" data-arg="${u.id}" data-need="${u.price}">${fmtNum(u.price)} DM</button>`}</div>
+          : `<button type="button" class="tbtn" data-act="upgrade" data-arg="${u.id}" data-need="${u.price}">${fmtDM(u.price)}</button>`}</div>
       </div>`;
     }).join('');
     return `<h2>BÜROBEDARF <span class="dim">HAUSINTERNE BESTELLUNG</span></h2>
@@ -654,7 +694,7 @@ export class PC {
       </div>
       <h3>ZIELE FÜR DIE BEFÖRDERUNG</h3>
       <ul class="tlist">${missions}</ul>
-      ${missionsDone(g) ? '<p class="ok">Alle Ziele erreicht. Herr Hoff möchte mit dir sprechen.</p>' : ''}
+      ${s.story.flags.endless ? '<p class="ok">Die Geschichte ist erzählt. KB gehört dir. Ab jetzt läuft der Endlosmodus mit neuen Projekten, Produkten und Ereignissen.</p>' : missionsDone(g) && p.stage < 6 ? '<p class="ok">Alle Ziele erreicht. Bald wird jemand mit dir sprechen.</p>' : ''}
       <h3>LAUFBAHN BEI KB</h3>
       <ul class="tlist ladder">${ladder}</ul>`;
   }
@@ -670,7 +710,10 @@ export class PC {
       <div class="row">
         <button type="button" class="tbtn" data-act="save">JETZT SPEICHERN</button>
         <label class="tcheck"><input type="checkbox" id="opt-autoslip" data-opt="autoPayslip" ${s.settings.autoPayslip ? 'checked' : ''}> ABRECHNUNG AUTOMATISCH ZEIGEN</label>
+        <label class="tcheck"><input type="checkbox" id="opt-sound" data-opt="sound" ${s.settings.sound ? 'checked' : ''}> TÖNE</label>
       </div>
+      <div class="row"><span class="dim">MONATSLÄNGE</span>${[60, 120, 180, 300].map((x) => `<button type="button" class="tbtn small ${this.game.monthSeconds() === x ? 'chosen' : ''}" data-act="month-len" data-arg="${x}">${x / 60} MIN</button>`).join('')}</div>
+      <p class="dim">Ein längerer Monat lässt mehr Zeit für die Aufträge. Monatsziele und Grundleistung pro Monat bleiben gleich. [P] pausiert das Spiel.</p>
       <h3>EXPORT</h3>
       <p class="dim">Kopiere den Code, um den Spielstand auf einen anderen Rechner zu übertragen.</p>
       <div class="row">
@@ -699,12 +742,14 @@ export class PC {
 
   // ------------------------------------------------------------ Eingaben
   onKey(e) {
+    if (e.target.classList?.contains('task-input') && e.key.length === 1) sfx.key();
     if (e.target.classList?.contains('task-input') && e.key === 'Enter') {
       e.preventDefault();
       const val = e.target.value;
       if (!val.trim()) return;
       const r = this.game.submitTask(val);
       this.lastResult = r;
+      (r.ok ? sfx.ok : sfx.error)();
       const pane = Number(e.target.dataset.pane);
       this.renderPane(pane);
       this.refreshLive();
@@ -722,6 +767,7 @@ export class PC {
   onChange(e) {
     if (e.target.dataset.opt) {
       this.game.s.settings[e.target.dataset.opt] = e.target.checked;
+      if (e.target.dataset.opt === 'sound') setSound(e.target.checked);
     }
     if (e.target.id === 'import-file' && e.target.files[0]) {
       const reader = new FileReader();
@@ -781,6 +827,10 @@ export class PC {
       case 'net-up': if (g.upgradeNet()) this.ui.toast('Modempool ausgebaut', 'good'); this.rerender(['netz']); break;
       case 'tariff': g.setTariff(Number(arg)); this.rerender(['netz']); break;
       case 'policy': g.setPolicy(arg); this.rerender(['fin']); break;
+      case 'month-len': g.setMonthSeconds(Number(arg)); this.ui.toast(`Ein Monat dauert jetzt ${Number(arg) / 60} Minute${Number(arg) === 60 ? '' : 'n'}`); this.rerender(['sys', 'aufg']); break;
+      case 'buyback': { const v = g.buyback(); if (v) this.ui.toast(`Aktienrückkauf: ${fmtDM(v)}`, 'good'); this.rerender(['abwehr', 'fin']); break; }
+      case 'campaign': if (g.campaign()) this.ui.toast('Kampagne läuft: Anzeigen in allen Wirtschaftszeitungen', 'good'); this.rerender(['abwehr', 'fin']); break;
+      case 'pacman': { const v = g.pacman(); if (v) this.ui.toast(`Gegenangebot angenommen: KB kauft Orion für ${fmtDM(v)}`, 'good'); this.rerender(['abwehr', 'fin']); break; }
       case 'loan': if (g.loan(Number(arg))) this.ui.toast(Number(arg) > 0 ? 'Kredit aufgenommen' : 'Kredit getilgt'); this.rerender(['fin']); break;
       case 'issue': { const v = g.capitalIncrease(); if (v) this.ui.toast(`Kapitalerhöhung: ${fmtDM(v)}`, 'good'); this.rerender(['fin']); break; }
       case 'ipo': { const v = g.ipoNet(); if (v) this.ui.toast(`Börsengang KB-Net: ${fmtDM(v)}`, 'good'); this.rerender(['fin', 'netz']); break; }
