@@ -3,9 +3,9 @@
 import {
   SAVE_KEY, SAVE_VERSION, MONTH_SECONDS, OFFLINE_SECONDS_PER_MONTH, OFFLINE_MAX_MONTHS,
   BASE_PASSIVE, TASK_BASE_VALUE, SHARE_DISCOUNT, DIVIDEND_PER_SHARE, DIFFICULTIES, STAGES,
-  PLAYABLE_STAGES, UPGRADES, TASKS, WERKE, KUNDEN, DAYS_IN_MONTH, MONTH_NAMES,
+  PLAYABLE_STAGES, UPGRADES, TASKS, WERKE, KUNDEN, DAYS_IN_MONTH, MONTH_NAMES, PROJECT_TEMPLATES,
 } from './data.js';
-import { EVENTS, MAILS, DIALOGS, ON_MAIL_CHOICE, ON_DIALOG_DONE, warningVars } from './story.js';
+import { EVENTS, MAILS, DIALOGS, ON_MAIL_CHOICE, ON_DIALOG_DONE, ON_PROJECT_DONE, warningVars } from './story.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -23,10 +23,11 @@ function freshState(name, difficulty) {
     player: {
       name, pnr: String(Math.floor(rand(1000, 9999))).padStart(6, '0'),
       stage: 0, cash: 600, perf: 0, rep: 0, warnings: 0, goodStreak: 0, goodMonths: 0,
-      tasksDone: 0, streak: 0, totalNet: 0, grades: [],
+      tasksDone: 0, streak: 0, totalNet: 0, grades: [], salaryBonus: 0, pendingBonus: [],
     },
     shares: { price, owned: 0, history: Array.from({ length: 24 }, (_, i) => round2(price * (1 + Math.sin(i / 3) * 0.02 - (24 - i) * 0.001))) },
     upgrades: {},
+    projects: { active: null, offered: [], done: [], share: 0.5 },
     mails: [],
     payslips: [],
     story: { fired: {}, flags: {} },
@@ -65,6 +66,7 @@ export class Game {
       ...base, ...obj,
       time: { ...base.time, ...obj.time }, player: { ...base.player, ...obj.player },
       shares: { ...base.shares, ...obj.shares }, story: { ...base.story, ...obj.story },
+      projects: { ...base.projects, ...obj.projects },
       settings: { ...base.settings, ...obj.settings },
     };
     if (!DIFFICULTIES[this.s.difficulty]) this.s.difficulty = 'normal';
@@ -131,7 +133,7 @@ export class Game {
   tick(dt) {
     const s = this.s;
     if (!s || s.gameOver) return;
-    s.player.perf += this.passiveRate() * dt;
+    this.addWork(this.passiveRate() * dt);
     s.time.monthProgress += dt;
 
     this.shareTimer += dt;
@@ -181,11 +183,14 @@ export class Game {
     let grade = ratio >= 1.5 ? 'A' : ratio >= 1 ? 'B' : ratio >= 0.7 ? 'C' : 'D';
     if (this.offlineMode && grade === 'D') grade = 'C'; // offline kein Absturz unter C
 
-    const base = st.salary;
+    const base = round2(st.salary * (1 + (p.salaryBonus || 0)));
+    const extras = p.pendingBonus.map((b) => ({ label: b.label, amount: round2(b.amount) }));
+    p.pendingBonus = [];
+    const extraSum = extras.reduce((a, b) => a + b.amount, 0);
     const zulage = grade === 'A' ? base * 0.25 : grade === 'B' ? base * 0.10 : 0;
     const kuerzung = grade === 'D' && d.id === 'leicht' ? base * 0.10 : 0;
     const xmas = t.month === 11 ? base * 0.5 : 0;
-    const brutto = round2(base + zulage + xmas - kuerzung);
+    const brutto = round2(base + zulage + xmas + extraSum - kuerzung);
     // Sozialversicherung 1978 (Arbeitnehmeranteil) mit Beitragsbemessungsgrenzen
     const rv = round2(Math.min(brutto, 3700) * 0.09);
     const av = round2(Math.min(brutto, 3700) * 0.015);
@@ -201,7 +206,7 @@ export class Game {
 
     const slip = {
       year: t.year, month: t.month, grade, ratio, perf: Math.round(p.perf), target,
-      base, zulage: round2(zulage), xmas: round2(xmas), kuerzung: round2(kuerzung), brutto, rv, av, kv, lst, netto,
+      base, extras, zulage: round2(zulage), xmas: round2(xmas), kuerzung: round2(kuerzung), brutto, rv, av, kv, lst, netto,
       living: st.living, dispo, cashAfter: p.cash, title: st.title, dept: st.dept,
     };
     s.payslips.push(slip);
@@ -239,6 +244,8 @@ export class Game {
       this.mail('dividend', { shares: s.shares.owned, perShare: DIVIDEND_PER_SHARE, total });
     }
 
+    this.checkProjectDeadline();
+
     // nächster Monat
     p.perf = 0;
     t.month++;
@@ -273,7 +280,7 @@ export class Game {
     const p = this.s.player;
     if (norm(input) === norm(this.s.task.code)) {
       const value = this.taskValue();
-      p.perf += value;
+      this.addWork(value);
       p.tasksDone++;
       p.streak++;
       const done = this.s.task.code;
@@ -325,6 +332,7 @@ export class Game {
   buyUpgrade(id) {
     const u = UPGRADES.find((x) => x.id === id);
     if (!u || this.owned(id) || u.shop === false || this.s.player.cash < u.price) return false;
+    if ((u.minStage || 0) > this.s.player.stage) return false;
     this.s.player.cash = round2(this.s.player.cash - u.price);
     this.giveUpgrade(id);
     return true;
@@ -398,6 +406,94 @@ export class Game {
   dialogLines(id) {
     const d = DIALOGS[id];
     return d.lines.map((l) => (typeof l === 'function' ? l(this) : l)).filter((l) => l != null);
+  }
+
+  // ------------------------------------------------------------ Projekte
+  // Leistung wird zwischen Monatsziel und aktivem Projekt aufgeteilt.
+  addWork(points) {
+    const pr = this.s.projects, p = this.s.player;
+    const act = pr.active;
+    if (!act) { p.perf += points; return; }
+    const share = pr.share;
+    p.perf += points * (1 - share);
+    act.pp += points * share * (1 + (act.boost || 0));
+    if (act.pp >= act.need) this.finishProject();
+  }
+
+  offerProject(proj) {
+    const pr = this.s.projects;
+    if (pr.offered.some((x) => x.id === proj.id) || pr.active?.id === proj.id || pr.done.some((d) => d.id === proj.id)) return;
+    pr.offered.push({ pp: 0, boost: 0, rep: 1, ...proj });
+    if (!this.offlineMode) this.emit('toast', { text: `Neues Projekt im Programm PROJ: ${proj.name}`, kind: 'mail' });
+    this.emit('projects');
+    this.emit('change');
+  }
+
+  startProject(id) {
+    const pr = this.s.projects;
+    if (pr.active) return false;
+    const i = pr.offered.findIndex((x) => x.id === id);
+    if (i < 0) return false;
+    const proj = pr.offered.splice(i, 1)[0];
+    proj.pp = 0;
+    proj.deadline = this.s.time.totalMonths + proj.months;
+    proj.late = false;
+    pr.active = proj;
+    if (pr.share === 0) pr.share = 0.5;
+    if (proj.exclusive) pr.offered = pr.offered.filter((x) => !proj.exclusive.includes(x.id));
+    this.emit('projects');
+    this.emit('change');
+    return true;
+  }
+
+  setProjectShare(x) {
+    this.s.projects.share = x;
+    this.emit('projects');
+    this.emit('change');
+  }
+
+  boostProject(amount) {
+    if (this.s.projects.active) this.s.projects.active.boost = (this.s.projects.active.boost || 0) + amount;
+  }
+
+  // Monatsende im Projekt: Frist überschritten?
+  checkProjectDeadline() {
+    const act = this.s.projects.active;
+    if (!act || act.late || this.s.time.totalMonths < act.deadline) return;
+    act.late = true;
+    this.addRep(-2, true);
+    this.mail('project_late', { name: act.name });
+  }
+
+  finishProject() {
+    const pr = this.s.projects, act = pr.active;
+    pr.active = null;
+    const reward = round2(act.late ? act.reward / 2 : act.reward);
+    if (reward > 0) this.s.player.pendingBonus.push({ label: `Projektprämie ${act.short || act.name}`, amount: reward });
+    this.addRep(act.late ? 0 : act.rep, true);
+    pr.done.push({ id: act.id, name: act.name, late: act.late, date: `${MONTH_NAMES[this.s.time.month]} ${this.s.time.year}`, reward });
+    if (pr.done.length > 40) pr.done.shift();
+    if (!this.offlineMode) this.emit('toast', { text: `Projekt abgeschlossen: ${act.name}`, kind: 'good' });
+    ON_PROJECT_DONE[act.id]?.(this, act.late);
+    if (this.s.story.flags.procedural && pr.offered.length === 0) this.generateProjects();
+    this.emit('projects');
+    this.emit('change');
+  }
+
+  generateProjects(n = 2) {
+    const target = this.target();
+    for (let i = 0; i < n; i++) {
+      const tpl = pick(PROJECT_TEMPLATES);
+      const w = pick(WERKE), k = pick(KUNDEN);
+      const need = Math.round((target * rand(1.3, 2.4)) / 50) * 50;
+      this.offerProject({
+        id: `gen-${Date.now().toString(36)}-${i}-${Math.floor(Math.random() * 1e4)}`,
+        name: tpl.name.replace('{w}', w).replace('{k}', k),
+        desc: tpl.desc.replaceAll('{w}', w).replaceAll('{k}', k),
+        sponsor: 'W. Hoff', need, months: need > target * 1.9 ? 4 : 3,
+        reward: Math.round((need * 1.15) / 10) * 10, rep: 1,
+      });
+    }
   }
 
   promote() {

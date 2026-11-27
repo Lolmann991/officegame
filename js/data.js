@@ -37,13 +37,34 @@ export const DIFFICULTIES = {
 export const STAGES = [
   { title: 'Junior-Sachbearbeiter', dept: 'Rechenzentrum', salary: 2400, target: 500, living: 1200, year: 1978 },
   { title: 'Sachbearbeiter', dept: 'Rechenzentrum', salary: 3100, target: 800, living: 1450, year: 1980 },
-  { title: 'Teamleiter', dept: 'Heimcomputer', salary: 4500, year: 1983 },
+  { title: 'Teamleiter', dept: 'Heimcomputer', salary: 4500, target: 1150, living: 1900, year: 1983 },
   { title: 'Abteilungsleiter', dept: 'PC-Sparte', salary: 7000, year: 1987 },
   { title: 'Bereichsleiter', dept: 'Geschäftsbereich Netz', salary: 11000, year: 1993 },
   { title: 'Vorstand', dept: 'Ressort Finanzen', salary: 18000, year: 1999 },
   { title: 'CEO', dept: 'Konzernleitung', salary: 36000, year: 2008 },
 ];
-export const PLAYABLE_STAGES = 2;
+export const PLAYABLE_STAGES = 3;
+
+// Kapitel-Karten: erscheinen beim Erreichen einer Stufe (intro) und bei der nächsten Beförderung (outro).
+export const CHAPTERS = [
+  { no: 1, title: 'Der erste Tag', stage: 0 },
+  { no: 2, title: 'Lochkarten und Ehrgeiz', stage: 1,
+    intro: 'Du bist jetzt Sachbearbeiter und hast einen Platz am Fenster. Neu ist das Programm PROJ: Dort übernimmst du eigene Projekte. Aber Vorsicht, jede Stunde im Projekt fehlt deinem Monatsziel.' },
+  { no: 3, title: 'Das erste Team', stage: 2 },
+];
+
+// Arbeitsanteil, der in ein Projekt fließen kann
+export const PROJECT_SHARES = [0, 0.25, 0.5, 0.75];
+
+// Vorlagen für prozedurale Projekte (Endlos-Inhalt ab Kapitel 2)
+export const PROJECT_TEMPLATES = [
+  { name: 'Druckerstraße Werk {w} umstellen', desc: 'Die Schnelldrucker in Werk {w} sollen ihre Aufträge direkt vom Großrechner bekommen.' },
+  { name: 'Datensicherung für {k}', desc: '{k} will jede Nacht eine Kopie ihrer Bestände auf Band. Bisher macht das niemand zuverlässig.' },
+  { name: 'Schulungsmappe Jobsteuerung', desc: 'Neue Kollegen brauchen eine verständliche Anleitung für die Jobsteuerkarten.' },
+  { name: 'Rechenzeit-Abrechnung automatisieren', desc: 'Die Kundenabrechnung der Rechenzeit wird noch von Hand addiert. Das geht besser.' },
+  { name: 'Lochkartenlager in Werk {w} auflösen', desc: '30.000 Lochkarten sollen auf Magnetband übertragen werden.' },
+  { name: 'Fehlerstatistik für {k}', desc: '{k} beschwert sich über Abbrüche im Nachtlauf. Finde heraus, woran es liegt.' },
+];
 
 // Büro-Upgrades. passive = Leistung/s, taskMult = Bonus pro Auftrag, rep = Ruf.
 export const UPGRADES = [
@@ -63,6 +84,17 @@ export const UPGRADES = [
     desc: 'Zwei Programme gleichzeitig und +30 % pro Auftrag.' },
   { id: 'urkunde', name: 'Beförderungsurkunde', price: 0, rep: 2, kind: 'Status', shop: false,
     desc: 'Hängt an der Stellwand. Jeder soll sie sehen.' },
+  // ab Sachbearbeiter
+  { id: 'kaktus', name: 'Kaktus fürs Fensterbrett', price: 45, rep: 1, kind: 'Deko', minStage: 1,
+    desc: '+1 Ruf. Pflegeleicht, wie du.' },
+  { id: 'rolodex', name: 'Rollkartei', price: 380, passive: 2, kind: 'Komfort', minStage: 1,
+    desc: '+2 Leistung/s. Jede Telefonnummer in drei Sekunden.' },
+  { id: 'tastentelefon', name: 'Tastentelefon', price: 520, taskMult: 0.15, kind: 'Hardware', minStage: 1,
+    desc: '+15 % pro Auftrag. Schluss mit der Wählscheibe.' },
+  { id: 'schreibmaschine', name: 'Elektrische Schreibmaschine', price: 950, passive: 4, kind: 'Hardware', minStage: 1,
+    desc: '+4 Leistung/s. Mit Korrekturband.' },
+  { id: 'pokal', name: 'Pokal „Ideenwettbewerb 1980“', price: 0, rep: 3, kind: 'Status', shop: false,
+    desc: 'Vom Vorstand überreicht.' },
 ];
 
 export const TASKS = [

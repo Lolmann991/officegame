@@ -1,7 +1,8 @@
 // Oberflächen über dem 3D-Büro: Titel, HUD, Dialoge, Abrechnungen, Hinweise, Game Over.
 // Steuert außerdem, wann die Spielzeit läuft.
 
-import { DIFFICULTIES, MONTH_NAMES, STAGES, GRADE_COMMENTS, fmtDM, fmtNum, fmtInt, fmtPct } from './data.js';
+import { DIFFICULTIES, MONTH_NAMES, STAGES, CHAPTERS, GRADE_COMMENTS, fmtDM, fmtNum, fmtInt, fmtPct } from './data.js';
+import { PROJECTS } from './story.js';
 import { DIALOGS, PEOPLE } from './story.js';
 import { Game } from './game.js';
 import { PC } from './pc.js';
@@ -39,6 +40,8 @@ export class UI {
     game.on('dialog', () => this.nextDialog());
     game.on('toast', ({ text, kind }) => this.toast(text, kind));
     game.on('promotion', () => this.onPromotion());
+    game.on('chapter', (no) => this.showChapterIntro(no));
+    game.on('projects', () => this.pc.rerender(['proj', 'karr']));
     game.on('gameover', (go) => this.showGameOver(go));
   }
 
@@ -127,6 +130,7 @@ export class UI {
     $('#title').hidden = true;
     $('#gameover').hidden = true;
     this.office.setUpgrades(this.game.s.upgrades);
+    this.office.setStage(this.game.s.player.stage);
     this.screen = 'desk';
     this.office.setMode('desk');
     $('#hud').hidden = false;
@@ -192,21 +196,36 @@ export class UI {
     if (this.dialog || this.modalOpen || this.screen === 'title' || this.game.s.gameOver) return;
     const id = this.game.s.dialogQueue[0];
     if (!id) return;
+    const d = DIALOGS[id];
     if (this.screen === 'pc' || this.screen === 'zooming') {
-      this.toast(`${PEOPLE[DIALOGS[id].who].name} steht an deinem Platz`, 'mail');
+      if (!d.phone) this.toast(`${PEOPLE[d.who].name} steht an deinem Platz`, 'mail');
       this.closePC();
     }
-    const d = DIALOGS[id];
-    this.dialog = { id, lines: this.game.dialogLines(id), i: 0, who: d.who };
+    this.dialog = { id, lines: this.game.dialogLines(id), i: 0, who: d.who, phone: !!d.phone };
     this.game.dialogActive = true;
-    if (this.office.visitorWho !== d.who) { this.office.showVisitor(d.who); this.office.visitorWho = d.who; }
-    this.office.setMode('dialog');
     $('#hint').hidden = true;
     const person = PEOPLE[d.who];
     $('#dlg-name').textContent = person.name;
     $('#dlg-role').textContent = person.role;
-    $('#dialog').hidden = false;
-    this.showLine();
+    const open = () => {
+      if (!this.dialog || this.dialog.id !== id) return;
+      $('#dialog').hidden = false;
+      this.showLine();
+    };
+    if (d.phone) {
+      this.office.hideVisitor();
+      this.office.visitorWho = null;
+      if (this.office.mode === 'phone') { open(); return; }
+      // erst klingeln lassen, dann abnehmen
+      this.office.setMode('desk');
+      this.office.ring(1.6);
+      this.toast('Das Telefon klingelt', 'mail');
+      setTimeout(() => { if (this.dialog?.id === id) { this.office.setMode('phone'); setTimeout(open, 500); } }, 1600);
+      return;
+    }
+    if (this.office.visitorWho !== d.who) { this.office.showVisitor(d.who); this.office.visitorWho = d.who; }
+    this.office.setMode('dialog');
+    open();
   }
 
   showLine() {
@@ -326,6 +345,7 @@ export class UI {
             <thead><tr><th>Bezüge</th><th class="r">DM</th></tr></thead>
             <tbody>
               ${row('Grundgehalt', sl.base)}
+              ${(sl.extras || []).map((e) => row(esc(e.label), e.amount)).join('')}
               ${sl.zulage ? row(`Leistungszulage (Note ${sl.grade})`, sl.zulage) : ''}
               ${sl.xmas ? row('Weihnachtsgeld', sl.xmas) : ''}
               ${sl.kuerzung ? row('Gehaltskürzung', -sl.kuerzung) : ''}
@@ -368,24 +388,49 @@ export class UI {
       </div>`, 'm-sheet');
   }
 
+  // Kapitelabschluss bei Beförderung, danach Intro des nächsten Kapitels (falls spielbar)
   onPromotion() {
+    this.office.setStage(this.game.s.player.stage);
     this.pc.rerender();
     this.updateHUD();
-    const s = this.game.s;
-    const months = s.time.totalMonths;
-    this.modal(`
-      <div class="sheet">
-        <div class="eyebrow">Kapitel 1 abgeschlossen</div>
-        <h2>Der erste Tag ist lange her</h2>
-        <p>Nach ${months} Monaten bei KB bist du jetzt <b>${esc(this.game.stage.title)}</b>. Grundgehalt: ${fmtDM(this.game.stage.salary)}.</p>
-        <dl class="sheet-dl">
+    const s = this.game.s, f = s.story.flags, stage = s.player.stage;
+    const done = CHAPTERS[stage - 1], next = CHAPTERS[stage];
+    const stats = stage === 1 ? `
           <dt>Aufträge bearbeitet</dt><dd>${fmtInt(s.player.tasksDone)}</dd>
           <dt>KB-Aktien</dt><dd>${fmtInt(s.shares.owned)}</dd>
           <dt>Ruf</dt><dd>${s.player.rep}</dd>
-          <dt>Deine Antwort an Kessler</dt><dd>${s.story.flags.vision_pc ? 'Ein Computer auf jedem Schreibtisch' : 'Großrechner bleiben das Rückgrat'}</dd>
-        </dl>
-        <p class="dim">Kapitel 2 („Lochkarten und Ehrgeiz“) folgt in der nächsten Version. Bis dahin kannst du als Sachbearbeiter mit höherem Monatsziel endlos weiterspielen.</p>
+          <dt>Deine Antwort an Kessler</dt><dd>${f.vision_pc ? 'Ein Computer auf jedem Schreibtisch' : 'Großrechner bleiben das Rückgrat'}</dd>` : `
+          <dt>Projekte abgeschlossen</dt><dd>${s.projects.done.length}</dd>
+          <dt>Ideenwettbewerb</dt><dd>${f.wb_choice ? esc(PROJECTS[f.wb_choice].name) : '–'}${f.wb_late ? ' (zu spät)' : ' (Pokal)'}</dd>
+          <dt>Angebot aus Frankfurt</dt><dd>${f.negotiated ? 'als Druckmittel genutzt (+12 % Gehalt)' : 'abgelehnt'}</dd>
+          <dt>KB-Aktien</dt><dd>${fmtInt(s.shares.owned)}</dd>
+          <dt>Ruf</dt><dd>${s.player.rep}</dd>`;
+    let nextHtml;
+    if (next?.intro) {
+      f[`seen_ch${next.no}`] = true;
+      nextHtml = `<div class="eyebrow next">Kapitel ${next.no}</div><h2>${esc(next.title)}</h2><p>${esc(next.intro)}</p>`;
+    } else {
+      nextHtml = `<p class="dim">Kapitel ${next.no} („${esc(next.title)}“) folgt in der nächsten Version. Bis dahin kannst du als ${esc(this.game.stage.title)} mit höherem Monatsziel endlos weiterspielen. Neue Projekte findest du laufend im Programm PROJ.</p>`;
+    }
+    this.modal(`
+      <div class="sheet">
+        <div class="eyebrow">Kapitel ${done.no} abgeschlossen · ${esc(done.title)}</div>
+        <p>Nach ${s.time.totalMonths} Monaten bei KB bist du jetzt <b>${esc(this.game.stage.title)}</b>. Grundgehalt: ${fmtDM(this.game.stage.salary * (1 + (s.player.salaryBonus || 0)))}.</p>
+        <dl class="sheet-dl">${stats}</dl>
+        ${nextHtml}
         <button type="button" class="btn primary" data-close>Weiterarbeiten</button>
+      </div>`, 'm-sheet');
+  }
+
+  showChapterIntro(no) {
+    const ch = CHAPTERS[no - 1];
+    if (!ch?.intro) return;
+    this.modal(`
+      <div class="sheet">
+        <div class="eyebrow">Kapitel ${ch.no}</div>
+        <h2>${esc(ch.title)}</h2>
+        <p>${esc(ch.intro)}</p>
+        <button type="button" class="btn primary" data-close>Los geht's</button>
       </div>`, 'm-sheet');
   }
 

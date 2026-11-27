@@ -3,7 +3,7 @@
 
 import {
   UPGRADES, STAGES, MONTH_NAMES, MONTH_SHORT, DIFFICULTIES, SHARES_OUTSTANDING, SHARE_DISCOUNT,
-  DIVIDEND_PER_SHARE, fmtDM, fmtNum, fmtInt, fmtPct,
+  DIVIDEND_PER_SHARE, PROJECT_SHARES, fmtDM, fmtNum, fmtInt, fmtPct,
 } from './data.js';
 import { MISSIONS, missionsDone } from './story.js';
 import { Game } from './game.js';
@@ -11,6 +11,7 @@ import { Game } from './game.js';
 const APPS = [
   { id: 'post', label: 'POST', title: 'Postfach' },
   { id: 'aufg', label: 'AUFG', title: 'Aufträge' },
+  { id: 'proj', label: 'PROJ', title: 'Projekte', minStage: 1 },
   { id: 'lohn', label: 'LOHN', title: 'Entgeltabrechnungen' },
   { id: 'depot', label: 'DEPOT', title: 'Konto und Depot' },
   { id: 'shop', label: 'BEDARF', title: 'Bürobedarf' },
@@ -59,7 +60,7 @@ export class PC {
             <span data-live="date"></span>
           </header>
           <nav class="crt-nav" aria-label="Programme">
-            ${APPS.map((a) => `<button type="button" data-app="${a.id}" data-pane="${i}">${a.label}${a.id === 'post' ? '<i data-live="unread"></i>' : ''}</button>`).join('')}
+            ${APPS.filter((a) => (a.minStage || 0) <= this.game.s.player.stage).map((a) => `<button type="button" data-app="${a.id}" data-pane="${i}">${a.label}${a.id === 'post' ? '<i data-live="unread"></i>' : ''}</button>`).join('')}
           </nav>
           <div class="crt-body" id="pane-${i}"></div>
           <footer class="crt-foot"><span data-live="footer"></span><span>[ESC] AUFSTEHEN</span></footer>
@@ -122,6 +123,8 @@ export class PC {
       owned: fmtInt(s.shares.owned),
       vote: fmtPct(s.shares.owned / SHARES_OUTSTANDING, 4),
       days: `${MONTH_NAMES[s.time.month]}: Tag ${g.day()}`,
+      projPP: s.projects.active ? `${fmtInt(s.projects.active.pp)} / ${fmtInt(s.projects.active.need)} (${fmtPct(s.projects.active.pp / s.projects.active.need)})` : '',
+      projEta: s.projects.active ? this.projEta() : '',
     };
     this.root.querySelectorAll('[data-live]').forEach((el) => {
       const v = vals[el.dataset.live];
@@ -130,6 +133,7 @@ export class PC {
     const set = (sel, f) => this.root.querySelectorAll(sel).forEach((el) => { el.style.width = `${Math.max(0, Math.min(100, f * 100)).toFixed(1)}%`; });
     set('[data-bar="perf"] > span', p.perf / target);
     set('[data-bar="month"] > span', s.time.monthProgress / 60);
+    if (s.projects.active) set('[data-bar="proj"] > span', s.projects.active.pp / s.projects.active.need);
     this.root.querySelectorAll('[data-bar="perf"]').forEach((el) => {
       const r = p.perf / target;
       el.dataset.grade = r >= 1.5 ? 'A' : r >= 1 ? 'B' : r >= 0.7 ? 'C' : 'D';
@@ -188,6 +192,62 @@ export class PC {
         <div class="dim">WERT <span data-live="taskValue"></span> · <span data-live="streak"></span></div>
         ${fb}
       </div>`;
+  }
+
+  monthLabel(offset) {
+    const t = this.game.s.time;
+    const k = t.month + offset;
+    return `${MONTH_NAMES[((k % 12) + 12) % 12]} ${t.year + Math.floor(k / 12)}`;
+  }
+
+  projEta() {
+    const g = this.game, pr = g.s.projects, act = pr.active;
+    const perMonth = g.passiveRate() * 60 * pr.share * (1 + (act.boost || 0));
+    if (perMonth <= 0) return 'Ohne Arbeitszeit kommt das Projekt nicht voran.';
+    const m = Math.ceil((act.need - act.pp) / perMonth);
+    return `Nur mit Grundleistung fertig in ca. ${m} Monat${m === 1 ? '' : 'en'}. Aufträge beschleunigen das.`;
+  }
+
+  app_proj() {
+    const g = this.game, pr = g.s.projects, t = g.s.time, act = pr.active;
+    let html = `<h2>PROJEKTE <span class="dim">EIGENVERANTWORTUNG</span></h2>`;
+    if (act) {
+      const left = act.deadline - t.totalMonths;
+      const frist = act.late ? '<span class="err">FRIST ÜBERSCHRITTEN · HALBE PRÄMIE</span>'
+        : `ENDE ${this.monthLabel(left - 1).toUpperCase()} <span class="dim">(${left <= 1 ? 'DIESER MONAT' : `NOCH ${left} MONATE`})</span>`;
+      html += `
+      <div class="task">
+        <div class="dim">AKTIVES PROJEKT · ${esc(act.sponsor || '')}</div>
+        <div class="task-title">${esc(act.name)}</div>
+        <p>${esc(act.desc)}</p>
+        <div class="kv">
+          <span>FORTSCHRITT</span><span data-live="projPP"></span>
+          <span></span><span class="tbar big" data-bar="proj"><span></span></span>
+          <span>FRIST</span><span>${frist}</span>
+          <span>PRÄMIE</span><span>${fmtDM(act.late ? act.reward / 2 : act.reward)}${act.boost ? ` · HILFE +${fmtPct(act.boost)}` : ''}</span>
+        </div>
+        <h3>ARBEITSZEIT IM PROJEKT</h3>
+        <div class="row">${PROJECT_SHARES.map((x) => `<button type="button" class="tbtn ${pr.share === x ? 'chosen' : ''}" data-act="share" data-arg="${x}">${fmtPct(x)}</button>`).join('')}</div>
+        <p class="dim">Dieser Anteil deiner Leistung fließt ins Projekt statt ins Monatsziel. <span data-live="projEta"></span></p>
+      </div>`;
+    } else {
+      html += `<p class="dim">Kein aktives Projekt. Deine ganze Leistung zählt fürs Monatsziel.</p>`;
+    }
+    if (pr.offered.length) {
+      html += `<h3>ANGEBOTE</h3>` + pr.offered.map((o) => `
+        <div class="shop-row">
+          <div><b>${esc(o.name)}</b> <span class="dim">[${esc(o.sponsor || 'W. HOFF')}]</span><br>
+            <span class="dim">${esc(o.desc)}</span><br>
+            UMFANG ${fmtInt(o.need)} PKT · FRIST ${o.months} MONATE · PRÄMIE ${fmtDM(o.reward)}${o.exclusive ? '<br><span class="err">NUR EINE EINREICHUNG MÖGLICH</span>' : ''}</div>
+          <div class="r"><button type="button" class="tbtn" data-act="project" data-arg="${esc(o.id)}" ${act ? 'disabled title="Erst das aktive Projekt abschließen"' : ''}>ÜBERNEHMEN</button></div>
+        </div>`).join('');
+    } else if (!act) {
+      html += `<p class="dim">Zurzeit keine Angebote. Neue Projekte kommen über die Story.</p>`;
+    }
+    if (pr.done.length) {
+      html += `<h3>ABGESCHLOSSEN</h3><ul class="tlist">${pr.done.slice(-6).reverse().map((d) => `<li class="${d.late ? 'err' : 'ok'}">${d.late ? '[!]' : '[X]'} ${esc(d.name)} <span class="dim">${esc(d.date)} · ${fmtDM(d.reward)}</span></li>`).join('')}</ul>`;
+    }
+    return html;
   }
 
   app_lohn() {
@@ -263,11 +323,14 @@ export class PC {
 
   app_shop() {
     const g = this.game;
-    const rows = UPGRADES.filter((u) => u.shop !== false).map((u) => {
+    // kaufbare zuerst, dann gesperrte, gekaufte zuletzt
+    const order = (u) => (g.owned(u.id) ? 2 : (u.minStage || 0) > g.s.player.stage ? 1 : 0);
+    const rows = UPGRADES.filter((u) => u.shop !== false).sort((a, b) => order(a) - order(b) || a.price - b.price).map((u) => {
       const own = g.owned(u.id);
-      return `<div class="shop-row ${own ? 'owned' : ''}">
+      const locked = (u.minStage || 0) > g.s.player.stage;
+      return `<div class="shop-row ${own ? 'owned' : ''} ${locked ? 'locked' : ''}">
         <div><b>${esc(u.name)}</b> <span class="dim">[${u.kind.toUpperCase()}]</span><br><span class="dim">${esc(u.desc)}</span></div>
-        <div class="r">${own ? '<span class="ok">AM PLATZ</span>'
+        <div class="r">${own ? '<span class="ok">AM PLATZ</span>' : locked ? `<span class="dim">AB ${esc(STAGES[u.minStage].title.toUpperCase())}</span>`
           : `<button type="button" class="tbtn" data-act="upgrade" data-arg="${u.id}" data-need="${u.price}">${fmtNum(u.price)} DM</button>`}</div>
       </div>`;
     }).join('');
@@ -283,7 +346,7 @@ export class PC {
       const [a, b] = m.prog(g);
       const done = a >= b;
       return `<li class="${done ? 'ok' : ''}">[${done ? 'X' : ' '}] ${esc(m.text)} <span class="dim">${Math.min(a, b)}/${b}</span></li>`;
-    }).join('') : '<li class="dim">Kapitel 2 ist in Arbeit. Du kannst als Sachbearbeiter endlos weiterspielen.</li>';
+    }).join('') : `<li class="dim">Kapitel ${p.stage + 1} ist in Arbeit. Du kannst als ${esc(g.stage.title)} endlos weiterspielen. Neue Projekte gibt es laufend im Programm PROJ.</li>`;
     const ladder = STAGES.map((st, i) => `<li class="${i === p.stage ? 'here' : i < p.stage ? 'past' : 'dim'}">${i === p.stage ? '►' : ' '} ${String(i + 1)} ${esc(st.title.toUpperCase())} <span class="dim">AB CA. ${st.year}</span></li>`).join('');
     const grades = p.grades.slice(-12).map((x) => `<span class="g-${x}">${x}</span>`).join(' ') || '<span class="dim">noch keine</span>';
     const warnText = d.warningsLimit === Infinity ? `${p.warnings} (kein Game Over)` : `${p.warnings} von ${d.warningsLimit}`;
@@ -298,7 +361,7 @@ export class PC {
       </div>
       <h3>ZIELE FÜR DIE BEFÖRDERUNG</h3>
       <ul class="tlist">${missions}</ul>
-      ${missionsDone(g) && p.stage === 0 ? '<p class="ok">Alle Ziele erreicht. Herr Hoff möchte mit dir sprechen.</p>' : ''}
+      ${missionsDone(g) ? '<p class="ok">Alle Ziele erreicht. Herr Hoff möchte mit dir sprechen.</p>' : ''}
       <h3>LAUFBAHN BEI KB</h3>
       <ul class="tlist ladder">${ladder}</ul>`;
   }
@@ -403,6 +466,10 @@ export class PC {
       case 'mail': this.mailSel = arg; this.rerender(['post']); break;
       case 'mail-choice': g.chooseMail(arg, Number(b.dataset.idx)); this.rerender(); break;
       case 'slip': this.ui.showPayslip(g.s.payslips[Number(arg)]); break;
+      case 'project':
+        if (g.startProject(arg)) this.ui.toast('Projekt übernommen', 'good');
+        this.rerender(['proj']); break;
+      case 'share': g.setProjectShare(Number(arg)); this.rerender(['proj']); break;
       case 'buy': {
         const n = g.buyShares(arg === 'max' ? 'max' : Number(arg));
         if (n) this.ui.toast(`${n} KB-Aktie${n > 1 ? 'n' : ''} gekauft`, 'good');

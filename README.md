@@ -1,11 +1,16 @@
-# KONZERN (Prototyp v0.1)
+# KONZERN (Prototyp v0.2)
 
 Idle-Wirtschaftsspiel im Browser. Du beginnst 1978 als Junior-Sachbearbeiter bei der fiktiven
 Kessler & Brandt Rechenwerke AG und arbeitest dich hoch. Gespielt wird am Schreibtisch in einem
 3D-Büro (Low-Poly, Pixeltexturen) über den Firmen-PC.
 
-Der Prototyp enthält Kapitel 1 komplett: von „Der erste Tag“ bis zur Beförderung zum Sachbearbeiter.
-Danach läuft das Spiel endlos weiter.
+Der Prototyp enthält die Kapitel 1 und 2:
+
+1. **Der erste Tag:** Einstieg im Großraum, Aufträge, Gehaltsabrechnung, Mitarbeiteraktien, Beförderung zum Sachbearbeiter.
+2. **Lochkarten und Ehrgeiz:** Platz am Fenster, eigene Projekte (Programm PROJ), Ideenwettbewerb des Vorstands,
+   ein Abwerbeversuch von Orion am Telefon und die Beförderung zum Teamleiter.
+
+Danach läuft das Spiel endlos weiter, mit laufend neuen Projekten.
 
 Konzept, Story und Roadmap: [Game Design Document](https://claude.ai/artifact/FPW1vS3g2BwqXAwNP99H65)
 
@@ -30,6 +35,8 @@ gebraucht. Nur die Schriften kommen von Google Fonts; ohne Internet greifen Ersa
 
 - Klick auf den Monitor: an den PC setzen. `Esc`: aufstehen.
 - Im Programm AUFG den Auftragscode abtippen und `Enter` drücken.
+- Im Programm PROJ ein Projekt übernehmen und festlegen, wie viel Arbeitszeit hineinfließt (0–75 %).
+  Dieser Anteil fehlt dem Monatsziel. Fertige Projekte bringen eine Prämie auf der nächsten Abrechnung.
 - Maus bewegen: im Büro umsehen.
 
 ## Aufbau
@@ -40,13 +47,13 @@ gebraucht. Nur die Schriften kommen von Google Fonts; ohne Internet greifen Ersa
 | `js/main.js` | Einstieg, Hauptschleife, Auto-Save, Hintergrund-Tab |
 | `js/game.js` | Spiellogik ohne Rendering: Zeit, Monatsabschluss, Gehalt, Aktien, Speichern/Export |
 | `js/data.js` | Balancing und Konstanten: Stufen, Upgrades, Schwierigkeitsgrade, Auftragsvorlagen |
-| `js/story.js` | Kapitel 1: Figuren, Mails, Dialoge, Ereignisse, Missionen, Entscheidungen |
+| `js/story.js` | Story: Figuren, Projekte, Mails, Dialoge, Ereignisse, Missionen, Entscheidungen |
 | `js/office.js` | Three.js-Büro: Geometrie, Canvas-Pixeltexturen, Kamera, Figuren |
-| `js/pc.js` | PC-Programme: POST, AUFG, LOHN, DEPOT, BEDARF, KARR, SYS |
+| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, LOHN, DEPOT, BEDARF, KARR, SYS |
 | `js/ui.js` | Titel, HUD, Dialogablauf, Entgeltabrechnung, Offline-Zusammenfassung, Game Over |
 
 Neue Kapitel entstehen vor allem in `story.js` (Mails, Dialoge, `EVENTS`, `MISSIONS`) und `data.js`
-(`STAGES`, `PLAYABLE_STAGES`).
+(`STAGES`, `PLAYABLE_STAGES`, `CHAPTERS`, `PROJECT_TEMPLATES`).
 
 ## Speichern
 

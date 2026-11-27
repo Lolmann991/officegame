@@ -100,6 +100,46 @@ function buildTextures() {
     }
     c.fillStyle = rgb(90, 96, 84); c.fillRect(0, h - 2, w, 2);
   });
+  TEX.skyWide = tex(256, 96, (c, w, h) => {
+    for (let y = 0; y < h; y++) {
+      const f = y / h;
+      c.fillStyle = rgb(140 + f * 80, 172 + f * 48, 200 + f * 10);
+      c.fillRect(0, y, w, 1);
+    }
+    const rnd = rng(23);
+    c.fillStyle = 'rgba(255,255,255,0.7)';
+    for (let i = 0; i < 6; i++) { const cx = rnd() * w, cy = 6 + rnd() * 20; c.fillRect(cx | 0, cy | 0, 14 + rnd() * 18 | 0, 2); c.fillRect(cx + 4 | 0, cy - 2 | 0, 8, 2); }
+    // zwei Häuserreihen: hinten hell, vorne dunkler und höher
+    for (const [base, minH, maxH, shade0] of [[h - 30, 8, 30, 150], [h, 20, 52, 112]]) {
+      let x = 0;
+      while (x < w) {
+        const bw = 8 + rnd() * 18 | 0, bh = minH + rnd() * (maxH - minH) | 0, shade = shade0 + rnd() * 35;
+        c.fillStyle = rgb(shade, shade + 3, shade + 9);
+        c.fillRect(x, base - bh, bw, bh);
+        for (let wy = base - bh + 2; wy < base - 1; wy += 3) for (let wx = x + 1; wx < x + bw - 1; wx += 2) {
+          c.fillStyle = rnd() > 0.75 ? rgb(shade + 55, shade + 52, shade + 40) : rgb(shade - 28, shade - 24, shade - 16);
+          c.fillRect(wx, wy, 1, 1);
+        }
+        x += bw + (rnd() * 4 | 0);
+      }
+    }
+  });
+  TEX.keypad = tex(8, 8, (c) => {
+    c.fillStyle = '#6f6a5c'; c.fillRect(0, 0, 8, 8);
+    c.fillStyle = '#efe9d8';
+    for (let y = 1; y < 8; y += 2) for (let x = 1; x < 7; x += 2) c.fillRect(x, y, 1, 1);
+  });
+  TEX.typekeys = tex(16, 6, (c) => {
+    c.fillStyle = '#2f3a48'; c.fillRect(0, 0, 16, 6);
+    c.fillStyle = '#e8e2cf';
+    for (let y = 0; y < 5; y += 2) for (let x = 1 + (y / 2); x < 15; x += 2) c.fillRect(x | 0, y, 1, 1);
+    c.fillRect(4, 5, 8, 1);
+  });
+  TEX.cards = tex(16, 8, (c) => {
+    c.fillStyle = '#f2eee2'; c.fillRect(0, 0, 16, 8);
+    c.fillStyle = '#c9c2ae';
+    for (let x = 0; x < 16; x += 2) c.fillRect(x, 0, 1, 8);
+  });
   TEX.keyboard = tex(32, 10, (c, w, h) => {
     c.fillStyle = '#c9bf9f'; c.fillRect(0, 0, w, h);
     for (let y = 1; y < 8; y += 2) for (let x = 1; x < w - 1; x += 2) { c.fillStyle = (x > 26) ? '#8f7a52' : '#efe7cf'; c.fillRect(x, y, 1, 1); }
@@ -366,23 +406,23 @@ export class Office {
     for (let x = -5; x <= 5; x += 1.25) box(0.08, 1.5, 0.14, 0xd8d4c8, x, 1.65, -7.5, s);
     box(10, 0.06, 0.3, 0xd8d4c8, 0, 0.92, -7.4, s);
     // Seitenwände
-    box(0.1, 2.9, 10, TEX.wall, -5, 1.45, -2.5, s);
+    this.leftWall = [box(0.1, 2.9, 10, TEX.wall, -5, 1.45, -2.5, s)];
     box(0.1, 2.9, 10, TEX.wall, 5, 1.45, -2.5, s);
     box(10, 2.9, 0.1, TEX.wall, 0, 1.45, 2.5, s);
-    box(0.06, 0.12, 10, 0x6b5a45, -4.94, 0.06, -2.5, s); // Fußleisten
+    this.leftWall.push(box(0.06, 0.12, 10, 0x6b5a45, -4.94, 0.06, -2.5, s)); // Fußleisten
     box(0.06, 0.12, 10, 0x6b5a45, 4.94, 0.06, -2.5, s);
     // Logo, Uhr, Tür
     plane(1.2, 0.6, TEX.logo, 4.94, 1.9, -2.8, -Math.PI / 2, s);
     const clockMat = new THREE.MeshLambertMaterial({ map: TEX.clock, transparent: true });
-    plane(0.4, 0.4, clockMat, -4.94, 2.1, -1.6, Math.PI / 2, s);
+    this.leftWall.push(plane(0.4, 0.4, clockMat, -4.94, 2.1, -1.6, Math.PI / 2, s));
     box(0.06, 2.1, 1.0, 0x8a5a34, 4.95, 1.05, -0.8, s);
     box(0.08, 0.05, 0.12, 0xc8b273, 4.9, 1.0, -0.45, s);
     // Leuchtstoffröhren
     const glow = new THREE.MeshBasicMaterial({ color: 0xfffbea });
     for (let x = -3; x <= 3; x += 2) for (let z = -6; z <= 1; z += 1.8) box(1.2, 0.03, 0.26, glow, x, 2.88, z, s);
     // Pflanze und Aktenschränke in der Ferne
-    box(0.9, 1.3, 0.45, TEX.steel, -4.4, 0.65, -6.6, s);
-    box(0.9, 1.3, 0.45, TEX.steel, -3.4, 0.65, -6.6, s);
+    this.leftWall.push(box(0.9, 1.3, 0.45, TEX.steel, -4.4, 0.65, -6.6, s));
+    this.leftWall.push(box(0.9, 1.3, 0.45, TEX.steel, -3.4, 0.65, -6.6, s));
     box(0.9, 1.3, 0.45, TEX.steel, 4.2, 0.65, -6.6, s);
   }
 
@@ -394,8 +434,10 @@ export class Office {
     // Stellwände (Großraumbüro)
     box(1.92, 1.05, 0.04, TEX.fabric, 0, 0.525, -0.66, s);
     box(1.94, 0.03, 0.06, 0x8f8a7c, 0, 1.06, -0.66, s);
-    box(0.04, 1.45, 1.05, TEX.fabric, -0.97, 0.725, -0.14, s);
-    box(0.06, 0.03, 1.07, 0x8f8a7c, -0.97, 1.46, -0.14, s);
+    this.leftPartition = [
+      box(0.04, 1.45, 1.05, TEX.fabric, -0.97, 0.725, -0.14, s),
+      box(0.06, 0.03, 1.07, 0x8f8a7c, -0.97, 1.46, -0.14, s),
+    ];
     plane(0.16, 0.21, TEX.calendar, -0.62, 0.9, -0.637, 0, s);
 
     // Bildschirm 1
@@ -433,13 +475,23 @@ export class Office {
     const phone = new THREE.Group();
     phone.position.set(-0.6, 0.75, 0.02);
     phone.rotation.y = 0.35;
-    box(0.2, 0.08, 0.22, 0xd0662a, 0, 0.04, 0, phone);
-    box(0.24, 0.05, 0.07, 0xc05a22, 0, 0.11, -0.04, phone);
-    const dial = cyl(0.055, 0.055, 0.012, 10, 0xece4cf, 0, 0.085, 0.05, phone);
+    const rotary = new THREE.Group();
+    box(0.2, 0.08, 0.22, 0xd0662a, 0, 0.04, 0, rotary);
+    const dial = cyl(0.055, 0.055, 0.012, 10, 0xece4cf, 0, 0.085, 0.05, rotary);
     dial.rotation.x = -0.5;
+    const push = new THREE.Group();
+    box(0.2, 0.07, 0.22, 0xd9d3c0, 0, 0.035, 0, push);
+    const pad = box(0.1, 0.01, 0.1, [mat(0x8a8576), mat(0x8a8576), mat(TEX.keypad), mat(0x8a8576), mat(0x8a8576), mat(0x8a8576)], 0, 0.072, 0.05, push);
+    pad.rotation.x = -0.25;
+    phone.add(rotary, push);
+    this.handset = box(0.24, 0.05, 0.07, 0xc05a22, 0, 0.11, -0.04, phone);
+    this.phoneParts = { rotary, push, phone };
     s.add(phone);
+    this.phone = phone;
     // Papierstapel und Becher
-    for (let i = 0; i < 5; i++) box(0.21, 0.008, 0.29, i % 2 ? 0xf2efe4 : 0xe8e3d2, -0.36 + (i % 2) * 0.01, 0.754 + i * 0.008, 0.2 + (i % 3) * 0.006, s);
+    this.paperStack = new THREE.Group();
+    for (let i = 0; i < 5; i++) box(0.21, 0.008, 0.29, i % 2 ? 0xf2efe4 : 0xe8e3d2, -0.36 + (i % 2) * 0.01, 0.754 + i * 0.008, 0.2 + (i % 3) * 0.006, this.paperStack);
+    s.add(this.paperStack);
     cyl(0.035, 0.032, 0.09, 7, 0xf4f1e8, 0.3, 0.795, -0.0, s);
     cyl(0.03, 0.03, 0.005, 7, 0x3a2416, 0.3, 0.838, 0.0, s);
 
@@ -516,6 +568,68 @@ export class Office {
     plane(0.27, 0.2, TEX.urkunde, 0, 0, 0.003, 0, urk);
     s.add(urk); U.urkunde = urk;
 
+    // ---------- ab Sachbearbeiter
+    const tw = new THREE.Group();
+    tw.position.set(-0.36, 0.75, 0.17);
+    tw.rotation.y = 0.22;
+    box(0.36, 0.08, 0.28, 0x4b5d73, 0, 0.04, 0, tw);
+    box(0.3, 0.02, 0.12, [mat(0x4b5d73), mat(0x4b5d73), mat(TEX.typekeys), mat(0x4b5d73), mat(0x4b5d73), mat(0x4b5d73)], 0, 0.085, 0.06, tw);
+    const roller = cyl(0.025, 0.025, 0.34, 8, 0x1f1f1f, 0, 0.11, -0.08, tw);
+    roller.rotation.z = Math.PI / 2;
+    const sheet = plane(0.21, 0.16, 0xf6f3ea, 0, 0.19, -0.1, 0, tw);
+    sheet.rotation.x = -0.25;
+    s.add(tw); U.schreibmaschine = tw;
+
+    const rdx = new THREE.Group();
+    rdx.position.set(0.66, 0.75, 0.08);
+    rdx.rotation.y = -0.4;
+    box(0.16, 0.02, 0.1, 0x2b2a28, 0, 0.01, 0, rdx);
+    box(0.012, 0.1, 0.012, 0x8a8576, -0.07, 0.06, 0, rdx);
+    box(0.012, 0.1, 0.012, 0x8a8576, 0.07, 0.06, 0, rdx);
+    const cards = cyl(0.05, 0.05, 0.12, 10, TEX.cards, 0, 0.1, 0, rdx);
+    cards.rotation.z = Math.PI / 2;
+    s.add(rdx); U.rolodex = rdx;
+
+    // rechte Stellwand: ab dem Fensterplatz hängen Bild und Urkunde hier
+    this.rightPartition = new THREE.Group();
+    box(0.04, 1.45, 1.0, TEX.fabric, 1.42, 0.725, -0.12, this.rightPartition);
+    box(0.06, 0.03, 1.02, 0x8f8a7c, 1.42, 1.46, -0.12, this.rightPartition);
+    s.add(this.rightPartition);
+    this.wallSpots = {
+      left: { picture: [-0.945, 1.08, -0.35, Math.PI / 2], urkunde: [-0.945, 1.1, 0.06, Math.PI / 2] },
+      right: { picture: [1.395, 1.12, -0.42, -Math.PI / 2], urkunde: [1.395, 1.14, 0.1, -Math.PI / 2] },
+    };
+
+    // Fensterfront links (Platz am Fenster)
+    const win = new THREE.Group();
+    box(0.1, 0.95, 10, TEX.wall, -1.1, 0.475, -2.5, win);
+    box(0.1, 0.35, 10, TEX.wall, -1.1, 2.725, -2.5, win);
+    box(0.24, 0.035, 10, 0xd8d4c8, -1.0, 0.965, -2.5, win);
+    for (let z = 2.5; z >= -7.5; z -= 1.25) box(0.12, 1.6, 0.07, 0xd8d4c8, -1.1, 1.75, z, win);
+    box(0.06, 0.08, 10, 0xd8d4c8, -1.1, 2.52, -2.5, win);
+    box(0.08, 0.42, 1.1, 0xe6e1d2, -1.0, 0.45, -0.15, win); // Heizkörper
+    for (let z = -0.65; z <= 0.35; z += 0.08) box(0.09, 0.4, 0.015, 0xd2ccbc, -0.995, 0.45, z, win);
+    const outside = plane(14, 4.2, new THREE.MeshBasicMaterial({ map: TEX.skyWide, fog: false }), -4.9, 1.2, -2.5, Math.PI / 2, win);
+    outside.renderOrder = -1;
+    win.visible = false;
+    s.add(win);
+    this.windowWall = win;
+
+    const kaktus = new THREE.Group();
+    kaktus.position.set(-1.0, 0.985, -0.48);
+    cyl(0.045, 0.035, 0.07, 7, 0xa5552e, 0, 0.035, 0, kaktus);
+    cyl(0.028, 0.03, 0.14, 6, 0x4a7a3a, 0, 0.14, 0, kaktus);
+    const arm = cyl(0.014, 0.014, 0.06, 5, 0x4a7a3a, 0.035, 0.15, 0, kaktus);
+    arm.rotation.z = 0.9;
+    s.add(kaktus); U.kaktus = kaktus;
+
+    const pokal = new THREE.Group();
+    pokal.position.set(-1.0, 0.985, -0.08);
+    box(0.08, 0.04, 0.08, 0x2b2a28, 0, 0.02, 0, pokal);
+    cyl(0.012, 0.012, 0.07, 6, 0xc9a646, 0, 0.075, 0, pokal);
+    cyl(0.05, 0.02, 0.08, 8, 0xd8b44e, 0, 0.15, 0, pokal);
+    s.add(pokal); U.pokal = pokal;
+
     Object.values(U).forEach((o) => { o.visible = false; });
 
     // Besucher-Anker hinter der vorderen Stellwand
@@ -533,7 +647,11 @@ export class Office {
       { suit: 0x3f5a4a, shirt: 0xe4ddc8, hair: 0x2b1d14, longHair: true, skin: SKINS[3] },
     ];
     const spots = [[-1.9, -2.3], [0, -2.3], [1.9, -2.3], [-1.9, -4.2], [1.9, -4.2], [0, -4.2]];
+    this.leftSpots = [];
     spots.forEach(([x, z], i) => {
+      const s = new THREE.Group();
+      this.scene.add(s);
+      if (x < 0 && z > -5) this.leftSpots.push(s);
       buildDesk(s, x, z);
       const tx = new THREE.CanvasTexture(document.createElement('canvas'));
       const crt = buildCRT(tx);
@@ -574,6 +692,8 @@ export class Office {
     this.scene.add(p);
     this.visitor = p;
   }
+  ring(seconds) { this.ringUntil = this.clock.elapsedTime + seconds; }
+
   hideVisitor() {
     if (this.visitor) { this.scene.remove(this.visitor); this.visitor = null; }
   }
@@ -583,6 +703,27 @@ export class Office {
     for (const [id, obj] of Object.entries(this.upgradeObjs)) obj.visible = !!upgrades[id];
     this.clickables = [...this.monitor1.group.children, ...(upgrades.monitor2 ? this.monitor2.group.children : [])];
     this.hasMonitor2 = !!upgrades.monitor2;
+    // Schreibmaschine verdrängt den Papierstapel, Tastentelefon ersetzt die Wählscheibe
+    this.paperStack.visible = !upgrades.schreibmaschine;
+    this.phoneParts.rotary.visible = !upgrades.tastentelefon;
+    this.phoneParts.push.visible = !!upgrades.tastentelefon;
+    this.handset.material = mat(upgrades.tastentelefon ? 0xc9c3b0 : 0xc05a22);
+  }
+
+  // Arbeitsplatz je Karrierestufe: ab Stufe 1 am Fenster
+  setStage(stage) {
+    const atWindow = stage >= 1;
+    this.windowWall.visible = atWindow;
+    this.leftPartition.forEach((m) => { m.visible = !atWindow; });
+    this.rightPartition.visible = atWindow;
+    this.leftWall.forEach((m) => { m.visible = !atWindow; });
+    this.leftSpots.forEach((g) => { g.visible = !atWindow; });
+    const spots = this.wallSpots[atWindow ? 'right' : 'left'];
+    for (const id of ['picture', 'urkunde']) {
+      const [x, y, z, ry] = spots[id];
+      this.upgradeObjs[id].position.set(x, y, z);
+      this.upgradeObjs[id].rotation.y = ry;
+    }
   }
 
   setScreenInfo(info) { this.screenInfo = info; }
@@ -662,6 +803,9 @@ export class Office {
       const st = this.screenTarget();
       pos.copy(st.pos);
       aim(st.look);
+    } else if (this.mode === 'phone') {
+      pos.copy(this.deskPos);
+      aim(new THREE.Vector3(-1.6, 1.25, -0.9)); // beim Telefonieren aus dem Fenster schauen
     } else if (this.mode === 'dialog') {
       pos.copy(this.deskPos);
       aim(new THREE.Vector3(this.visitorAnchor.x + 0.05, 1.42, this.visitorAnchor.z));
@@ -714,6 +858,14 @@ export class Office {
       an.arms[1].rotation.x = -1.0 - s * 0.06;
       if (an.head) an.head.rotation.y = Math.sin(t * 0.4 + a.phase) * 0.25;
     }
+    // Telefon: klingeln und Hörer abnehmen
+    const lift = this.mode === 'phone' ? 1 : 0;
+    this.lift = (this.lift || 0) + (lift - (this.lift || 0)) * Math.min(1, dt * 6);
+    this.handset.position.set(0, 0.11 + this.lift * 0.2, -0.04 + this.lift * 0.1);
+    this.handset.rotation.x = this.lift * 0.6;
+    this.handset.visible = this.lift < 0.45; // danach hält man ihn am Ohr
+    this.phone.rotation.z = t < (this.ringUntil || 0) ? Math.sin(t * 70) * 0.05 : 0;
+
     // Besucher läuft herein
     if (this.visitor && this.visitor.userData.walk < 1) {
       const v = this.visitor;
