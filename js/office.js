@@ -143,6 +143,20 @@ function buildTextures() {
     c.fillStyle = '#b98a4a';
     for (let y = 6; y < 18; y += 4) for (let x = 6; x < 26; x += 4) c.fillRect(x, y, 2, 2);
   });
+  TEX.flip = tex(24, 32, (c) => {
+    c.fillStyle = '#f6f4ee'; c.fillRect(0, 0, 24, 32);
+    c.fillStyle = '#b3302a'; c.fillRect(3, 3, 18, 2);
+    c.fillStyle = '#1f3a8a';
+    const pts = [[5, 10], [18, 9], [11, 16], [4, 23], [19, 24], [12, 28]];
+    const edges = [[0, 2], [1, 2], [2, 3], [2, 4], [3, 5], [4, 5], [0, 1]];
+    for (const [a, b] of edges) {
+      const [x1, y1] = pts[a], [x2, y2] = pts[b];
+      for (let k = 0; k <= 12; k++) c.fillRect(Math.round(x1 + (x2 - x1) * k / 12), Math.round(y1 + (y2 - y1) * k / 12), 1, 1);
+    }
+    c.fillStyle = '#b3302a';
+    for (const [x, y] of pts) c.fillRect(x - 1, y - 1, 3, 3);
+  });
+  TEX.leather = tex(8, 8, (c, w, h) => noiseFill(c, w, h, [62, 44, 36], 10, 31));
   TEX.keypad = tex(8, 8, (c) => {
     c.fillStyle = '#6f6a5c'; c.fillRect(0, 0, 8, 8);
     c.fillStyle = '#efe9d8';
@@ -717,6 +731,7 @@ export class Office {
     this.scene.add(pc3.group);
     this.buildEra2();
     this.buildOffice();
+    this.buildLounge();
     this.teamPeople = [];
     this.buildGlassWall();
   }
@@ -804,6 +819,43 @@ export class Office {
     this.officeFront = g;
   }
 
+  // größeres Büro ab Bereichsleiter: Glasfront bis x=3, Seitenwand, Sitzecke, Flipchart
+  buildLounge() {
+    const g = new THREE.Group();
+    const glass = new THREE.MeshLambertMaterial({ color: 0xbcd8e0, transparent: true, opacity: 0.22, depthWrite: false });
+    const frame = 0x6f6b60, wood = 0x7a4a2a;
+    box(1.55, 0.9, 0.05, wood, 2.225, 0.45, -0.66, g);
+    plane(1.55, 1.47, glass, 2.225, 1.635, -0.655, 0, g);
+    box(0.05, 2.4, 0.07, frame, 3.0, 1.2, -0.66, g);
+    box(1.6, 0.06, 0.07, frame, 2.22, 2.37, -0.66, g);
+    box(0.08, 2.9, 3.2, TEX.wall, 3.04, 1.45, 0.92, g);
+    // Sofa
+    const sofa = new THREE.Group();
+    sofa.position.set(2.62, 0, 0.15);
+    box(0.7, 0.36, 1.5, TEX.leather, 0, 0.24, 0, sofa);
+    box(0.18, 0.5, 1.5, TEX.leather, 0.26, 0.62, 0, sofa);
+    box(0.7, 0.55, 0.16, TEX.leather, 0, 0.36, -0.75, sofa);
+    box(0.7, 0.55, 0.16, TEX.leather, 0, 0.36, 0.75, sofa);
+    g.add(sofa);
+    // Couchtisch mit Glasplatte
+    box(0.5, 0.02, 0.9, new THREE.MeshLambertMaterial({ color: 0x9fc4cc, transparent: true, opacity: 0.55 }), 1.95, 0.42, 0.15, g);
+    for (const [dx, dz] of [[-0.2, -0.4], [0.2, -0.4], [-0.2, 0.4], [0.2, 0.4]]) box(0.03, 0.41, 0.03, 0x2b2a28, 1.95 + dx, 0.205, 0.15 + dz, g);
+    cyl(0.04, 0.035, 0.08, 7, 0xf4f1e8, 1.9, 0.47, 0.0, g);
+    // Flipchart
+    const flip = new THREE.Group();
+    flip.position.set(2.45, 0, -0.42);
+    flip.rotation.y = -0.6;
+    box(0.03, 1.7, 0.03, 0x8a8576, -0.3, 0.85, 0.05, flip);
+    box(0.03, 1.7, 0.03, 0x8a8576, 0.3, 0.85, 0.05, flip);
+    box(0.66, 0.86, 0.02, 0xd9d6cc, 0, 1.25, 0.06, flip);
+    plane(0.6, 0.8, TEX.flip, 0, 1.25, 0.072, 0, flip);
+    g.add(flip);
+    g.visible = false;
+    this.scene.add(g);
+    this.lounge = g;
+    this.wallSpots.lounge = { picture: [3.0, 1.55, 0.55, -Math.PI / 2], urkunde: [3.0, 1.55, 1.05, -Math.PI / 2] };
+  }
+
   setTeam(stage, members) {
     const own = stage >= 2;
     this.staticPeople.forEach((p) => { p.visible = !own; });
@@ -867,10 +919,11 @@ export class Office {
     this.frontPartition.forEach((m) => { m.visible = stage < 3; });
     this.windowWall.visible = atWindow;
     this.leftPartition.forEach((m) => { m.visible = !atWindow; });
-    this.rightPartition.visible = atWindow;
+    this.rightPartition.visible = atWindow && stage < 4;
+    this.lounge.visible = stage >= 4;
     this.leftWall.forEach((m) => { m.visible = !atWindow; });
     this.leftSpots.forEach((g) => { g.visible = !atWindow; });
-    const spots = this.wallSpots[atWindow ? 'right' : 'left'];
+    const spots = this.wallSpots[stage >= 4 ? 'lounge' : atWindow ? 'right' : 'left'];
     for (const id of ['picture', 'urkunde']) {
       const [x, y, z, ry] = spots[id];
       this.upgradeObjs[id].position.set(x, y, z);

@@ -458,6 +458,84 @@ Ingrid Bergmann
 
 PS: Herr Kessler hat persönlich unterschrieben. Mit Füller.`,
   },
+  // ---------- Kapitel 5
+  c5_bereich: {
+    from: 'H. Kessler · Vorstand',
+    subject: 'Geschäftsbereich Netz',
+    body: (g) => `${first(g)},
+
+sechs Jahre PC-Sparte, und Sie haben aus einem Hobby ein Geschäft gemacht. Ihr neues Büro hat eine Sitzecke. Benutzen Sie sie, um Leute zu überzeugen, nicht um auszuruhen.
+
+Ihre Produktlinien behalten Sie. Neu ist der Bereich Netz: In Amerika wählen sich die Leute schon zu Hunderttausenden mit dem Modem in Onlinedienste ein. Bei uns gibt es bisher nur PostNet, und die sind langsam und teuer.
+
+Ich komme die Tage vorbei. Dann reden wir über Geld.
+
+Kessler`,
+  },
+  c5_sauer_memo: {
+    from: 'Dr. H. Sauer · Finanzvorstand',
+    subject: 'Aktennotiz: KB-Net',
+    body: (g) => `${g.s.player.name},
+
+zur Kenntnis: Ich halte KB-Net für einen Irrweg. ${g.s.story.flags.net_all ? '20 Millionen DM für Modems in Kellerräumen sind kein Investment, sondern eine Wette.' : 'Auch 8 Millionen DM sind viel Geld für ein Experiment.'}
+
+Ich werde das Thema in der nächsten Vorstandssitzung zur Abstimmung stellen. Bereiten Sie sich vor.
+
+Dr. Hartwig Sauer`,
+  },
+  c5_kartell: {
+    from: 'Dr. M. Lindner · Rechtsabteilung',
+    subject: 'Vertraulich: Bundeskartellamt bei Orion',
+    body: (g) => `${g.s.player.name},
+
+das Bundeskartellamt hat gestern die Büros von Orion in Frankfurt durchsucht. Es geht um Preisabsprachen im PC-Geschäft. In beschlagnahmten Notizen von Dr. Rau taucht Ihr Name auf, mit Datum eines Telefonats.
+
+Wir müssen uns jetzt entscheiden. Kooperieren wir, wird KB eine Geldbuße zahlen, aber wir behalten unsere Glaubwürdigkeit. Bestreiten wir alles, steht Aussage gegen Aussage. Vorerst.
+
+Ich brauche Ihre Entscheidung.
+
+Dr. Marion Lindner
+Leiterin Rechtsabteilung`,
+    choices: ['Alles offenlegen und mit dem Kartellamt kooperieren', 'Es gab keine Absprache.'],
+  },
+  c5_kartell_result: {
+    from: 'KB-Hausnachrichten',
+    subject: 'Kartellverfahren: KB zahlt Geldbuße',
+    body: () => `KASSEL. Die Kessler & Brandt Rechenwerke AG hat im Kartellverfahren gegen Orion Datentechnik umfassend kooperiert und zahlt eine Geldbuße von 25 Millionen DM. Gegen Orion wurde eine deutlich höhere Buße verhängt.
+
+Vorstandsvorsitzender Kessler: „Wir haben einen Fehler gemacht und stehen dazu.“`,
+  },
+  c5_boom: {
+    from: 'KB-Hausnachrichten',
+    subject: 'KB-Net knackt die 10.000',
+    body: (g) => `KASSEL. Der Onlinedienst KB-Net hat seinen zehntausendsten Kunden begrüßt. Über ${g.s.net.nodes.length} Einwahlknoten wählen sich die Nutzer per Modem ein, um E-Mails zu schreiben, Nachrichten zu lesen und in Foren zu diskutieren.
+
+Ein Nutzer aus Hannover: „Ich habe mit einem Mann in Australien über Briefmarken geredet. Von meinem Wohnzimmer aus.“`,
+  },
+  c5_vote_result: {
+    from: 'Vorstandsbüro',
+    subject: 'Beschluss des Vorstands zu KB-Net',
+    body: (g, v) => `Protokollauszug der Vorstandssitzung:
+
+TOP 3: Fortführung des Geschäftsbereichs Netz (KB-Net)
+Antrag Dr. Sauer: Einstellung der Investitionen.
+
+Abstimmungsergebnis: ${v.won ? `Der Antrag wird abgelehnt. KB-Net wird fortgeführt. ${v.extra ? `Das Investitionsbudget wird um ${fmtDM(v.extra)} erhöht.` : ''}` : 'Der Antrag wird angenommen. Die Investitionen in KB-Net sind für vier Monate eingefroren. Der Vorstand wird erneut beraten.'}
+
+gez. Vorstandsbüro`,
+  },
+  promotion_vorstand: {
+    from: 'I. Bergmann · Personalabteilung',
+    subject: 'Berufung in den Vorstand',
+    body: (g) => `${g.s.player.name},
+
+der Aufsichtsrat hat Sie mit Wirkung zum nächsten Monatsersten in den Vorstand der Kessler & Brandt Rechenwerke AG berufen.
+
+Ihr neues Grundgehalt beträgt ${fmtDM(STAGES[5].salary * (1 + (g.s.player.salaryBonus || 0)))} brutto.
+
+Ich habe Ihre erste Personalakte noch. Junior-Sachbearbeiter, Rechenzentrum, 2.400 DM. Herzlichen Glückwunsch.
+Ingrid Bergmann`,
+  },
   promotion_letter: {
     from: 'I. Bergmann · Personalabteilung',
     subject: 'Beförderung zum Sachbearbeiter',
@@ -627,6 +705,52 @@ export const DIALOGS = {
     ],
     choices: ['Ich übernehme.'],
   },
+  kessler_wette: {
+    who: 'kessler',
+    lines: [
+      'Schöne Sitzecke. Ich bleibe trotzdem stehen, sonst komme ich nicht wieder hoch.',
+      'Ich will, dass KB einen eigenen Onlinedienst baut. KB-Net. Einwahlknoten in jeder großen Stadt, eigene Inhalte, alles.',
+      'Sauer hält das für Geldverbrennung. Vielleicht hat er recht. Aber wenn wir jetzt nicht anfangen, fangen wir nie an.',
+      'Wie viel wollen Sie? Ich kann Ihnen 8 Millionen geben, ohne zu fragen. Für 20 Millionen muss ich im Vorstand kämpfen.',
+    ],
+    choices: ['Alles auf das Netz: 20 Mio. DM', 'Vorsichtig anfangen: 8 Mio. DM'],
+  },
+  rau_partner: {
+    who: 'rau', phone: true,
+    lines: [
+      'Rau hier. Ich mache es kurz, Höflichkeiten haben wir uns ja gespart.',
+      'Ihr Preiskrieg hat uns beide Geld gekostet. Mich mehr als Sie, das gebe ich zu.',
+      'OrionLine braucht Kapital, das ich nicht habe. Ich biete Ihnen unsere Kunden an. Sie übernehmen OrionLine, ich ziehe mich aus dem Onlinegeschäft zurück.',
+    ],
+    choices: ['Einverstanden. KB übernimmt OrionLine.', 'Nein danke, Herr Rau. Wir schaffen das allein.'],
+  },
+  kessler_kartell: {
+    who: 'kessler',
+    lines: [
+      'Ich habe Lindners Bericht gelesen.',
+      'Eine Preisabsprache mit Rau. Ausgerechnet mit Rau.',
+      'Sie haben es offengelegt, das rechne ich Ihnen an. Aber Sauer hat jetzt etwas gegen Sie in der Hand, und er wird es benutzen.',
+    ],
+    choices: ['Es tut mir leid, Herr Kessler.'],
+  },
+  kessler_sitzung: {
+    who: 'kessler',
+    lines: [
+      'Morgen früh ist Vorstandssitzung. Sauer will KB-Net stoppen.',
+      (g) => `Sie haben ${fmtInt(g.s.net.subs)} Kunden und ${g.s.net.nodes.length} Knoten. Ich zähle die Stimmen: Es wird knapp.`,
+      'Womit wollen Sie die Herren überzeugen?',
+    ],
+    choices: ['Mit den Zahlen: Kundenwachstum Monat für Monat.', 'Mit einer Vision: Was KB in zehn Jahren sein kann.', 'Mit einem Kompromiss: das halbe Budget, aber weitermachen.'],
+  },
+  kessler_vorstand: {
+    who: 'kessler',
+    lines: [
+      (g) => `${fmtInt(g.s.net.subs)} Kunden bei KB-Net. Sauer hat in der Sitzung kein Wort gesagt. Das war sein lautestes Schweigen bisher.`,
+      'Der Aufsichtsrat hat zugestimmt. Sie kommen in den Vorstand.',
+      'Sie übernehmen das Finanzressort. Ja, das von Sauer. Er wechselt in die Strategie. Glauben Sie nicht, dass er das vergisst.',
+    ],
+    choices: ['Ich bin bereit.'],
+  },
   hoff_promotion: {
     who: 'hoff',
     lines: [
@@ -672,6 +796,13 @@ export const MISSIONS = [
     { id: 'team', text: 'Baue die Abteilung auf 8 Leute aus', prog: (g) => [g.s.team.members.length, 8] },
     { id: 'streak', text: 'Schreibe 3 Monate in Folge schwarze Zahlen', prog: (g) => [g.s.dept.maxStreak || 0, 3] },
     { id: 'best', text: 'Erreiche 3 Mio. DM Abteilungsergebnis in einem Monat', prog: (g) => [Math.max(0, g.s.dept.best), 3000000] },
+  ],
+  [
+    { id: 'nodes', text: 'Baue Einwahlknoten in 8 Städten', prog: (g) => [g.s.net.nodes.length, 8] },
+    { id: 'subs', text: 'Gewinne 40.000 Kunden für KB-Net', prog: (g) => [g.s.net.subs, 40000] },
+    { id: 'vote', text: 'Gewinne die Abstimmung im Vorstand', prog: (g) => [g.s.story.flags.vote_won ? 1 : 0, 1] },
+    { id: 'shares', text: 'Besitze 150 KB-Aktien als Einfluss im Vorstand', prog: (g) => [g.s.shares.owned, 150] },
+    { id: 'streak', text: 'Schreibe 3 Monate in Folge schwarze Zahlen im Bereich', prog: (g) => [g.s.dept.posStreak, 3] },
   ],
   [],
 ];
@@ -815,10 +946,47 @@ export const EVENTS = [
     run: (g) => g.dialog('kessler_tired') },
   { id: 'promotion4', when: (g) => g.s.player.stage === 3 && missionsDone(g) && g.idle(),
     run: (g) => g.dialog('kessler_bereich') },
+
+  // ---------- Kapitel 5
+  { id: 'c5_start', when: (g) => g.s.player.stage >= 4,
+    run: (g) => {
+      const f = g.s.story.flags, tm = t(g);
+      if (tm.year < 1993) { tm.year = 1993; tm.month = 0; tm.monthProgress = 0; }
+      f.c5_month = tm.totalMonths;
+      g.mail('c5_bereich');
+      g.emit('era');
+      if (!f.seen_ch5) { f.seen_ch5 = true; g.emit('chapter', 5); }
+    } },
+  { id: 'c5_wette', when: (g) => g.s.player.stage >= 4 && t(g).monthProgress > 10 && g.idle(),
+    run: (g) => g.dialog('kessler_wette') },
+  { id: 'c5_sauer', when: (g) => g.s.story.flags.net_bet && t(g).totalMonths >= g.s.story.flags.c5_month + 1 && t(g).monthProgress > 20,
+    run: (g) => g.mail('c5_sauer_memo') },
+  { id: 'c5_kartell', when: (g) => g.s.story.flags.rau_deal && g.s.player.stage >= 4 && t(g).totalMonths >= g.s.story.flags.c5_month + 2 && t(g).monthProgress > 30,
+    run: (g) => g.mail('c5_kartell') },
+  { id: 'c5_orion_weak', when: (g) => g.s.story.flags.price_war && g.s.player.stage >= 4 && t(g).totalMonths >= g.s.story.flags.c5_month + 2 && t(g).monthProgress > 30 && g.idle(),
+    run: (g) => g.dialog('rau_partner') },
+  { id: 'c5_boom', when: (g) => g.s.net.subs >= 10000,
+    run: (g) => g.mail('c5_boom') },
+  { id: 'c5_vote',
+    when: (g) => { const f = g.s.story.flags; return g.s.net.nodes.length >= 4 && t(g).totalMonths >= f.c5_month + 3 && !f.vote_won && (f.vote_retry == null || t(g).totalMonths >= f.vote_retry) && t(g).monthProgress > 15 && g.idle(); },
+    run: (g) => g.dialog('kessler_sitzung') },
+  { id: 'promotion5', when: (g) => g.s.player.stage === 4 && missionsDone(g) && g.idle(),
+    run: (g) => g.dialog('kessler_vorstand') },
 ];
 
 // ---------------------------------------------------------------- Reaktionen auf Entscheidungen
 export const ON_MAIL_CHOICE = {
+  c5_kartell: (g, idx) => {
+    if (idx === 0) {
+      g.s.story.flags.kartell_confessed = true;
+      g.addRep(-4);
+      g.shareShock(-0.08);
+      g.mail('c5_kartell_result');
+      g.dialog('kessler_kartell');
+    } else {
+      g.s.story.flags.kartell_denied = true;
+    }
+  },
   c4_standard: (g, idx) => {
     g.s.story.flags.pc_compat = idx === 0;
     g.s.story.flags.pc_own = idx === 1;
@@ -923,6 +1091,43 @@ export const ON_DIALOG_DONE = {
     g.emit('product');
   },
   kessler_tired: (g) => { g.s.story.flags.succession_hint = true; },
+  kessler_wette: (g, idx) => {
+    const f = g.s.story.flags;
+    f.net_bet = true;
+    f.net_all = idx === 0;
+    g.s.net.invest = idx === 0 ? 20000000 : 8000000;
+    g.emit('net');
+  },
+  rau_partner: (g, idx) => {
+    if (idx === 0) {
+      g.s.story.flags.orion_partner = true;
+      g.s.net.subs += 3000;
+      g.addRep(1);
+    }
+    g.emit('net');
+  },
+  kessler_sitzung: (g, idx) => {
+    const f = g.s.story.flags;
+    const arg = ['zahlen', 'vision', 'kompromiss'][idx];
+    const won = g.voteScore(arg) >= 3;
+    let extra = 0;
+    if (won) {
+      f.vote_won = true;
+      extra = arg === 'kompromiss' ? 4000000 : 12000000;
+      g.s.net.invest += extra;
+      g.addRep(2);
+    } else {
+      f.vote_retry = t(g).totalMonths + 4;
+      g.s.net.frozenUntil = t(g).totalMonths + 4;
+      delete g.s.story.fired.c5_vote; // nächste Sitzung später
+    }
+    g.mail('c5_vote_result', { won, extra });
+    g.emit('net');
+  },
+  kessler_vorstand: (g) => {
+    g.promote();
+    g.mail('promotion_vorstand');
+  },
   kessler_bereich: (g) => {
     g.promote();
     g.mail('promotion_bereich');

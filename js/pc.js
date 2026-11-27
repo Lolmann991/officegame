@@ -5,6 +5,7 @@ import {
   UPGRADES, STAGES, MONTH_NAMES, MONTH_SHORT, DIFFICULTIES, SHARES_OUTSTANDING, SHARE_DISCOUNT,
   DIVIDEND_PER_SHARE, PROJECT_SHARES, TRAITS, PRODUCT_SPEC, PRODUCT_PRICES, ORION_HOME,
   TECHS, LINES, MARKETING, RD_BUDGETS, DEPT_COMMISSION,
+  NET_CITIES, NET_NODE_COST, NET_NODE_UPKEEP, NET_TARIFFS, NET_UPGRADES,
   fmtDM, fmtNum, fmtInt, fmtPct,
 } from './data.js';
 import { MISSIONS, missionsDone } from './story.js';
@@ -18,6 +19,7 @@ const APPS = [
   { id: 'prod', label: 'PROD', title: 'Produkt', minStage: 2 },
   { id: 'fue', label: 'F&E', title: 'Forschung', minStage: 3 },
   { id: 'abt', label: 'ABT', title: 'Abteilung', minStage: 3 },
+  { id: 'netz', label: 'NETZ', title: 'KB-Net', minStage: 4 },
   { id: 'lohn', label: 'LOHN', title: 'Entgeltabrechnungen' },
   { id: 'depot', label: 'DEPOT', title: 'Konto und Depot' },
   { id: 'shop', label: 'BEDARF', title: 'Bürobedarf' },
@@ -63,7 +65,7 @@ export class PC {
       <section class="crt" data-pane="${i}">
         <div class="crt-glass">
           <header class="crt-top">
-            <span>${this.game.era() === 2 ? 'KB PC · KB-WINDOWS 1.0' : 'KB-TERMINAL 3270'} · ${i === 0 ? 'DISPLAY 1' : 'DISPLAY 2'}</span>
+            <span>${this.game.era() === 2 ? (this.game.s.time.year >= 1992 ? 'KB PC 486 · KB-WINDOWS 3.1' : 'KB PC · KB-WINDOWS 1.0') : 'KB-TERMINAL 3270'} · ${i === 0 ? 'DISPLAY 1' : 'DISPLAY 2'}</span>
             <span data-live="date"></span>
           </header>
           <nav class="crt-nav" aria-label="Programme">
@@ -465,6 +467,38 @@ export class PC {
       <p class="dim">Ergebnis = Rohertrag aller Linien minus Personal, Forschung und Marketing.</p>`;
   }
 
+  app_netz() {
+    const g = this.game, net = g.s.net;
+    if (!net.invest && !net.nodes.length) return '<h2>KB-NET <span class="dim">ONLINEDIENST</span></h2><p class="dim">Noch kein Budget. Herr Kessler will mit dir darüber sprechen.</p>';
+    const frozen = g.netFrozen();
+    const last = net.history.at(-1);
+    const cities = NET_CITIES.map((c) => {
+      const built = net.nodes.includes(c.id), cost = NET_NODE_COST(c.pop);
+      return `<div class="shop-row ${built ? 'owned' : ''}">
+        <div><b>${esc(c.name)}</b> <span class="dim">${fmtInt(c.pop)} EINWOHNER</span></div>
+        <div class="r">${built ? '<span class="ok">KNOTEN AKTIV</span>' : `<button type="button" class="tbtn small" data-act="node" data-arg="${c.id}" ${net.invest < cost || frozen ? 'disabled' : ''}>BAUEN · ${fmtNum(cost / 1e6)} MIO.</button>`}</div>
+      </div>`;
+    }).join('');
+    const up = NET_UPGRADES[net.qLevel];
+    const comps = g.netCompetitors().map((c) => `${esc(c.name)} Q${c.q} · ${fmtNum(c.tariff)} DM`).join(' · ');
+    const rows = net.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${fmtInt(h.subs)}</td><td class="r ${h.delta >= 0 ? 'ok' : 'err'}">${h.delta >= 0 ? '+' : ''}${fmtInt(h.delta)}</td><td class="r">${fmtInt(h.revenue / 1000)}</td><td class="r">${fmtInt(h.cost / 1000)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${fmtInt(h.result / 1000)}</td></tr>`).join('');
+    return `<h2>KB-NET <span class="dim">ONLINEDIENST</span></h2>
+      ${frozen ? '<p class="err">INVESTITIONEN VOM VORSTAND EINGEFROREN</p>' : ''}
+      <div class="kv">
+        <span>KUNDEN</span><span><b>${fmtInt(net.subs)}</b>${last ? ` (${last.delta >= 0 ? '+' : ''}${fmtInt(last.delta)} IM LETZTEN MONAT)` : ''}</span>
+        <span>REICHWEITE</span><span>${fmtInt(g.netCovered())} EINWOHNER · ${fmtPct(g.adoption(), 1)} DAVON ONLINE</span>
+        <span>INVESTITION</span><span>${fmtDM(net.invest)} VERFÜGBAR</span>
+        <span>QUALITÄT</span><span>${g.netQuality()}/10 · ${esc(NET_UPGRADES[net.qLevel - 1]?.name || 'Modems mit 2.400 Baud')}</span>
+        <span>BETRIEB</span><span>${fmtDM(NET_NODE_UPKEEP)} JE KNOTEN UND MONAT</span>
+        <span>KONKURRENZ</span><span>${comps}</span>
+      </div>
+      <div class="row"><span class="dim">TARIF/MONAT</span>${NET_TARIFFS.map((x) => `<button type="button" class="tbtn small ${net.tariff === x ? 'chosen' : ''}" data-act="tariff" data-arg="${x}">${fmtNum(x)} DM · ~${fmtPct(g.netShareEstimate(x))}</button>`).join('')}</div>
+      <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => `<button type="button" class="tbtn small ${net.marketing === k ? 'chosen' : ''}" data-act="net-mk" data-arg="${k}">${mk.label}${mk.cost ? ` ${fmtInt(mk.cost / 1000)} TDM` : ''}</button>`).join('')}</div>
+      ${up ? `<div class="row"><button type="button" class="tbtn" data-act="net-up" ${net.invest < up.cost || frozen ? 'disabled' : ''}>AUSBAU: ${esc(up.name.toUpperCase())} · ${fmtNum(up.cost / 1e6)} MIO.</button><span class="dim">+QUALITÄT</span></div>` : '<p class="ok">TECHNIK AUF DEM NEUESTEN STAND</p>'}
+      <h3>EINWAHLKNOTEN ${net.nodes.length}/${NET_CITIES.length}</h3>${cities}
+      ${rows ? `<h3>LETZTE MONATE <span class="dim">UMSATZ/KOSTEN/ERGEBNIS IN TDM</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">KUNDEN</th><th class="r">NEU</th><th class="r">UMSATZ</th><th class="r">KOSTEN</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="dim">Die ersten Kunden kommen zum Monatsende, sobald ein Knoten steht.</p>'}`;
+  }
+
   app_lohn() {
     const slips = this.game.s.payslips;
     if (!slips.length) return `<h2>ENTGELTABRECHNUNGEN</h2><p class="dim">Die erste Abrechnung kommt zum Monatsende.</p>`;
@@ -700,6 +734,10 @@ export class PC {
       case 'line-mk': g.setMarketing(b.dataset.line, Number(arg)); this.rerender(['prod']); break;
       case 'rd-budget': g.setRdBudget(Number(arg)); this.rerender(['fue']); break;
       case 'tech': g.selectTech(arg); this.rerender(['fue', 'prod']); break;
+      case 'node': if (g.buildNode(arg)) this.ui.toast('Einwahlknoten in Betrieb', 'good'); this.rerender(['netz', 'karr']); break;
+      case 'net-up': if (g.upgradeNet()) this.ui.toast('Modempool ausgebaut', 'good'); this.rerender(['netz']); break;
+      case 'tariff': g.setTariff(Number(arg)); this.rerender(['netz']); break;
+      case 'net-mk': g.setNetMarketing(Number(arg)); this.rerender(['netz']); break;
       case 'prod-start': if (g.startProduct()) this.ui.toast('Entwicklung des HC-1 gestartet', 'good'); this.rerender(['prod', 'proj']); break;
       case 'price-sel': this.priceSel = Number(arg); this.rerender(['prod']); break;
       case 'launch': if (g.launchProduct(this.priceSel || g.s.product.price)) this.ui.toast('Der HC-1 ist im Handel', 'good'); this.priceSel = null; this.rerender(['prod', 'karr']); break;

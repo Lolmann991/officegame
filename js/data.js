@@ -39,11 +39,11 @@ export const STAGES = [
   { title: 'Sachbearbeiter', dept: 'Rechenzentrum', salary: 3100, target: 800, living: 1450, year: 1980 },
   { title: 'Teamleiter', dept: 'Gruppe Heimcomputer', salary: 4500, target: 2100, living: 1900, year: 1983 },
   { title: 'Abteilungsleiter', dept: 'PC-Sparte', salary: 7000, target: 3600, living: 2600, year: 1987 },
-  { title: 'Bereichsleiter', dept: 'Geschäftsbereich Netz', salary: 11000, target: 5200, living: 3400, year: 1993 },
-  { title: 'Vorstand', dept: 'Ressort Finanzen', salary: 18000, year: 1999 },
+  { title: 'Bereichsleiter', dept: 'Geschäftsbereich Netz', salary: 11000, target: 4000, living: 3400, year: 1993 },
+  { title: 'Vorstand', dept: 'Ressort Finanzen', salary: 18000, target: 4500, living: 5200, year: 1999 },
   { title: 'CEO', dept: 'Konzernleitung', salary: 36000, year: 2008 },
 ];
-export const PLAYABLE_STAGES = 5;
+export const PLAYABLE_STAGES = 6;
 
 // Kapitel-Karten: erscheinen beim Erreichen einer Stufe (intro) und bei der nächsten Beförderung (outro).
 export const CHAPTERS = [
@@ -54,7 +54,9 @@ export const CHAPTERS = [
     intro: 'Du leitest jetzt die Gruppe Heimcomputer. Neu sind die Programme PERS und PROD: Stelle Leute ein, halte die Moral hoch und bring den ersten Heimcomputer von KB auf den Markt. Ab jetzt zählt die Leistung des ganzen Teams.' },
   { no: 4, title: 'Abteilung PC', stage: 3, jumpYear: 1987,
     intro: 'Vier Jahre später, Januar 1987. Du leitest die neue PC-Sparte und hast ein eigenes Büro mit Tür. Neu sind die Programme F&E (Forschung) und ABT (Abteilungsergebnis). Im Programm PROD führst du jetzt mehrere Produktlinien. Dein Erfolg wird am Ergebnis der Abteilung gemessen.' },
-  { no: 5, title: 'Die Netz-Wette', stage: 4 },
+  { no: 5, title: 'Die Netz-Wette', stage: 4, jumpYear: 1993,
+    intro: 'Sechs Jahre später, Januar 1993. Du leitest den Geschäftsbereich Netz, mit größerem Büro und Sitzecke. Neu ist das Programm NETZ: Baue den Onlinedienst KB-Net auf, Stadt für Stadt. Aber im Vorstand hat das Netz nicht nur Freunde.' },
+  { no: 6, title: 'Im Vorstand', stage: 5 },
 ];
 
 // ---------------------------------------------------------------- Team (ab Kapitel 3)
@@ -205,3 +207,34 @@ export const LINES = {
   portable: { name: 'Tragbare', model: 'KB Portable', size: 2500, prices: [5995, 7995, 9995], baseQ: 4, margin: 0.2, devNeed: 10000, orion: 'OR-Mobil', orionQ: 5, needs: 'portable' },
 };
 export const DEPT_COMMISSION = 0.0008; // Erfolgsbeteiligung am positiven Abteilungsergebnis
+
+// ---------------------------------------------------------------- Kapitel 5: KB-Net
+export const NET_CITIES = [
+  { id: 'kassel', name: 'Kassel', pop: 200000 },
+  { id: 'frankfurt', name: 'Frankfurt', pop: 650000 },
+  { id: 'hannover', name: 'Hannover', pop: 520000 },
+  { id: 'koeln', name: 'Köln', pop: 960000 },
+  { id: 'duesseldorf', name: 'Düsseldorf', pop: 570000 },
+  { id: 'stuttgart', name: 'Stuttgart', pop: 590000 },
+  { id: 'bremen', name: 'Bremen', pop: 550000 },
+  { id: 'leipzig', name: 'Leipzig', pop: 490000 },
+  { id: 'dresden', name: 'Dresden', pop: 480000 },
+  { id: 'muenchen', name: 'München', pop: 1250000 },
+  { id: 'hamburg', name: 'Hamburg', pop: 1700000 },
+  { id: 'berlin', name: 'Berlin', pop: 3400000 },
+];
+export const NET_NODE_COST = (pop) => Math.round((300000 + pop * 0.4) / 10000) * 10000;
+export const NET_NODE_UPKEEP = 25000;     // DM pro Knoten und Monat
+// Anteil der Bevölkerung mit Internetzugang (Spielwerte, schneller als in der Wirklichkeit)
+export const NET_ADOPTION = { 1993: 0.004, 1994: 0.01, 1995: 0.022, 1996: 0.04, 1997: 0.07, 1998: 0.11, 1999: 0.17, 2000: 0.25, 2001: 0.33, 2002: 0.4 };
+export const NET_TARIFFS = [9.9, 19.9, 29.9];
+export const NET_UPGRADES = [
+  { name: 'Modems mit 9.600 Baud', cost: 800000 },
+  { name: 'Modems mit 14.400 Baud', cost: 1500000 },
+  { name: 'Modems mit 28.800 Baud', cost: 2500000 },
+  { name: 'ISDN-Zugänge', cost: 4000000 },
+];
+export const NET_COMPETITORS = [
+  { id: 'postnet', name: 'PostNet', q: 5, tariff: 24.9, brand: 1.3, from: 1993 },
+  { id: 'orionline', name: 'OrionLine', q: 4, tariff: 14.9, brand: 1.0, from: 1994 },
+];

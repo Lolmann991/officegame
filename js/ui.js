@@ -45,6 +45,7 @@ export class UI {
     game.on('team', () => { this.pc.rerender(['pers', 'karr']); this.office.setTeam(this.game.s.player.stage, this.game.s.team.members); });
     game.on('product', () => this.pc.rerender(['prod', 'karr', 'proj']));
     game.on('dept', () => this.pc.rerender(['abt', 'fue', 'karr', 'prod']));
+    game.on('net', () => this.pc.rerender(['netz', 'karr']));
     game.on('era', () => { this.office.setEra(this.game.era()); if (this.pc.open) this.pc.build(); });
     game.on('gameover', (go) => this.showGameOver(go));
   }
@@ -426,6 +427,12 @@ export class UI {
           <dt>Bester Monat</dt><dd>${fmtDM(Math.max(0, s.dept.best))}</dd>
           <dt>PC-Standard</dt><dd>${f.pc_compat ? 'kompatibel' : 'eigener KB-Standard'}</dd>
           <dt>Orion</dt><dd>${f.rau_deal ? 'Absprache mit Rau' : f.price_war ? 'Preiskrieg' : '–'}</dd>`;
+    const stats5 = `
+          <dt>KB-Net</dt><dd>${fmtInt(s.net.subs)} Kunden in ${s.net.nodes.length} Städten</dd>
+          <dt>Netz-Wette</dt><dd>${f.net_all ? '20 Mio. DM, alles gesetzt' : '8 Mio. DM, vorsichtig'}</dd>
+          <dt>Vorstand</dt><dd>${f.vote_won ? 'Abstimmung gewonnen' : '–'}</dd>
+          <dt>Kartellamt</dt><dd>${f.kartell_confessed ? 'Absprache offengelegt' : f.kartell_denied ? 'Absprache bestritten' : 'nicht betroffen'}</dd>
+          <dt>Orion</dt><dd>${f.orion_partner ? 'OrionLine übernommen' : 'Konkurrent'}</dd>`;
     let nextHtml;
     if (next?.intro) {
       f[`seen_ch${next.no}`] = true;
@@ -437,7 +444,7 @@ export class UI {
       <div class="sheet">
         <div class="eyebrow">Kapitel ${done.no} abgeschlossen · ${esc(done.title)}</div>
         <p>Nach ${this.tenureText()} bei KB bist du jetzt <b>${esc(this.game.stage.title)}</b>. Grundgehalt: ${fmtDM(this.game.stage.salary * (1 + (s.player.salaryBonus || 0)))}.</p>
-        <dl class="sheet-dl">${stage === 4 ? stats4 : stage === 3 ? stats3 : stats}</dl>
+        <dl class="sheet-dl">${stage === 5 ? stats5 : stage === 4 ? stats4 : stage === 3 ? stats3 : stats}</dl>
         ${nextHtml}
         <button type="button" class="btn primary" data-close>Weiterarbeiten</button>
       </div>`, 'm-sheet');

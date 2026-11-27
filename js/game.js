@@ -7,6 +7,7 @@ import {
   TEAM_MAX, TEAM_BUDGET, TEAM_RATE_PER_SKILL, DINNER_COST, TRAITS, FIRST_NAMES, LAST_NAMES,
   PRODUCT_SPEC, PRODUCT_BASE_NEED, PRODUCT_BASE_Q, PRODUCT_MARKET, PRODUCT_HYPE, PRODUCT_COMMISSION, ORION_HOME,
   TEAM_MAX_BY_STAGE, RD_FP_PER_DM, TECHS, MARKETING, LINES, DEPT_COMMISSION,
+  NET_CITIES, NET_NODE_COST, NET_NODE_UPKEEP, NET_ADOPTION, NET_UPGRADES, NET_COMPETITORS,
 } from './data.js';
 import { EVENTS, MAILS, DIALOGS, ON_MAIL_CHOICE, ON_DIALOG_DONE, ON_PROJECT_DONE, warningVars } from './story.js';
 
@@ -35,6 +36,7 @@ function freshState(name, difficulty) {
     lines: Object.fromEntries(Object.keys(LINES).map((id) => [id, { gen: 0, model: null, pending: null, devGen: null, marketing: 0, units: 0, revenue: 0, last: null }])),
     rd: { budget: 25000, pool: 0, current: null, done: [] },
     dept: { history: [], best: 0, posStreak: 0 },
+    net: { invest: 0, nodes: [], qLevel: 0, tariff: 19.9, marketing: 0, subs: 0, history: [], frozenUntil: -1 },
     product: { stage: 'none', spec: { mem: '16', drive: 'kassette', gfx: 'mono' }, quality: 0, price: 1995, units: 0, revenue: 0, months: 0, history: [] },
     mails: [],
     payslips: [],
@@ -77,6 +79,7 @@ export class Game {
       projects: { ...base.projects, ...obj.projects },
       team: { ...base.team, ...obj.team }, product: { ...base.product, ...obj.product },
       lines: { ...base.lines, ...obj.lines }, rd: { ...base.rd, ...obj.rd }, dept: { ...base.dept, ...obj.dept },
+      net: { ...base.net, ...obj.net },
       settings: { ...base.settings, ...obj.settings },
     };
     if (!DIFFICULTIES[this.s.difficulty]) this.s.difficulty = 'normal';
@@ -832,6 +835,10 @@ export class Game {
       mkt += MARKETING[ln.marketing].cost;
       perLine[id] = units;
     }
+    const netRes = this.netMonth();
+    gross += netRes.gross;
+    revenue += netRes.revenue;
+    mkt += netRes.mkt;
     const payroll = this.payroll();
     const result = Math.round(gross - payroll - rd.budget - mkt);
     rd.pool += this.rdPerMonth();
@@ -841,9 +848,80 @@ export class Game {
     dept.best = Math.max(dept.best, result);
     dept.posStreak = result > 0 ? dept.posStreak + 1 : 0;
     dept.maxStreak = Math.max(dept.maxStreak || 0, dept.posStreak);
-    if (result > 0) this.s.player.pendingBonus.push({ label: 'Erfolgsbeteiligung PC-Sparte', amount: round2(result * DEPT_COMMISSION) });
+    if (result > 0) this.s.player.pendingBonus.push({ label: this.s.player.stage >= 4 ? 'Erfolgsbeteiligung Geschäftsbereich' : 'Erfolgsbeteiligung PC-Sparte', amount: round2(result * DEPT_COMMISSION) });
     this.shareShock(result > 500000 ? 0.012 : result < 0 ? -0.012 : 0.003);
     this.emit('dept');
+  }
+
+  // ------------------------------------------------------------ Kapitel 5: KB-Net
+  netActive() { return this.s.player.stage >= 4 && this.s.net.invest > 0 || this.s.net.nodes.length > 0; }
+  adoption() {
+    const t = this.s.time;
+    const y = Math.min(2002, Math.max(1993, t.year));
+    const a = NET_ADOPTION[y], b = NET_ADOPTION[Math.min(2002, y + 1)];
+    return a + (b - a) * (t.month / 12);
+  }
+  netCovered() { return this.s.net.nodes.reduce((a, id) => a + (NET_CITIES.find((c) => c.id === id)?.pop || 0), 0); }
+  netQuality() { return Math.min(10, Math.round(3 + this.s.net.qLevel * 1.5 + (this.techDone('lan') ? 1 : 0))); }
+  netFrozen() { return this.s.time.totalMonths < this.s.net.frozenUntil; }
+  buildNode(id) {
+    const net = this.s.net, c = NET_CITIES.find((x) => x.id === id);
+    if (!c || net.nodes.includes(id) || this.netFrozen()) return false;
+    const cost = NET_NODE_COST(c.pop);
+    if (net.invest < cost) return false;
+    net.invest -= cost;
+    net.nodes.push(id);
+    this.emit('net');
+    this.emit('change');
+    return true;
+  }
+  upgradeNet() {
+    const net = this.s.net, u = NET_UPGRADES[net.qLevel];
+    if (!u || net.invest < u.cost || this.netFrozen()) return false;
+    net.invest -= u.cost;
+    net.qLevel++;
+    this.emit('net');
+    return true;
+  }
+  setTariff(x) { this.s.net.tariff = x; this.emit('net'); }
+  setNetMarketing(k) { this.s.net.marketing = k; this.emit('net'); }
+  netCompetitors() {
+    const f = this.s.story.flags;
+    return NET_COMPETITORS.filter((c) => this.s.time.year >= c.from && !(c.id === 'orionline' && f.orion_partner))
+      .map((c) => ({ ...c, q: Math.min(9, c.q + Math.max(0, Math.floor((this.s.time.year - 1993) / 2))) }));
+  }
+  netAttract(q, tariff, brand = 1) { return Math.pow(q / 5, 1.5) * Math.pow(19.9 / tariff, 1.5) * brand; }
+  netShareEstimate(tariff = this.s.net.tariff) {
+    const kb = this.netAttract(this.netQuality(), tariff, MARKETING[this.s.net.marketing].mult);
+    const others = this.netCompetitors().reduce((a, c) => a + this.netAttract(c.q, c.tariff, c.brand), 0);
+    return kb / (kb + others);
+  }
+  netMonth() {
+    const net = this.s.net;
+    if (!net.nodes.length) return { gross: 0, revenue: 0, mkt: 0 };
+    const potential = this.netCovered() * this.adoption();
+    const target = potential * this.netShareEstimate();
+    const before = net.subs;
+    net.subs = Math.max(0, Math.round(net.subs + (target - net.subs) * 0.15));
+    const revenue = Math.round(net.subs * net.tariff);
+    const upkeep = net.nodes.length * NET_NODE_UPKEEP;
+    const mkt = MARKETING[net.marketing].cost;
+    net.history.push({ label: `${MONTH_NAMES[this.s.time.month].slice(0, 3)} ${this.s.time.year}`, subs: net.subs, delta: net.subs - before, revenue, cost: upkeep + mkt, result: revenue - upkeep - mkt });
+    if (net.history.length > 24) net.history.shift();
+    this.emit('net');
+    return { gross: revenue - upkeep, revenue, mkt };
+  }
+
+  // Abstimmung im Vorstand: Einfluss, Ruf, Erfolg des Netzes und Verbündete zählen
+  voteScore(argument) {
+    const s = this.s, f = s.story.flags;
+    let score = Math.min(2, s.shares.owned / 100) + Math.min(2, s.player.rep / 25) + Math.min(2, s.net.subs / 8000);
+    if (f.sauer_ally) score += 0.5;
+    if (f.kartell_confessed) score -= 1;
+    if (argument === 'zahlen' && s.net.subs >= 5000) score += 1;
+    if (argument === 'vision' && f.succession_hint) score += 1;
+    if (argument === 'kompromiss') score += 3;
+    return score;
   }
 
   promote() {
