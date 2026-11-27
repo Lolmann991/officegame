@@ -1,0 +1,97 @@
+// Spielkonstanten, Karrierestufen, Upgrades und Auftragsvorlagen.
+// Reine Daten: hier lässt sich das Balancing anpassen, ohne die Logik anzufassen.
+
+export const SAVE_KEY = 'konzern.save.v1';
+export const SAVE_VERSION = 1;
+
+export const MONTH_SECONDS = 60;              // 1 Spielmonat = 60 s Echtzeit
+export const OFFLINE_SECONDS_PER_MONTH = 300; // offline: 1 Spielmonat je 5 Minuten
+export const OFFLINE_MAX_MONTHS = 12;         // höchstens 12 Monate werden nachgerechnet
+export const BASE_PASSIVE = 3;                // Leistungspunkte pro Sekunde ohne Upgrades
+export const TASK_BASE_VALUE = 35;            // Punkte pro abgetipptem Auftrag
+export const SHARE_DISCOUNT = 0.15;           // Mitarbeiterrabatt auf KB-Aktien
+export const SHARES_OUTSTANDING = 4_800_000;  // Grundkapital der KB AG in Stück
+export const DIVIDEND_PER_SHARE = 3.2;        // DM, ausgezahlt im Dezember
+
+export const MONTH_NAMES = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli',
+  'August', 'September', 'Oktober', 'November', 'Dezember'];
+export const MONTH_SHORT = ['JAN', 'FEB', 'MÄR', 'APR', 'MAI', 'JUN', 'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEZ'];
+export const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+export const DIFFICULTIES = {
+  leicht: {
+    id: 'leicht', label: 'Leicht', target: 0.75, warningsLimit: Infinity, warnDecay: 2, offline: 1,
+    text: 'Kein Game Over. Ein schlechter Monat kostet 10 % Grundgehalt.',
+  },
+  normal: {
+    id: 'normal', label: 'Normal', target: 1, warningsLimit: 3, warnDecay: 4, offline: 1,
+    text: 'Die dritte Abmahnung ist die Kündigung. Vier gute Monate in Folge tilgen eine.',
+  },
+  hardcore: {
+    id: 'hardcore', label: 'Hardcore', target: 1.25, warningsLimit: 2, warnDecay: Infinity, offline: 0.5,
+    text: 'Höheres Monatsziel, Abmahnungen verfallen nie, die zweite ist die Kündigung. Halber Offline-Fortschritt.',
+  },
+};
+
+// Karrierestufen der Story. Nur die ersten beiden sind im Prototyp spielbar.
+export const STAGES = [
+  { title: 'Junior-Sachbearbeiter', dept: 'Rechenzentrum', salary: 2400, target: 500, living: 1200, year: 1978 },
+  { title: 'Sachbearbeiter', dept: 'Rechenzentrum', salary: 3100, target: 800, living: 1450, year: 1980 },
+  { title: 'Teamleiter', dept: 'Heimcomputer', salary: 4500, year: 1983 },
+  { title: 'Abteilungsleiter', dept: 'PC-Sparte', salary: 7000, year: 1987 },
+  { title: 'Bereichsleiter', dept: 'Geschäftsbereich Netz', salary: 11000, year: 1993 },
+  { title: 'Vorstand', dept: 'Ressort Finanzen', salary: 18000, year: 1999 },
+  { title: 'CEO', dept: 'Konzernleitung', salary: 36000, year: 2008 },
+];
+export const PLAYABLE_STAGES = 2;
+
+// Büro-Upgrades. passive = Leistung/s, taskMult = Bonus pro Auftrag, rep = Ruf.
+export const UPGRADES = [
+  { id: 'plant', name: 'Gummibaum im Topf', price: 60, rep: 1, kind: 'Deko',
+    desc: '+1 Ruf. Ein bisschen Grün im Großraum.' },
+  { id: 'picture', name: 'Kunstdruck „Bauhaus“', price: 120, rep: 1, kind: 'Deko',
+    desc: '+1 Ruf. Hängt an der Stellwand.' },
+  { id: 'lamp', name: 'Schreibtischlampe', price: 150, passive: 1, kind: 'Komfort',
+    desc: '+1 Leistung/s. Warmes Licht am Platz.' },
+  { id: 'calc', name: 'Taschenrechner TR-30', price: 180, passive: 2, kind: 'Hardware',
+    desc: '+2 Leistung/s. Nie wieder Kopfrechnen.' },
+  { id: 'radio', name: 'Kofferradio', price: 290, passive: 2, kind: 'Komfort',
+    desc: '+2 Leistung/s. Leise Musik hält wach.' },
+  { id: 'coffee', name: 'Kaffeemaschine', price: 420, passive: 3, taskMult: 0.1, kind: 'Komfort',
+    desc: '+3 Leistung/s und +10 % pro Auftrag.' },
+  { id: 'monitor2', name: 'Zweites Terminal-Display', price: 1400, taskMult: 0.3, kind: 'Hardware',
+    desc: 'Zwei Programme gleichzeitig und +30 % pro Auftrag.' },
+  { id: 'urkunde', name: 'Beförderungsurkunde', price: 0, rep: 2, kind: 'Status', shop: false,
+    desc: 'Hängt an der Stellwand. Jeder soll sie sehen.' },
+];
+
+export const TASKS = [
+  { p: 'LK', t: 'Lochkartenstapel {n} auf Lochfehler prüfen' },
+  { p: 'RL', t: 'Rechenlauf Lohnbuchhaltung Werk {w} starten' },
+  { p: 'MB', t: 'Magnetband {n} ins Bandarchiv einlagern' },
+  { p: 'FP', t: 'Fehlerprotokoll von Job {n} auswerten' },
+  { p: 'DR', t: 'Druckauftrag {n} für den Vertrieb freigeben' },
+  { p: 'SA', t: 'Speicherauszug für {k} sichern' },
+  { p: 'JS', t: 'Jobsteuerkarten für Nachtlauf {n} setzen' },
+  { p: 'KO', t: 'Kostenstellenbericht {n} abstimmen' },
+  { p: 'RZ', t: 'Rechenzeit für {k} abrechnen' },
+];
+export const WERKE = ['Süd', 'Nord', 'Bremen', 'Kassel', 'Augsburg', 'Hagen'];
+export const KUNDEN = ['Hansa Versicherung', 'Stadtwerke Lindau', 'Bankhaus Merz', 'Brauerei Kogel',
+  'Spedition Rehm', 'Kreissparkasse Ulm'];
+
+export const GRADE_COMMENTS = {
+  A: 'Hervorragend. Weiter so.',
+  B: 'Ordentliche Arbeit.',
+  C: 'Da ist mehr drin.',
+  D: 'So nicht. Siehe Abmahnung.',
+};
+
+// ---------- Formatierung ----------
+const dm = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const int = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
+export const fmtDM = (v) => `${dm.format(v)} DM`;
+export const fmtNum = (v) => dm.format(v);
+export const fmtInt = (v) => int.format(Math.floor(v));
+export const fmtPct = (v, digits = 0) =>
+  `${new Intl.NumberFormat('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v * 100)} %`;
