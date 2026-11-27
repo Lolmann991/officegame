@@ -1,7 +1,7 @@
 // Kapitel 1: Mails, Dialoge, Ereignisse und Missionen.
 // Texte dürfen Funktionen sein: (g) => string. Eine Dialogzeile, die null liefert, wird übersprungen.
 
-import { DIFFICULTIES, STAGES, TEAM_BUDGET, ORION_HOME, fmtDM, fmtPct, fmtInt, MONTH_NAMES } from './data.js';
+import { DIFFICULTIES, STAGES, TEAM_BUDGET, DEPT_TEAM_BUDGET, ORION_HOME, fmtDM, fmtPct, fmtInt, MONTH_NAMES } from './data.js';
 
 const first = (g) => g.s.player.name.split(' ')[0];
 
@@ -12,6 +12,8 @@ export const PEOPLE = {
   petra:    { name: 'Petra Lang', role: 'Kollegin, Rechenzentrum', suit: 0xc8692b, shirt: 0xc8692b, hair: 0x2b1d14, tie: null, longHair: true },
   bergmann: { name: 'Ingrid Bergmann', role: 'Personalabteilung', suit: 0x6d4a6b, shirt: 0xe8e0d0, hair: 0x8a6a3c, tie: null, longHair: true },
   brenner:  { name: 'Klaus Brenner', role: 'Personalberater, am Telefon' },
+  sauer:    { name: 'Dr. Hartwig Sauer', role: 'Finanzvorstand', suit: 0x26262b, shirt: 0xf2f0ea, hair: 0x4a3a2c, tie: 0x1f3a6a, glasses: true },
+  rau:      { name: 'Dr. Viktor Rau', role: 'Vorstandschef von Orion Datentechnik, am Telefon' },
   uwe:      { name: 'Uwe Krämer', role: 'Senior-Entwickler, seit 1961 bei KB', suit: 0x55585a, shirt: 0xd9d2bd, hair: 0xa8a49a, tie: 0x2f3f2a, glasses: true },
 };
 
@@ -390,6 +392,72 @@ Ihr neues Grundgehalt beträgt ${fmtDM(STAGES[3].salary * (1 + (g.s.player.salar
 Herzlichen Glückwunsch.
 Ingrid Bergmann`,
   },
+  // ---------- Kapitel 4
+  c4_sparte: {
+    from: 'H. Kessler · Vorstand',
+    subject: 'Die PC-Sparte',
+    body: (g) => `${first(g)},
+
+willkommen in Ihrem eigenen Büro. Die Tür dürfen Sie schließen, ich tue es nie.
+
+Die PC-Sparte hat drei mögliche Produktlinien: Heimcomputer (dort läuft der HC-1 weiter), Bürocomputer und Tragbare. Für die beiden neuen fehlt uns noch die Technik. Die Forschung steuern Sie im Programm F&E, das Budget geht von Ihrem Ergebnis ab.
+
+Ihr Personalbudget steigt auf ${fmtDM(DEPT_TEAM_BUDGET)}. Holen Sie sich gute Leute.
+
+Und noch etwas: Der Vorstand hat einen neuen Finanzvorstand, Dr. Sauer. Er wird sich bei Ihnen melden.
+
+Heinrich Kessler`,
+  },
+  c4_standard: {
+    from: 'H. Kessler · Vorstand',
+    subject: 'Welcher Standard für den KB PC?',
+    body: (g) => `${first(g)},
+
+bevor Sie einen Bürocomputer bauen, müssen wir eine Grundsatzfrage klären. Überall tauchen PCs auf, die zum Industriestandard kompatibel sind. Jede Software läuft darauf.
+
+Bauen wir kompatibel, ist der Markt fast doppelt so groß. Aber dann sind wir einer unter vielen, und die Marge ist dünn.
+
+Bauen wir einen eigenen KB-Standard, verdienen wir mehr pro Gerät. Aber die Kunden müssen uns vertrauen, dass es dafür Software gibt.
+
+Sie entscheiden. Ich trage es im Vorstand mit.
+
+Kessler`,
+    choices: ['Kompatibel zum Industriestandard (großer Markt, kleine Marge)', 'Eigener KB-Standard (kleiner Markt, große Marge)'],
+  },
+  tech_done: {
+    from: 'F&E-Labor',
+    subject: 'Forschung abgeschlossen',
+    body: (g, v) => `Das Labor meldet: „${v.name}“ ist einsatzbereit.
+
+${v.desc}
+
+Neue Modelle profitieren davon automatisch. Bereits verkaufte Modelle nicht.
+
+F&E-Labor, Gebäude D`,
+  },
+  model_ready: {
+    from: 'Produktentwicklung',
+    subject: 'Neues Modell fertig',
+    body: (g, v) => `Der ${v.name} ist fertig entwickelt. Qualitätsnote der Prüfabteilung: ${v.q} von 10.
+
+Legen Sie im Programm PROD den Preis fest, dann geht das Gerät in den Handel. Das alte Modell der Linie wird dabei ersetzt.
+
+Produktentwicklung`,
+  },
+  promotion_bereich: {
+    from: 'I. Bergmann · Personalabteilung',
+    subject: 'Ernennung zum Bereichsleiter',
+    body: (g) => `${g.s.player.name},
+
+der Vorstand hat Sie mit Wirkung zum nächsten Monatsersten zum Leiter des Geschäftsbereichs Netz ernannt.
+
+Ihr neues Grundgehalt beträgt ${fmtDM(STAGES[4].salary * (1 + (g.s.player.salaryBonus || 0)))} brutto.
+
+Herzlichen Glückwunsch.
+Ingrid Bergmann
+
+PS: Herr Kessler hat persönlich unterschrieben. Mit Füller.`,
+  },
   promotion_letter: {
     from: 'I. Bergmann · Personalabteilung',
     subject: 'Beförderung zum Sachbearbeiter',
@@ -520,6 +588,45 @@ export const DIALOGS = {
     ],
     choices: ['Ich nehme an.'],
   },
+  sauer_intro: {
+    who: 'sauer',
+    lines: [
+      'Sauer, Finanzen. Ich bin seit Januar im Vorstand. Sie haben sicher schon von mir gehört.',
+      'Ich will offen sein: Ich halte die PC-Sparte für ein teures Hobby von Herrn Kessler.',
+      'Ich messe Sie an einer einzigen Zahl, dem Abteilungsergebnis. Sie finden es im Programm ABT. Ich finde es jeden Monat auf meinem Schreibtisch.',
+      'Drei Monate in Folge im Plus, dann reden wir weiter.',
+    ],
+    choices: ['Sie bekommen Ihre Zahlen.', 'Ohne Forschung gibt es in drei Jahren keine Zahlen mehr.'],
+  },
+  rau_call: {
+    who: 'rau', phone: true,
+    lines: [
+      (g) => `${g.s.player.name}? Rau hier. Viktor Rau, Orion. Wir kennen uns nur aus der Zeitung, das sollten wir ändern.`,
+      'Ihr KB PC ist nicht schlecht. Ehrlich gesagt, zu gut für meinen Geschmack.',
+      'Ich mache Ihnen einen Vorschlag unter Ehrenleuten: Keiner von uns senkt die Preise. Der Markt ist groß genug für zwei.',
+      'Oder wir machen es auf die harte Tour. Dann senke ich meine Preise, bis es Ihnen wehtut.',
+    ],
+    choices: ['Dann sehen wir uns im Laden, Herr Rau.', 'Ich höre zu. Bleiben wir bei unseren Preisen.'],
+  },
+  kessler_tired: {
+    who: 'kessler',
+    lines: [
+      'Darf ich mich kurz setzen? Die Treppen werden nicht kürzer.',
+      'Ich werde nächstes Jahr siebzig. Der Aufsichtsrat fragt, wer nach mir kommt.',
+      'Sauer will den Posten. Er ist ein guter Rechner. Aber er würde dieses Haus verkaufen, Stück für Stück, wenn die Zahlen es sagen.',
+      'Ich sage Ihnen das nicht ohne Grund. Machen Sie weiter so.',
+    ],
+    choices: ['Ich verstehe, Herr Kessler.'],
+  },
+  kessler_bereich: {
+    who: 'kessler',
+    lines: [
+      'Die PC-Sparte schreibt schwarze Zahlen. Sogar Sauer hat genickt, und Sauer nickt nie.',
+      'Aber die nächste große Sache sind nicht einzelne Computer. Es sind Computer, die miteinander reden. Netze.',
+      'Ich gründe einen Geschäftsbereich Netz. Und Sie leiten ihn. Bereichsleiter, mit allem Drum und Dran.',
+    ],
+    choices: ['Ich übernehme.'],
+  },
   hoff_promotion: {
     who: 'hoff',
     lines: [
@@ -558,6 +665,13 @@ export const MISSIONS = [
     { id: 'hc1', text: 'Entwickle den KB-Heimcomputer HC-1', prog: (g) => [['launch', 'market'].includes(g.s.product.stage) ? 1 : 0, 1] },
     { id: 'units', text: 'Verkaufe 15.000 HC-1', prog: (g) => [g.s.product.units, 15000] },
     { id: 'good', text: 'Schaffe 3 Monate mit Note B oder besser', prog: (g) => [g.s.player.goodMonths, 3] },
+  ],
+  [
+    { id: 'techs', text: 'Erforsche 5 Technologien', prog: (g) => [g.s.rd.done.length, 5] },
+    { id: 'pc', text: 'Bringe den KB PC auf den Markt', prog: (g) => [g.s.lines.pc.model ? 1 : 0, 1] },
+    { id: 'team', text: 'Baue die Abteilung auf 8 Leute aus', prog: (g) => [g.s.team.members.length, 8] },
+    { id: 'streak', text: 'Schreibe 3 Monate in Folge schwarze Zahlen', prog: (g) => [g.s.dept.maxStreak || 0, 3] },
+    { id: 'best', text: 'Erreiche 3 Mio. DM Abteilungsergebnis in einem Monat', prog: (g) => [Math.max(0, g.s.dept.best), 3000000] },
   ],
   [],
 ];
@@ -663,10 +777,53 @@ export const EVENTS = [
     run: (g) => { g.mail('c3_market_report'); const h = g.s.product.history.at(-1); g.addRep(h.units > h.orion ? 2 : 0); } },
   { id: 'promotion3', when: (g) => g.s.player.stage === 2 && missionsDone(g) && g.idle(),
     run: (g) => g.dialog('kessler_abteilung') },
+
+  // ---------- Kapitel 4
+  { id: 'c4_start', when: (g) => g.s.player.stage >= 3,
+    run: (g) => {
+      const f = g.s.story.flags, tm = t(g);
+      if (tm.year < 1987) { tm.year = 1987; tm.month = 0; tm.monthProgress = 0; } // Zeitsprung
+      f.c4_month = tm.totalMonths;
+      const pd = g.s.product, home = g.s.lines.home;
+      if (!home.model && pd.stage === 'market') {
+        home.model = { name: 'HC-1', q: pd.quality || 5, price: pd.price, months: 12 };
+        home.gen = 1; home.units = pd.units; home.revenue = pd.revenue;
+      }
+      pd.stage = 'retired';
+      g.s.team.budget = DEPT_TEAM_BUDGET;
+      g.mail('c4_sparte');
+      g.emit('era');
+      g.emit('product');
+      if (!f.seen_ch4) { f.seen_ch4 = true; g.emit('chapter', 4); }
+    } },
+  { id: 'c4_standard', when: (g) => g.s.player.stage >= 3 && t(g).monthProgress > 15,
+    run: (g) => g.mail('c4_standard') },
+  { id: 'c4_sauer', when: (g) => g.s.player.stage >= 3 && t(g).totalMonths >= g.s.story.flags.c4_month + 1 && t(g).monthProgress > 20 && g.idle(),
+    run: (g) => g.dialog('sauer_intro') },
+  { id: 'c4_rau', when: (g) => g.s.lines.pc.model && t(g).monthProgress > 30 && g.idle(),
+    run: (g) => g.dialog('rau_call') },
+  { id: 'c4_poach',
+    when: (g) => g.s.player.stage >= 3 && t(g).totalMonths >= g.s.story.flags.c4_month + 3 && t(g).monthProgress > 40
+      && g.s.team.members.some((m) => m.trait !== 'loyal'),
+    run: (g) => {
+      const best = g.s.team.members.filter((m) => m.trait !== 'loyal').sort((a, b) => b.skill - a.skill)[0];
+      g.s.story.flags.poach_id = best.id;
+      g.s.story.flags.poach_name = best.name;
+      g.mail('c3_poach');
+    } },
+  { id: 'c4_kessler', when: (g) => g.s.player.stage >= 3 && g.s.rd.done.length >= 3 && t(g).monthProgress > 10 && g.idle(),
+    run: (g) => g.dialog('kessler_tired') },
+  { id: 'promotion4', when: (g) => g.s.player.stage === 3 && missionsDone(g) && g.idle(),
+    run: (g) => g.dialog('kessler_bereich') },
 ];
 
 // ---------------------------------------------------------------- Reaktionen auf Entscheidungen
 export const ON_MAIL_CHOICE = {
+  c4_standard: (g, idx) => {
+    g.s.story.flags.pc_compat = idx === 0;
+    g.s.story.flags.pc_own = idx === 1;
+    g.emit('product');
+  },
   c3_poach: (g, idx) => {
     const m = g.member(g.s.story.flags.poach_id);
     if (!m) return;
@@ -755,6 +912,20 @@ export const ON_DIALOG_DONE = {
       if (a?.id === 'hc1') a.need = Math.round(a.need * 1.1);
     }
     g.emit('team');
+  },
+  sauer_intro: (g, idx) => {
+    if (idx === 0) g.s.story.flags.sauer_ally = true;
+    else { g.s.story.flags.sauer_conflict = true; g.addRep(1); }
+  },
+  rau_call: (g, idx) => {
+    if (idx === 0) { g.s.story.flags.price_war = true; g.addRep(2); }
+    else { g.s.story.flags.rau_deal = true; }
+    g.emit('product');
+  },
+  kessler_tired: (g) => { g.s.story.flags.succession_hint = true; },
+  kessler_bereich: (g) => {
+    g.promote();
+    g.mail('promotion_bereich');
   },
   kessler_abteilung: (g) => {
     g.promote();

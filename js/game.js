@@ -6,6 +6,7 @@ import {
   PLAYABLE_STAGES, UPGRADES, TASKS, WERKE, KUNDEN, DAYS_IN_MONTH, MONTH_NAMES, PROJECT_TEMPLATES,
   TEAM_MAX, TEAM_BUDGET, TEAM_RATE_PER_SKILL, DINNER_COST, TRAITS, FIRST_NAMES, LAST_NAMES,
   PRODUCT_SPEC, PRODUCT_BASE_NEED, PRODUCT_BASE_Q, PRODUCT_MARKET, PRODUCT_HYPE, PRODUCT_COMMISSION, ORION_HOME,
+  TEAM_MAX_BY_STAGE, RD_FP_PER_DM, TECHS, MARKETING, LINES, DEPT_COMMISSION,
 } from './data.js';
 import { EVENTS, MAILS, DIALOGS, ON_MAIL_CHOICE, ON_DIALOG_DONE, ON_PROJECT_DONE, warningVars } from './story.js';
 
@@ -31,6 +32,9 @@ function freshState(name, difficulty) {
     upgrades: {},
     projects: { active: null, offered: [], done: [], share: 0.5 },
     team: { members: [], candidates: [], budget: TEAM_BUDGET, nextId: 1, dinnerMonth: -1, moraleMonths: 0, overBudget: 0 },
+    lines: Object.fromEntries(Object.keys(LINES).map((id) => [id, { gen: 0, model: null, pending: null, devGen: null, marketing: 0, units: 0, revenue: 0, last: null }])),
+    rd: { budget: 25000, pool: 0, current: null, done: [] },
+    dept: { history: [], best: 0, posStreak: 0 },
     product: { stage: 'none', spec: { mem: '16', drive: 'kassette', gfx: 'mono' }, quality: 0, price: 1995, units: 0, revenue: 0, months: 0, history: [] },
     mails: [],
     payslips: [],
@@ -72,6 +76,7 @@ export class Game {
       shares: { ...base.shares, ...obj.shares }, story: { ...base.story, ...obj.story },
       projects: { ...base.projects, ...obj.projects },
       team: { ...base.team, ...obj.team }, product: { ...base.product, ...obj.product },
+      lines: { ...base.lines, ...obj.lines }, rd: { ...base.rd, ...obj.rd }, dept: { ...base.dept, ...obj.dept },
       settings: { ...base.settings, ...obj.settings },
     };
     if (!DIFFICULTIES[this.s.difficulty]) this.s.difficulty = 'normal';
@@ -185,6 +190,7 @@ export class Game {
   endMonth() {
     const s = this.s, p = s.player, t = s.time, st = this.stage, d = this.diff;
     this.marketMonth();
+    this.deptMonth();
     const target = this.target();
     const ratio = p.perf / target;
     let grade = ratio >= 1.5 ? 'A' : ratio >= 1 ? 'B' : ratio >= 0.7 ? 'C' : 'D';
@@ -484,6 +490,7 @@ export class Game {
     if (pr.done.length > 40) pr.done.shift();
     if (!this.offlineMode) this.emit('toast', { text: `Projekt abgeschlossen: ${act.name}`, kind: 'good' });
     ON_PROJECT_DONE[act.id]?.(this, act.late);
+    if (act.id.startsWith('model-')) this.modelDone(act);
     if (this.s.story.flags.procedural && pr.offered.length === 0) this.generateProjects();
     this.emit('projects');
     this.emit('change');
@@ -551,7 +558,7 @@ export class Game {
 
   hire(id) {
     const tm = this.s.team;
-    if (tm.members.length >= TEAM_MAX) return false;
+    if (tm.members.length >= this.teamMax()) return false;
     const i = tm.candidates.findIndex((c) => c.id === id);
     if (i < 0) return false;
     const m = tm.candidates.splice(i, 1)[0];
@@ -711,6 +718,132 @@ export class Game {
     const sh = units / (size || 1);
     this.shareShock(sh > 0.4 ? 0.015 : sh < 0.15 ? -0.015 : 0.004);
     this.emit('product');
+  }
+
+  // ------------------------------------------------------------ Kapitel 4: Abteilung
+  era() { return this.s.player.stage >= 3 ? 2 : 1; }
+  teamMax() { return TEAM_MAX_BY_STAGE[this.s.player.stage] || TEAM_MAX; }
+
+  // Forschung
+  techDone(id) { return this.s.rd.done.includes(id); }
+  techAvailable(t) { return !this.techDone(t.id) && t.req.every((r) => this.techDone(r)); }
+  setRdBudget(x) { this.s.rd.budget = x; this.emit('dept'); this.emit('change'); }
+  selectTech(id) {
+    const t = TECHS.find((x) => x.id === id);
+    if (!t || !this.techAvailable(t)) return false;
+    this.s.rd.current = id;
+    this.tryResearch();
+    this.emit('dept');
+    return true;
+  }
+  rdPerMonth() { return Math.round(this.s.rd.budget * RD_FP_PER_DM * (1 + this.creativeBonus())); }
+  tryResearch() {
+    const rd = this.s.rd;
+    const t = TECHS.find((x) => x.id === rd.current);
+    if (!t || rd.pool < t.cost) return;
+    rd.pool -= t.cost;
+    rd.done.push(t.id);
+    rd.current = null;
+    this.mail('tech_done', { name: t.name, desc: t.desc });
+    this.emit('dept');
+  }
+
+  // Produktlinien
+  lineUnlocked(id) { const n = LINES[id].needs; return !n || this.techDone(n); }
+  techQ(id) { return TECHS.reduce((a, t) => a + (this.techDone(t.id) ? (t.q?.[id] || 0) : 0), 0); }
+  lineQuality(id) {
+    const ms = this.s.team.members;
+    const avg = ms.length ? ms.reduce((a, m) => a + m.skill, 0) / ms.length : 3;
+    return Math.max(1, Math.min(10, Math.round(LINES[id].baseQ + this.techQ(id) + (avg - 3))));
+  }
+  modelName(id, gen) { return `${LINES[id].model} ${id === 'home' ? '-' + gen : gen}`.replace(' -', '-'); }
+  startModel(id) {
+    const ln = this.s.lines[id], def = LINES[id];
+    if (!this.lineUnlocked(id) || ln.devGen || ln.pending) return false;
+    const gen = ln.gen + 1;
+    ln.devGen = gen;
+    const proj = {
+      id: `model-${id}-${gen}`, name: `Entwicklung ${this.modelName(id, gen)}`, short: this.modelName(id, gen),
+      sponsor: 'PC-Sparte', desc: `Neues Modell der Linie ${def.name}. Die Qualität hängt von den erforschten Technologien und vom Team ab.`,
+      need: Math.round((def.devNeed * (1 + 0.2 * (gen - 1))) / 50) * 50, months: 8, reward: 0, rep: 2, pp: 0, boost: 0,
+    };
+    this.s.projects.offered.unshift(proj);
+    this.startProject(proj.id, true);
+    this.emit('product');
+    return true;
+  }
+  modelDone(act) {
+    const [, id, gen] = act.id.split('-');
+    const ln = this.s.lines[id];
+    if (!ln) return;
+    ln.devGen = null;
+    ln.pending = { name: this.modelName(id, Number(gen)), q: this.lineQuality(id), gen: Number(gen) };
+    this.mail('model_ready', { name: ln.pending.name, q: ln.pending.q });
+    this.emit('product');
+  }
+  launchModel(id, price) {
+    const ln = this.s.lines[id];
+    if (!ln.pending) return false;
+    ln.model = { name: ln.pending.name, q: ln.pending.q, price, months: 0 };
+    ln.gen = ln.pending.gen;
+    ln.pending = null;
+    this.emit('product');
+    this.emit('change');
+    return true;
+  }
+  setLinePrice(id, price) { const ln = this.s.lines[id]; if (ln.model) { ln.model.price = price; this.emit('product'); } }
+  setMarketing(id, lvl) { this.s.lines[id].marketing = lvl; this.emit('product'); }
+  orionQ(id) { return Math.min(9, LINES[id].orionQ + Math.max(0, Math.floor((this.s.time.year - 1987) / 2))); }
+  orionPrice(id) {
+    const f = this.s.story.flags, mid = LINES[id].prices[1];
+    return Math.round(mid * (f.price_war ? 0.85 : f.rau_deal ? 1.05 : 0.95));
+  }
+  attractRef(q, price, ref) { return Math.pow(q / 5, 1.5) * Math.pow(ref / price, 2); }
+  lineShare(id, q, price, mk) {
+    const ref = LINES[id].prices[1];
+    const kb = this.attractRef(q, price, ref) * MARKETING[mk].mult;
+    const orion = this.attractRef(this.orionQ(id), this.orionPrice(id), ref) * 1.2;
+    const others = id === 'pc' && this.s.story.flags.pc_compat ? 1.2 : 0.6;
+    return { kb, orion, total: kb + orion + others };
+  }
+
+  // Monatsende der Abteilung: Verkäufe aller Linien, Kosten, Ergebnis
+  deptMonth() {
+    if (this.s.player.stage < 3) return;
+    const f = this.s.story.flags, rd = this.s.rd, dept = this.s.dept;
+    let revenue = 0, gross = 0, mkt = 0;
+    const perLine = {};
+    for (const [id, def] of Object.entries(LINES)) {
+      const ln = this.s.lines[id];
+      if (!ln.model) continue;
+      const hype = PRODUCT_HYPE[Math.min(ln.model.months, PRODUCT_HYPE.length - 1)];
+      const size = (id === 'pc' && f.pc_compat ? def.sizeCompat : def.size) * hype * rand(0.92, 1.08);
+      const sh = this.lineShare(id, ln.model.q, ln.model.price, ln.marketing);
+      const units = Math.round((size * sh.kb) / sh.total);
+      const orionUnits = Math.round((size * sh.orion) / sh.total);
+      const rev = units * ln.model.price;
+      const margin = id === 'pc' && f.pc_compat ? def.marginCompat : def.margin;
+      ln.units += units;
+      ln.revenue += rev;
+      ln.last = { units, orion: orionUnits, share: units / size };
+      ln.model.months++;
+      revenue += rev;
+      gross += rev * margin;
+      mkt += MARKETING[ln.marketing].cost;
+      perLine[id] = units;
+    }
+    const payroll = this.payroll();
+    const result = Math.round(gross - payroll - rd.budget - mkt);
+    rd.pool += this.rdPerMonth();
+    this.tryResearch();
+    dept.history.push({ label: `${MONTH_NAMES[this.s.time.month].slice(0, 3)} ${this.s.time.year}`, revenue, gross: Math.round(gross), payroll, rd: rd.budget, mkt, result, perLine });
+    if (dept.history.length > 24) dept.history.shift();
+    dept.best = Math.max(dept.best, result);
+    dept.posStreak = result > 0 ? dept.posStreak + 1 : 0;
+    dept.maxStreak = Math.max(dept.maxStreak || 0, dept.posStreak);
+    if (result > 0) this.s.player.pendingBonus.push({ label: 'Erfolgsbeteiligung PC-Sparte', amount: round2(result * DEPT_COMMISSION) });
+    this.shareShock(result > 500000 ? 0.012 : result < 0 ? -0.012 : 0.003);
+    this.emit('dept');
   }
 
   promote() {

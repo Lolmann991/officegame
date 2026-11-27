@@ -3,7 +3,8 @@
 
 import {
   UPGRADES, STAGES, MONTH_NAMES, MONTH_SHORT, DIFFICULTIES, SHARES_OUTSTANDING, SHARE_DISCOUNT,
-  DIVIDEND_PER_SHARE, PROJECT_SHARES, TEAM_MAX, TRAITS, PRODUCT_SPEC, PRODUCT_PRICES, ORION_HOME,
+  DIVIDEND_PER_SHARE, PROJECT_SHARES, TRAITS, PRODUCT_SPEC, PRODUCT_PRICES, ORION_HOME,
+  TECHS, LINES, MARKETING, RD_BUDGETS, DEPT_COMMISSION,
   fmtDM, fmtNum, fmtInt, fmtPct,
 } from './data.js';
 import { MISSIONS, missionsDone } from './story.js';
@@ -15,6 +16,8 @@ const APPS = [
   { id: 'proj', label: 'PROJ', title: 'Projekte', minStage: 1 },
   { id: 'pers', label: 'PERS', title: 'Personal', minStage: 2 },
   { id: 'prod', label: 'PROD', title: 'Produkt', minStage: 2 },
+  { id: 'fue', label: 'F&E', title: 'Forschung', minStage: 3 },
+  { id: 'abt', label: 'ABT', title: 'Abteilung', minStage: 3 },
   { id: 'lohn', label: 'LOHN', title: 'Entgeltabrechnungen' },
   { id: 'depot', label: 'DEPOT', title: 'Konto und Depot' },
   { id: 'shop', label: 'BEDARF', title: 'Bürobedarf' },
@@ -55,11 +58,12 @@ export class PC {
   build() {
     const n = this.paneCount();
     this.screens.classList.toggle('dual', n === 2);
+    this.root.classList.toggle('era2', this.game.era() === 2);
     this.screens.innerHTML = this.panes.slice(0, n).map((_, i) => `
       <section class="crt" data-pane="${i}">
         <div class="crt-glass">
           <header class="crt-top">
-            <span>KB-TERMINAL 3270 · ${i === 0 ? 'DISPLAY 1' : 'DISPLAY 2'}</span>
+            <span>${this.game.era() === 2 ? 'KB PC · KB-WINDOWS 1.0' : 'KB-TERMINAL 3270'} · ${i === 0 ? 'DISPLAY 1' : 'DISPLAY 2'}</span>
             <span data-live="date"></span>
           </header>
           <nav class="crt-nav" aria-label="Programme">
@@ -289,7 +293,7 @@ export class PC {
       return `<div class="shop-row">
         <div><b>${esc(c.name)}</b> <span class="stars">${this.stars(c.skill)}</span> <span class="dim">[${esc(tr.label || c.trait).toUpperCase()}: ${esc(tr.desc || '')}]</span><br>
           GEHALTSWUNSCH ${fmtDM(c.salary)}${afterOver ? ' <span class="err">· ÜBER BUDGET</span>' : ''}</div>
-        <div class="r"><button type="button" class="tbtn" data-act="hire" data-arg="${c.id}" ${tm.members.length >= TEAM_MAX ? 'disabled' : ''}>EINSTELLEN</button></div>
+        <div class="r"><button type="button" class="tbtn" data-act="hire" data-arg="${c.id}" ${tm.members.length >= g.teamMax() ? 'disabled' : ''}>EINSTELLEN</button></div>
       </div>`;
     }).join('');
     return `<h2>PERSONAL <span class="dim">${esc(g.stage.dept.toUpperCase())}</span></h2>
@@ -304,7 +308,7 @@ export class PC {
       <div class="row">
         <button type="button" class="tbtn" data-act="dinner" data-need="${g.dinnerCost()}" ${dinnerDone || !tm.members.length ? 'disabled' : ''}>${dinnerDone ? 'TEAMESSEN DIESEN MONAT ERLEDIGT' : `TEAMESSEN · ${fmtDM(g.dinnerCost())} PRIVAT`}</button>
       </div>
-      <h3>TEAM ${tm.members.length}/${TEAM_MAX}</h3>
+      <h3>TEAM ${tm.members.length}/${g.teamMax()}</h3>
       ${members || '<p class="dim">Noch niemand in der Gruppe.</p>'}
       <h3>BEWERBUNGEN <span class="dim">NEUE JEDEN MONAT</span></h3>
       ${cands || '<p class="dim">Keine Bewerbungen.</p>'}`;
@@ -318,6 +322,7 @@ export class PC {
   }
 
   app_prod() {
+    if (this.game.s.player.stage >= 3) return this.app_lines();
     const g = this.game, pd = g.s.product;
     let html = `<h2>PRODUKT <span class="dim">KB HC-1 · HEIMCOMPUTER</span></h2>`;
     const orionInfo = g.s.story.flags.orion_home
@@ -372,6 +377,92 @@ export class PC {
       ${rows ? `<h3>VERKÄUFE</h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">HC-1</th><th class="r">OR-HOME</th><th class="r">ANTEIL</th><th class="r">PREIS</th></tr></thead><tbody>${rows}</tbody></table>`
         : '<p class="dim">Die ersten Verkaufszahlen kommen zum Monatsende.</p>'}`;
     return html;
+  }
+
+  app_lines() {
+    const g = this.game, f = g.s.story.flags;
+    let html = `<h2>PRODUKTLINIEN <span class="dim">${esc(g.stage.dept.toUpperCase())}</span></h2>`;
+    for (const [id, def] of Object.entries(LINES)) {
+      const ln = g.s.lines[id];
+      const unlocked = g.lineUnlocked(id);
+      html += `<div class="member"><div><b>${esc(def.name.toUpperCase())}</b> <span class="dim">ORION: ${esc(def.orion)} · QUALITÄT ${g.orionQ(id)}/10 · ${fmtDM(g.orionPrice(id))}</span></div>`;
+      if (!unlocked) {
+        const t = TECHS.find((x) => x.id === def.needs);
+        html += `<p class="dim">GESPERRT · BRAUCHT DIE TECHNOLOGIE „${esc(t.name)}“ (PROGRAMM F&amp;E)</p></div>`;
+        continue;
+      }
+      if (id === 'pc' && f.pc_compat == null && !ln.model) html += '<p class="err">STANDARD NOCH NICHT ENTSCHIEDEN (SIEHE POST). OHNE ENTSCHEIDUNG GILT „EIGENER STANDARD“.</p>';
+      if (ln.model) {
+        const m = ln.model, last = ln.last;
+        html += `<div class="kv">
+          <span>IM HANDEL</span><span><b>${esc(m.name)}</b> · QUALITÄT ${m.q}/10 · SEIT ${m.months} MONATEN</span>
+          <span>LETZTER MONAT</span><span>${last ? `${fmtInt(last.units)} STÜCK · ORION ${fmtInt(last.orion)} · ANTEIL ${fmtPct(last.share)}` : 'NOCH KEINE ZAHLEN'}</span>
+          <span>GESAMT</span><span>${fmtInt(ln.units)} STÜCK · ${fmtDM(ln.revenue)}</span>
+        </div>
+        <div class="row"><span class="dim">PREIS</span>${def.prices.map((pr) => {
+          const sh = g.lineShare(id, m.q, pr, ln.marketing);
+          return `<button type="button" class="tbtn small ${m.price === pr ? 'chosen' : ''}" data-act="line-price" data-line="${id}" data-arg="${pr}">${fmtInt(pr)} · ~${fmtPct(sh.kb / sh.total)}</button>`;
+        }).join('')}</div>
+        <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => `<button type="button" class="tbtn small ${ln.marketing === k ? 'chosen' : ''}" data-act="line-mk" data-line="${id}" data-arg="${k}">${mk.label}${mk.cost ? ` ${fmtInt(mk.cost / 1000)} TDM` : ''}</button>`).join('')}</div>`;
+      }
+      if (ln.devGen) {
+        const a = g.s.projects.active;
+        const pid = `model-${id}-${ln.devGen}`;
+        html += `<p>IN ENTWICKLUNG: <b>${esc(g.modelName(id, ln.devGen))}</b> ${a?.id === pid ? `· ${fmtInt(a.pp)}/${fmtInt(a.need)} PKT` : '<span class="err">· PAUSIERT, IN PROJ WIEDER ÜBERNEHMEN</span>'}</p>`;
+      } else if (ln.pending) {
+        const pn = ln.pending;
+        html += `<p class="ok">FERTIG: <b>${esc(pn.name)}</b> · QUALITÄT ${pn.q}/10. PREIS WÄHLEN UND IN DEN HANDEL BRINGEN:</p>
+          <div class="row">${def.prices.map((pr) => {
+            const sh = g.lineShare(id, pn.q, pr, ln.marketing);
+            return `<button type="button" class="tbtn small" data-act="line-launch" data-line="${id}" data-arg="${pr}">${fmtDM(pr)} · ~${fmtPct(sh.kb / sh.total)}</button>`;
+          }).join('')}</div>`;
+      } else {
+        const gen = ln.gen + 1;
+        const need = Math.round((def.devNeed * (1 + 0.2 * (gen - 1))) / 50) * 50;
+        html += `<div class="row"><button type="button" class="tbtn" data-act="line-dev" data-line="${id}">${ln.model ? 'NACHFOLGER' : 'ERSTES MODELL'} ENTWICKELN: ${esc(g.modelName(id, gen))}</button>
+          <span class="dim">${fmtInt(need)} PKT · ERWARTETE QUALITÄT ${g.lineQuality(id)}/10</span></div>`;
+      }
+      html += '</div>';
+    }
+    return html + '<p class="dim">Neue Modelle laufen als Projekt im Programm PROJ. Das alte Modell verkauft sich weiter, bis der Nachfolger im Handel ist.</p>';
+  }
+
+  app_fue() {
+    const g = this.game, rd = g.s.rd;
+    const cur = TECHS.find((x) => x.id === rd.current);
+    const list = TECHS.map((t) => {
+      const done = g.techDone(t.id), avail = g.techAvailable(t), isCur = rd.current === t.id;
+      const req = t.req.length ? ` · BRAUCHT ${t.req.map((r) => TECHS.find((x) => x.id === r).name).join(', ')}` : '';
+      return `<div class="shop-row ${done ? 'owned' : !avail ? 'locked' : ''}">
+        <div><b>${done ? '[X]' : isCur ? '[>]' : '[ ]'} ${esc(t.name)}</b> <span class="dim">${fmtInt(t.cost)} FP${esc(req)}</span><br><span class="dim">${esc(t.desc)}</span></div>
+        <div class="r">${done ? '<span class="ok">ERFORSCHT</span>' : isCur ? '<span class="ok">IN ARBEIT</span>' : avail ? `<button type="button" class="tbtn small" data-act="tech" data-arg="${t.id}">FORSCHEN</button>` : '<span class="dim">GESPERRT</span>'}</div>
+      </div>`;
+    }).join('');
+    return `<h2>FORSCHUNG &amp; ENTWICKLUNG <span class="dim">LABOR GEBÄUDE D</span></h2>
+      <div class="kv">
+        <span>BUDGET</span><span>${fmtDM(rd.budget)} / MONAT (GEHT VOM ERGEBNIS AB)</span>
+        <span>GUTHABEN</span><span><b>${fmtInt(rd.pool)} FP</b> · +${fmtInt(g.rdPerMonth())} FP ZUM MONATSENDE</span>
+        <span>AKTUELL</span><span>${cur ? `${esc(cur.name)} · ${fmtInt(Math.min(rd.pool, cur.cost))}/${fmtInt(cur.cost)} FP` : '<span class="err">NICHTS AUSGEWÄHLT</span>'}</span>
+      </div>
+      ${cur ? `<span class="tbar big"><span style="width:${Math.min(100, (rd.pool / cur.cost) * 100).toFixed(1)}%"></span></span>` : ''}
+      <div class="row"><span class="dim">BUDGET</span>${RD_BUDGETS.map((b) => `<button type="button" class="tbtn small ${rd.budget === b ? 'chosen' : ''}" data-act="rd-budget" data-arg="${b}">${b ? `${fmtInt(b / 1000)} TDM` : 'KEINS'}</button>`).join('')}</div>
+      <h3>TECHNOLOGIEN ${rd.done.length}/${TECHS.length}</h3>${list}
+      <p class="dim">Kreative Leute im Team erhöhen die Forschungspunkte.</p>`;
+  }
+
+  app_abt() {
+    const g = this.game, d = g.s.dept;
+    const T = (x) => fmtInt(Math.round(x / 1000));
+    const rows = d.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${T(h.revenue)}</td><td class="r">${T(h.gross)}</td><td class="r">${T(h.payroll)}</td><td class="r">${T(h.rd)}</td><td class="r">${T(h.mkt)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${T(h.result)}</td></tr>`).join('');
+    return `<h2>ABTEILUNGSERGEBNIS <span class="dim">${esc(g.stage.dept.toUpperCase())}</span></h2>
+      <div class="kv">
+        <span>BESTER MONAT</span><span>${fmtDM(Math.max(0, d.best))}</span>
+        <span>SCHWARZE ZAHLEN</span><span>${d.posStreak} MONAT${d.posStreak === 1 ? '' : 'E'} IN FOLGE</span>
+        <span>BETEILIGUNG</span><span>${fmtPct(DEPT_COMMISSION, 2)} DES POSITIVEN ERGEBNISSES AUF DEINER ABRECHNUNG</span>
+      </div>
+      ${rows ? `<h3>LETZTE MONATE <span class="dim">IN TAUSEND DM</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">UMSATZ</th><th class="r">ROHERTR.</th><th class="r">PERSONAL</th><th class="r">F&amp;E</th><th class="r">MARKET.</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>`
+        : '<p class="dim">Die erste Abrechnung der Abteilung kommt zum Monatsende.</p>'}
+      <p class="dim">Ergebnis = Rohertrag aller Linien minus Personal, Forschung und Marketing.</p>`;
   }
 
   app_lohn() {
@@ -432,17 +523,18 @@ export class PC {
     const lo = Math.min(...h) * 0.98, hi = Math.max(...h) * 1.02;
     const W = cv.width, H = cv.height;
     c.clearRect(0, 0, W, H);
-    c.fillStyle = 'rgba(77,255,124,0.10)';
+    const two = this.game.era() === 2;
+    c.fillStyle = two ? 'rgba(0,0,0,0.12)' : 'rgba(77,255,124,0.10)';
     for (let y = 0; y < H; y += 18) c.fillRect(0, y, W, 1);
     const X = (k) => (k / (h.length - 1)) * (W - 4) + 2;
     const Y = (v) => H - 4 - ((v - lo) / (hi - lo)) * (H - 8);
-    c.fillStyle = 'rgba(77,255,124,0.16)';
+    c.fillStyle = two ? 'rgba(31,58,138,0.18)' : 'rgba(77,255,124,0.16)';
     c.beginPath(); c.moveTo(X(0), H);
     h.forEach((v, k) => c.lineTo(X(k), Y(v)));
     c.lineTo(X(h.length - 1), H); c.fill();
-    c.strokeStyle = '#4dff7c'; c.lineWidth = 2;
+    c.strokeStyle = two ? '#1f3a8a' : '#4dff7c'; c.lineWidth = 2;
     c.beginPath(); h.forEach((v, k) => (k ? c.lineTo(X(k), Y(v)) : c.moveTo(X(k), Y(v)))); c.stroke();
-    c.fillStyle = '#c9ffd6'; c.fillRect(X(h.length - 1) - 3, Y(h.at(-1)) - 3, 6, 6);
+    c.fillStyle = two ? '#000' : '#c9ffd6'; c.fillRect(X(h.length - 1) - 3, Y(h.at(-1)) - 3, 6, 6);
   }
 
   app_shop() {
@@ -602,6 +694,12 @@ export class PC {
       case 'hire': { const m = g.hire(Number(arg)); if (m) this.ui.toast(`${m.name} eingestellt`, 'good'); this.rerender(['pers', 'karr']); break; }
       case 'dinner': { const c = g.dinner(); if (c) this.ui.toast(`Teamessen beim Griechen: ${fmtDM(c)}`, 'good'); this.rerender(['pers']); break; }
       case 'spec': g.setSpec(arg, b.dataset.val); this.rerender(['prod']); break;
+      case 'line-dev': if (g.startModel(b.dataset.line)) this.ui.toast('Entwicklung gestartet', 'good'); this.rerender(['prod', 'proj']); break;
+      case 'line-launch': if (g.launchModel(b.dataset.line, Number(arg))) this.ui.toast('Neues Modell im Handel', 'good'); this.rerender(['prod', 'karr']); break;
+      case 'line-price': g.setLinePrice(b.dataset.line, Number(arg)); this.rerender(['prod']); break;
+      case 'line-mk': g.setMarketing(b.dataset.line, Number(arg)); this.rerender(['prod']); break;
+      case 'rd-budget': g.setRdBudget(Number(arg)); this.rerender(['fue']); break;
+      case 'tech': g.selectTech(arg); this.rerender(['fue', 'prod']); break;
       case 'prod-start': if (g.startProduct()) this.ui.toast('Entwicklung des HC-1 gestartet', 'good'); this.rerender(['prod', 'proj']); break;
       case 'price-sel': this.priceSel = Number(arg); this.rerender(['prod']); break;
       case 'launch': if (g.launchProduct(this.priceSel || g.s.product.price)) this.ui.toast('Der HC-1 ist im Handel', 'good'); this.priceSel = null; this.rerender(['prod', 'karr']); break;

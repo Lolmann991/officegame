@@ -44,6 +44,8 @@ export class UI {
     game.on('projects', () => this.pc.rerender(['proj', 'karr', 'prod']));
     game.on('team', () => { this.pc.rerender(['pers', 'karr']); this.office.setTeam(this.game.s.player.stage, this.game.s.team.members); });
     game.on('product', () => this.pc.rerender(['prod', 'karr', 'proj']));
+    game.on('dept', () => this.pc.rerender(['abt', 'fue', 'karr', 'prod']));
+    game.on('era', () => { this.office.setEra(this.game.era()); if (this.pc.open) this.pc.build(); });
     game.on('gameover', (go) => this.showGameOver(go));
   }
 
@@ -134,6 +136,7 @@ export class UI {
     this.office.setUpgrades(this.game.s.upgrades);
     this.office.setStage(this.game.s.player.stage);
     this.office.setTeam(this.game.s.player.stage, this.game.s.team.members);
+    this.office.setEra(this.game.era());
     this.screen = 'desk';
     this.office.setMode('desk');
     $('#hud').hidden = false;
@@ -395,6 +398,7 @@ export class UI {
   onPromotion() {
     this.office.setStage(this.game.s.player.stage);
     this.office.setTeam(this.game.s.player.stage, this.game.s.team.members);
+    this.office.setEra(this.game.era());
     this.pc.rerender();
     this.updateHUD();
     const s = this.game.s, f = s.story.flags, stage = s.player.stage;
@@ -415,6 +419,13 @@ export class UI {
           <dt>Qualität</dt><dd>${s.product.quality}/10</dd>
           <dt>Team</dt><dd>${s.team.members.map((m) => esc(m.name)).join(', ')}</dd>
           <dt>Uwe</dt><dd>${f.uwe_compromise ? 'Kompromiss mit Großrechner-Schnittstelle' : f.uwe_overruled ? 'überstimmt' : '–'}</dd>`;
+    const lineUnits = Object.values(s.lines).reduce((a, l) => a + l.units, 0);
+    const stats4 = `
+          <dt>Technologien</dt><dd>${s.rd.done.length} erforscht</dd>
+          <dt>Geräte verkauft</dt><dd>${fmtInt(lineUnits)}</dd>
+          <dt>Bester Monat</dt><dd>${fmtDM(Math.max(0, s.dept.best))}</dd>
+          <dt>PC-Standard</dt><dd>${f.pc_compat ? 'kompatibel' : 'eigener KB-Standard'}</dd>
+          <dt>Orion</dt><dd>${f.rau_deal ? 'Absprache mit Rau' : f.price_war ? 'Preiskrieg' : '–'}</dd>`;
     let nextHtml;
     if (next?.intro) {
       f[`seen_ch${next.no}`] = true;
@@ -425,11 +436,19 @@ export class UI {
     this.modal(`
       <div class="sheet">
         <div class="eyebrow">Kapitel ${done.no} abgeschlossen · ${esc(done.title)}</div>
-        <p>Nach ${s.time.totalMonths} Monaten bei KB bist du jetzt <b>${esc(this.game.stage.title)}</b>. Grundgehalt: ${fmtDM(this.game.stage.salary * (1 + (s.player.salaryBonus || 0)))}.</p>
-        <dl class="sheet-dl">${stage === 3 ? stats3 : stats}</dl>
+        <p>Nach ${this.tenureText()} bei KB bist du jetzt <b>${esc(this.game.stage.title)}</b>. Grundgehalt: ${fmtDM(this.game.stage.salary * (1 + (s.player.salaryBonus || 0)))}.</p>
+        <dl class="sheet-dl">${stage === 4 ? stats4 : stage === 3 ? stats3 : stats}</dl>
         ${nextHtml}
         <button type="button" class="btn primary" data-close>Weiterarbeiten</button>
       </div>`, 'm-sheet');
+  }
+
+  // Zeit seit Eintritt im September 1978 (berücksichtigt Zeitsprünge zwischen Kapiteln)
+  tenureText() {
+    const t = this.game.s.time;
+    const months = Math.max(1, (t.year - 1978) * 12 + t.month - 8);
+    if (months < 24) return `${months} Monat${months === 1 ? '' : 'en'}`;
+    return `${Math.floor(months / 12)} Jahren`;
   }
 
   showChapterIntro(no) {

@@ -124,6 +124,25 @@ function buildTextures() {
       }
     }
   });
+  TEX.keyboard2 = tex(32, 10, (c, w, h) => {
+    c.fillStyle = '#b9b6ac'; c.fillRect(0, 0, w, h);
+    for (let y = 1; y < 8; y += 2) for (let x = 1; x < w - 1; x += 2) { c.fillStyle = (x > 24) ? '#6f6c64' : '#e4e1d8'; c.fillRect(x, y, 1, 1); }
+    c.fillStyle = '#e4e1d8'; c.fillRect(8, 8, 12, 1);
+  });
+  TEX.pcfront = tex(32, 8, (c) => {
+    c.fillStyle = '#d6d0bf'; c.fillRect(0, 0, 32, 8);
+    c.fillStyle = '#2a2a28'; c.fillRect(3, 3, 9, 1); c.fillRect(15, 3, 9, 1);
+    c.fillStyle = '#7a756a'; c.fillRect(3, 5, 4, 1); c.fillRect(15, 5, 4, 1);
+    c.fillStyle = '#3d8f55'; c.fillRect(28, 5, 2, 1);
+    c.fillStyle = '#1f3557'; c.fillRect(27, 1, 3, 2);
+  });
+  TEX.rug = tex(32, 24, (c) => {
+    c.fillStyle = '#6a2f2a'; c.fillRect(0, 0, 32, 24);
+    c.fillStyle = '#8a4a32'; c.fillRect(2, 2, 28, 20);
+    c.fillStyle = '#6a2f2a'; c.fillRect(4, 4, 24, 16);
+    c.fillStyle = '#b98a4a';
+    for (let y = 6; y < 18; y += 4) for (let x = 6; x < 26; x += 4) c.fillRect(x, y, 2, 2);
+  });
   TEX.keypad = tex(8, 8, (c) => {
     c.fillStyle = '#6f6a5c'; c.fillRect(0, 0, 8, 8);
     c.fillStyle = '#efe9d8';
@@ -432,13 +451,15 @@ export class Office {
     buildDesk(s, 0, -0.15);
 
     // Stellwände (Großraumbüro)
-    box(1.92, 1.05, 0.04, TEX.fabric, 0, 0.525, -0.66, s);
-    box(1.94, 0.03, 0.06, 0x8f8a7c, 0, 1.06, -0.66, s);
+    this.frontPartition = [
+      box(1.92, 1.05, 0.04, TEX.fabric, 0, 0.525, -0.66, s),
+      box(1.94, 0.03, 0.06, 0x8f8a7c, 0, 1.06, -0.66, s),
+    ];
     this.leftPartition = [
       box(0.04, 1.45, 1.05, TEX.fabric, -0.97, 0.725, -0.14, s),
       box(0.06, 0.03, 1.07, 0x8f8a7c, -0.97, 1.46, -0.14, s),
     ];
-    plane(0.16, 0.21, TEX.calendar, -0.62, 0.9, -0.637, 0, s);
+    this.frontPartition.push(plane(0.16, 0.21, TEX.calendar, -0.62, 0.9, -0.637, 0, s));
 
     // Bildschirm 1
     this.screenCanvas = document.createElement('canvas');
@@ -469,7 +490,7 @@ export class Office {
     this.upgradeObjs.monitor2 = m2.group;
 
     // Tastatur
-    const kb = box(0.46, 0.03, 0.17, [mat(TEX.plastic), mat(TEX.plastic), mat(TEX.keyboard), mat(TEX.plastic), mat(TEX.plastic), mat(TEX.plastic)], 0, 0.765, 0.12, s);
+    const kb = this.keyboard = box(0.46, 0.03, 0.17, [mat(TEX.plastic), mat(TEX.plastic), mat(TEX.keyboard), mat(TEX.plastic), mat(TEX.plastic), mat(TEX.plastic)], 0, 0.765, 0.12, s);
     kb.rotation.x = 0.06;
     // Telefon mit Wählscheibe
     const phone = new THREE.Group();
@@ -646,7 +667,7 @@ export class Office {
       { suit: 0x7a6a4a, shirt: 0xe8e2cf, hair: 0xb8b4aa, tie: 0x5a2a1a },
       { suit: 0x3f5a4a, shirt: 0xe4ddc8, hair: 0x2b1d14, longHair: true, skin: SKINS[3] },
     ];
-    const spots = [[-1.9, -2.3], [0, -2.3], [1.9, -2.3], [-1.9, -4.2], [1.9, -4.2], [0, -4.2]];
+    const spots = [[-1.9, -2.3], [0, -2.3], [1.9, -2.3], [-1.9, -4.2], [1.9, -4.2], [0, -4.2], [0, -6.2], [1.9, -6.2]];
     this.leftSpots = [];
     this.staticPeople = [];
     spots.forEach(([x, z], i) => {
@@ -686,7 +707,16 @@ export class Office {
       { x: 0, z: -2.05, ry: Math.PI }, { x: 1.9, z: -2.05, ry: Math.PI },
       { x: 0, z: -3.95, ry: Math.PI }, { x: 1.9, z: -3.95, ry: Math.PI },
       { x: 2.95, z: -1.2, ry: Math.PI / 2, petra: true },
+      { x: 0, z: -5.95, ry: Math.PI }, { x: 1.9, z: -5.95, ry: Math.PI },
+      { x: 2.95, z: -3.2, ry: Math.PI / 2 },
     ];
+    buildDesk(this.scene, 3.5, -3.2, Math.PI / 2);
+    const pc3 = buildCRT(new THREE.CanvasTexture(document.createElement('canvas')));
+    pc3.group.position.set(3.6, 0.75, -3.2);
+    pc3.group.rotation.y = -Math.PI / 2;
+    this.scene.add(pc3.group);
+    this.buildEra2();
+    this.buildOffice();
     this.teamPeople = [];
     this.buildGlassWall();
   }
@@ -710,6 +740,68 @@ export class Office {
     g.visible = false;
     this.scene.add(g);
     this.glassWall = g;
+  }
+
+  // Epoche 1987: PC-Gehäuse unter dem Monitor, graue Tastatur, Fax
+  buildEra2() {
+    const s = this.scene;
+    const unit = new THREE.Group();
+    unit.position.set(0, 0.75, -0.27);
+    box(0.48, 0.11, 0.42, [mat(TEX.plastic), mat(TEX.plastic), mat(TEX.plastic), mat(TEX.plastic), mat(TEX.pcfront), mat(TEX.plastic)], 0, 0.055, 0, unit);
+    s.add(unit);
+    const fax = new THREE.Group();
+    fax.position.set(-1.0, 0.985, 0.32);
+    fax.rotation.y = Math.PI / 2;
+    box(0.3, 0.09, 0.22, 0xd9d4c4, 0, 0.045, 0, fax);
+    box(0.12, 0.012, 0.08, [mat(0x8a8576), mat(0x8a8576), mat(TEX.keypad), mat(0x8a8576), mat(0x8a8576), mat(0x8a8576)], 0.07, 0.095, 0.04, fax);
+    const paper = plane(0.16, 0.1, 0xf6f3ea, -0.05, 0.13, -0.08, 0, fax);
+    paper.rotation.x = -0.4;
+    s.add(fax);
+    this.era2Objs = [unit, fax];
+    this.era2Objs.forEach((o) => { o.visible = false; });
+    this.era = 1;
+  }
+
+  setEra(era) {
+    this.era = era;
+    const two = era >= 2;
+    this.era2Objs.forEach((o) => { o.visible = two; });
+    this.monitor1.group.position.y = two ? 0.86 : 0.75;
+    const mats = this.keyboard.material;
+    mats[2] = mat(two ? TEX.keyboard2 : TEX.keyboard);
+    [0, 1, 3, 4, 5].forEach((k) => { mats[k] = mat(two ? 0xb9b6ac : TEX.plastic); });
+  }
+
+  // eigenes Büro (ab Abteilungsleiter): Glasfront mit Tür, Teppich
+  buildOffice() {
+    const g = new THREE.Group();
+    const glass = new THREE.MeshLambertMaterial({ color: 0xbcd8e0, transparent: true, opacity: 0.22, depthWrite: false });
+    const frame = 0x6f6b60, wood = 0x7a4a2a;
+    box(1.25, 0.9, 0.05, wood, 0.825, 0.45, -0.66, g);
+    box(0.45, 0.9, 0.05, wood, -0.825, 0.45, -0.66, g);
+    plane(1.25, 1.47, glass, 0.825, 1.635, -0.655, 0, g);
+    plane(0.45, 1.47, glass, -0.825, 1.635, -0.655, 0, g);
+    for (const x of [-1.05, -0.6, 0.2, 1.45]) box(0.05, 2.4, 0.07, frame, x, 1.2, -0.66, g);
+    box(2.55, 0.06, 0.07, frame, 0.2, 2.37, -0.66, g);
+    box(0.8, 0.22, 0.07, frame, -0.2, 2.26, -0.66, g);
+    const hinge = new THREE.Group();
+    hinge.position.set(-0.575, 0, -0.66);
+    // Glastür mit Holzrahmen, damit das Team sichtbar bleibt
+    box(0.06, 2.1, 0.045, wood, 0.03, 1.05, 0, hinge);
+    box(0.06, 2.1, 0.045, wood, 0.72, 1.05, 0, hinge);
+    box(0.75, 0.08, 0.045, wood, 0.375, 2.06, 0, hinge);
+    box(0.75, 0.5, 0.045, wood, 0.375, 0.25, 0, hinge);
+    plane(0.63, 1.48, glass, 0.375, 1.26, 0.002, 0, hinge);
+    box(0.03, 0.03, 0.08, 0xc8b273, 0.66, 1.0, 0, hinge);
+    g.add(hinge);
+    this.door = hinge;
+    const rug = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 1.4), mat(TEX.rug));
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.set(0.1, 0.004, -0.05);
+    g.add(rug);
+    g.visible = false;
+    this.scene.add(g);
+    this.officeFront = g;
   }
 
   setTeam(stage, members) {
@@ -769,7 +861,10 @@ export class Office {
   // Arbeitsplatz je Karrierestufe: ab Stufe 1 am Fenster
   setStage(stage) {
     const atWindow = stage >= 1;
-    this.glassWall.visible = stage >= 2;
+    this.stage = stage;
+    this.glassWall.visible = stage === 2;
+    this.officeFront.visible = stage >= 3;
+    this.frontPartition.forEach((m) => { m.visible = stage < 3; });
     this.windowWall.visible = atWindow;
     this.leftPartition.forEach((m) => { m.visible = !atWindow; });
     this.rightPartition.visible = atWindow;
@@ -788,29 +883,32 @@ export class Office {
   drawScreens(t) {
     const info = this.screenInfo;
     const blink = Math.floor(t * 2) % 2 === 0;
+    const two = this.era >= 2;
+    const fg = two ? '#1a1a1a' : '#4dff7c';
     const draw = (canvas, lines) => {
       const c = canvas.getContext('2d');
-      c.fillStyle = '#041007'; c.fillRect(0, 0, 160, 120);
-      c.fillStyle = 'rgba(60,255,120,0.06)';
+      c.fillStyle = two ? '#dcd9d0' : '#041007'; c.fillRect(0, 0, 160, 120);
+      if (two) { c.fillStyle = '#1f3a8a'; c.fillRect(0, 0, 160, 12); }
+      c.fillStyle = two ? 'rgba(0,0,0,0.04)' : 'rgba(60,255,120,0.06)';
       for (let y = 0; y < 120; y += 2) c.fillRect(0, y, 160, 1);
       c.font = '10px monospace';
       c.textBaseline = 'top';
       lines.forEach((l, i) => {
         if (l == null) return;
         if (typeof l === 'object') {
-          c.fillStyle = '#1d5c2e'; c.fillRect(8, 10 + i * 12, 144, 6);
-          c.fillStyle = '#4dff7c'; c.fillRect(8, 10 + i * 12, 144 * Math.min(1, l.bar), 6);
+          c.fillStyle = two ? '#a9a59a' : '#1d5c2e'; c.fillRect(8, 10 + i * 12, 144, 6);
+          c.fillStyle = two ? '#1f3a8a' : '#4dff7c'; c.fillRect(8, 10 + i * 12, 144 * Math.min(1, l.bar), 6);
           return;
         }
-        c.fillStyle = '#4dff7c';
-        c.fillText(l, 8, 8 + i * 12);
+        c.fillStyle = two && i === 0 ? '#ffffff' : fg;
+        c.fillText(l, 8, (two && i === 0 ? 2 : 8) + i * 12);
       });
     };
     if (!info) {
       draw(this.screenCanvas, ['KB-TERMINAL 3270', '', 'VERBINDUNG ...', blink ? '_' : '']);
     } else {
       draw(this.screenCanvas, [
-        'KB-TERMINAL 3270', info.date, '', `POST ${info.unread ? info.unread + ' NEU' : 'LEER'}`,
+        two ? 'KB PC  KB-WINDOWS' : 'KB-TERMINAL 3270', info.date, '', `POST ${info.unread ? info.unread + ' NEU' : 'LEER'}`,
         `LST ${fmtInt(info.perf)}/${fmtInt(info.target)}`, { bar: info.perf / info.target },
         `KONTO ${fmtInt(info.cash)} DM`, blink ? '>_' : '>',
       ]);
@@ -821,7 +919,7 @@ export class Office {
       const c = this.screen2Canvas.getContext('2d');
       const h = info.history.slice(-40);
       const lo = Math.min(...h), hi = Math.max(...h);
-      c.fillStyle = '#4dff7c';
+      c.fillStyle = fg;
       h.forEach((v, i) => {
         const y = 108 - ((v - lo) / (hi - lo || 1)) * 50;
         c.fillRect(8 + i * 3.6, y, 3, 2);
@@ -922,6 +1020,12 @@ export class Office {
     this.handset.rotation.x = this.lift * 0.6;
     this.handset.visible = this.lift < 0.45; // danach hält man ihn am Ohr
     this.phone.rotation.z = t < (this.ringUntil || 0) ? Math.sin(t * 70) * 0.05 : 0;
+
+    // Bürotür öffnet sich für Besucher
+    if (this.door) {
+      const open = this.visitor && this.stage >= 3 ? 1.5 : 0;
+      this.door.rotation.y += (open - this.door.rotation.y) * Math.min(1, dt * 4);
+    }
 
     // Besucher läuft herein
     if (this.visitor && this.visitor.userData.walk < 1) {

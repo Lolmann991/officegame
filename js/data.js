@@ -39,11 +39,11 @@ export const STAGES = [
   { title: 'Sachbearbeiter', dept: 'Rechenzentrum', salary: 3100, target: 800, living: 1450, year: 1980 },
   { title: 'Teamleiter', dept: 'Gruppe Heimcomputer', salary: 4500, target: 2100, living: 1900, year: 1983 },
   { title: 'Abteilungsleiter', dept: 'PC-Sparte', salary: 7000, target: 3600, living: 2600, year: 1987 },
-  { title: 'Bereichsleiter', dept: 'Geschäftsbereich Netz', salary: 11000, year: 1993 },
+  { title: 'Bereichsleiter', dept: 'Geschäftsbereich Netz', salary: 11000, target: 5200, living: 3400, year: 1993 },
   { title: 'Vorstand', dept: 'Ressort Finanzen', salary: 18000, year: 1999 },
   { title: 'CEO', dept: 'Konzernleitung', salary: 36000, year: 2008 },
 ];
-export const PLAYABLE_STAGES = 4;
+export const PLAYABLE_STAGES = 5;
 
 // Kapitel-Karten: erscheinen beim Erreichen einer Stufe (intro) und bei der nächsten Beförderung (outro).
 export const CHAPTERS = [
@@ -52,12 +52,16 @@ export const CHAPTERS = [
     intro: 'Du bist jetzt Sachbearbeiter und hast einen Platz am Fenster. Neu ist das Programm PROJ: Dort übernimmst du eigene Projekte. Aber Vorsicht, jede Stunde im Projekt fehlt deinem Monatsziel.' },
   { no: 3, title: 'Das erste Team', stage: 2,
     intro: 'Du leitest jetzt die Gruppe Heimcomputer. Neu sind die Programme PERS und PROD: Stelle Leute ein, halte die Moral hoch und bring den ersten Heimcomputer von KB auf den Markt. Ab jetzt zählt die Leistung des ganzen Teams.' },
-  { no: 4, title: 'Abteilung PC', stage: 3 },
+  { no: 4, title: 'Abteilung PC', stage: 3, jumpYear: 1987,
+    intro: 'Vier Jahre später, Januar 1987. Du leitest die neue PC-Sparte und hast ein eigenes Büro mit Tür. Neu sind die Programme F&E (Forschung) und ABT (Abteilungsergebnis). Im Programm PROD führst du jetzt mehrere Produktlinien. Dein Erfolg wird am Ergebnis der Abteilung gemessen.' },
+  { no: 5, title: 'Die Netz-Wette', stage: 4 },
 ];
 
 // ---------------------------------------------------------------- Team (ab Kapitel 3)
+export const TEAM_MAX_BY_STAGE = [0, 0, 5, 8, 8, 8, 8];
 export const TEAM_MAX = 5;
 export const TEAM_BUDGET = 14000;          // Personalbudget der Gruppe in DM pro Monat
+export const DEPT_TEAM_BUDGET = 30000;     // Personalbudget der Abteilung ab Kapitel 4
 export const TEAM_RATE_PER_SKILL = 1.6;    // Leistung/s je Fähigkeitspunkt bei Moral 50
 export const DINNER_COST = 45;             // DM pro Person, privat bezahlt
 
@@ -171,3 +175,33 @@ export const fmtNum = (v) => dm.format(v);
 export const fmtInt = (v) => int.format(Math.floor(v));
 export const fmtPct = (v, digits = 0) =>
   `${new Intl.NumberFormat('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v * 100)} %`;
+
+// ---------------------------------------------------------------- Kapitel 4: Forschung, Produktlinien, Abteilung
+export const RD_BUDGETS = [0, 25000, 50000, 100000];  // DM pro Monat
+export const RD_FP_PER_DM = 1 / 250;                  // Forschungspunkte je DM
+
+export const TECHS = [
+  { id: 'cpu16', name: '16-Bit-Prozessor', cost: 300, req: [], unlock: 'pc', desc: 'Schaltet die Produktlinie Bürocomputer frei.' },
+  { id: 'disk35', name: '3½-Zoll-Laufwerk', cost: 220, req: [], q: { home: 1, pc: 1 }, desc: '+1 Qualität für Heim- und Bürocomputer.' },
+  { id: 'ega', name: 'Farbgrafik EGA', cost: 260, req: [], q: { home: 1, pc: 1 }, desc: '+1 Qualität für Heim- und Bürocomputer.' },
+  { id: 'hdd', name: 'Festplatte 20 MB', cost: 450, req: ['cpu16'], q: { pc: 2 }, desc: '+2 Qualität für Bürocomputer.' },
+  { id: 'portable', name: 'Tragbares Gehäuse', cost: 520, req: ['cpu16', 'disk35'], unlock: 'portable', desc: 'Schaltet die Produktlinie Tragbare frei.' },
+  { id: 'gui', name: 'Maus und Fenster', cost: 480, req: ['ega'], q: { home: 1, pc: 1, portable: 1 }, desc: '+1 Qualität für alle Linien.' },
+  { id: 'cpu32', name: '32-Bit-Prozessor', cost: 800, req: ['hdd'], q: { pc: 2, portable: 1 }, desc: '+2 Qualität Büro, +1 Tragbare.' },
+  { id: 'lan', name: 'Netzwerkkarte', cost: 650, req: ['cpu16'], q: { pc: 1 }, desc: '+1 Qualität Büro. Die Zukunft heißt Vernetzung.' },
+  { id: 'laser', name: 'Laserdrucker-Anschluss', cost: 400, req: ['gui'], q: { pc: 1, portable: 1 }, desc: '+1 Qualität Büro und Tragbare.' },
+];
+
+export const MARKETING = [
+  { cost: 0, mult: 1, label: 'KEINS' },
+  { cost: 20000, mult: 1.2, label: 'ANZEIGEN' },
+  { cost: 50000, mult: 1.45, label: 'TV + ANZEIGEN' },
+];
+
+// Produktlinien der PC-Sparte. size = Käufer pro Monat, margin = Rohertrag am Umsatz.
+export const LINES = {
+  home: { name: 'Heimcomputer', model: 'HC', size: 9000, prices: [995, 1495, 1995], baseQ: 4, margin: 0.08, devNeed: 7000, orion: 'OR-Home', orionQ: 6 },
+  pc: { name: 'Bürocomputer', model: 'KB PC', size: 6000, sizeCompat: 11000, prices: [3995, 5995, 7995], baseQ: 4, margin: 0.22, marginCompat: 0.14, devNeed: 9000, orion: 'OR-PC', orionQ: 5, needs: 'cpu16' },
+  portable: { name: 'Tragbare', model: 'KB Portable', size: 2500, prices: [5995, 7995, 9995], baseQ: 4, margin: 0.2, devNeed: 10000, orion: 'OR-Mobil', orionQ: 5, needs: 'portable' },
+};
+export const DEPT_COMMISSION = 0.0008; // Erfolgsbeteiligung am positiven Abteilungsergebnis

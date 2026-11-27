@@ -1,16 +1,19 @@
-# KONZERN (Prototyp v0.3)
+# KONZERN (Prototyp v0.4)
 
 Idle-Wirtschaftsspiel im Browser. Du beginnst 1978 als Junior-Sachbearbeiter bei der fiktiven
 Kessler & Brandt Rechenwerke AG und arbeitest dich hoch. Gespielt wird am Schreibtisch in einem
 3D-Büro (Low-Poly, Pixeltexturen) über den Firmen-PC.
 
-Der Prototyp enthält die Kapitel 1 bis 3:
+Der Prototyp enthält die Kapitel 1 bis 4:
 
 1. **Der erste Tag:** Einstieg im Großraum, Aufträge, Gehaltsabrechnung, Mitarbeiteraktien, Beförderung zum Sachbearbeiter.
 2. **Lochkarten und Ehrgeiz:** Platz am Fenster, eigene Projekte (Programm PROJ), Ideenwettbewerb des Vorstands,
    ein Abwerbeversuch von Orion am Telefon und die Beförderung zum Teamleiter.
 3. **Das erste Team:** eigene Gruppe mit Personal, Budget und Moral (Programm PERS), Entwicklung und
    Markteinführung des KB-Heimcomputers HC-1 gegen Orion (Programm PROD), Beförderung zum Abteilungsleiter.
+4. **Abteilung PC (1987):** Zeitsprung mit Epochenwechsel (beiger PC, Fax, KB-Windows), eigenes Büro mit Glastür,
+   Forschungsbaum (Programm F&E), drei Produktlinien mit Modellgenerationen, Preis und Marketing, Abteilungsergebnis
+   (Programm ABT), Finanzvorstand Sauer, Orion-Chef Rau am Telefon, Beförderung zum Bereichsleiter.
 
 Danach läuft das Spiel endlos weiter, mit laufend neuen Projekten.
 
@@ -42,6 +45,9 @@ gebraucht. Nur die Schriften kommen von Google Fonts; ohne Internet greifen Ersa
 - Im Programm PERS Leute einstellen, loben, Gehälter erhöhen und zum Teamessen einladen. Das Teamessen zahlst du privat.
   Unter 25 % Moral kündigen Leute.
 - Im Programm PROD die Ausstattung des HC-1 wählen, die Entwicklung starten und später den Verkaufspreis festlegen.
+  Ab Kapitel 4 führst du dort drei Produktlinien mit Nachfolgemodellen, Preis und Marketing.
+- Im Programm F&E das Forschungsbudget setzen und die nächste Technologie wählen.
+- Im Programm ABT die monatliche Erfolgsrechnung der Abteilung verfolgen.
 - Maus bewegen: im Büro umsehen.
 
 ## Aufbau
@@ -54,7 +60,7 @@ gebraucht. Nur die Schriften kommen von Google Fonts; ohne Internet greifen Ersa
 | `js/data.js` | Balancing und Konstanten: Stufen, Upgrades, Schwierigkeitsgrade, Auftragsvorlagen |
 | `js/story.js` | Story: Figuren, Projekte, Mails, Dialoge, Ereignisse, Missionen, Entscheidungen |
 | `js/office.js` | Three.js-Büro: Geometrie, Canvas-Pixeltexturen, Kamera, Figuren |
-| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, PERS, PROD, LOHN, DEPOT, BEDARF, KARR, SYS |
+| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, PERS, PROD, F&E, ABT, LOHN, DEPOT, BEDARF, KARR, SYS |
 | `js/ui.js` | Titel, HUD, Dialogablauf, Entgeltabrechnung, Offline-Zusammenfassung, Game Over |
 
 Neue Kapitel entstehen vor allem in `story.js` (Mails, Dialoge, `EVENTS`, `MISSIONS`) und `data.js`

@@ -263,6 +263,34 @@ button.toast { cursor: pointer; }
 .mrow { display: flex; align-items: center; gap: 8px; }
 .mrow .tbar { flex: 1; }
 .tbar.low > span { background: #ff9a7a; box-shadow: 0 0 6px #ff9a7a; }
+
+/* Epoche 1987: helle Fensteroberfläche statt Grün-Terminal */
+.pc.era2 { --phos: #1b1b1b; --phos-dim: #5d5a52; --phos-bg: #dcd9d0; }
+.pc.era2 .crt { background: linear-gradient(#ddd6c4, #bfb7a2); }
+.pc.era2 .crt-glass { text-shadow: none; box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.25); border-radius: 10px / 14px; }
+.pc.era2 .crt-glass::after { background: repeating-linear-gradient(rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, 0.03) 2px 3px); }
+.pc.era2 .crt-top { background: #1f3a8a; color: #fff; padding-bottom: 6px; }
+.pc.era2 .crt-nav { border-bottom: 2px solid #8f8b80; background: #c9c5ba; padding-top: 4px; }
+.pc.era2 .crt-nav button.on { background: #1f3a8a; color: #fff; }
+.pc.era2 .crt-nav button i, .pc.era2 .crt-body b, .pc.era2 .task-title, .pc.era2 .mail-view h3, .pc.era2 .stars, .pc.era2 .ladder .here { color: #000; }
+.pc.era2 .crt-nav button.on i { color: #fff; }
+.pc.era2 .crt-body h3 { border-bottom: 1px solid #8f8b80; }
+.pc.era2 .tbar > span { background: #1f3a8a; box-shadow: none; }
+.pc.era2 .tbar[data-grade="D"] > span, .pc.era2 .tbar.low > span { background: #b3302a; }
+.pc.era2 .tbtn { background: #e8e5dc; border: 2px outset #f4f2ec; }
+.pc.era2 .tbtn:hover:not(:disabled), .pc.era2 .tbtn.chosen { background: #1f3a8a; color: #fff; }
+.pc.era2 .mail-row.sel { background: #b8c4e6; }
+.pc.era2 .ok { color: #1d6b34 !important; }
+.pc.era2 .err { color: #a32a1a !important; text-shadow: none; }
+.pc.era2 .g-A, .pc.era2 .g-B { color: #1d6b34; }
+.pc.era2 .g-D { color: #a32a1a; }
+.pc.era2 .member { border-color: #a9a59a; background: rgba(255, 255, 255, 0.35); }
+.pc.era2 .crt.flash-ok .crt-glass { animation: fok2 0.35s; }
+@keyframes fok2 { 30% { background: #c9e4cf; } }
+.pc.era2 .crt.flash-err .crt-glass { animation: ferr2 0.35s; }
+@keyframes ferr2 { 30% { background: #ecc4bb; } }
+.pc.era2 .tarea { background: #fff; }
+.pc.era2 .task-input { background: #fff; border-bottom-color: #1f3a8a; }
 .tlist { list-style: none; padding: 0; margin: 4px 0; white-space: pre-wrap; }
 .ladder .here { color: #c9ffd6; }
 .ladder .past { color: var(--phos); }
