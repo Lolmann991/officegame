@@ -46,6 +46,7 @@ export class UI {
     game.on('product', () => this.pc.rerender(['prod', 'karr', 'proj']));
     game.on('dept', () => this.pc.rerender(['abt', 'fue', 'karr', 'prod']));
     game.on('net', () => this.pc.rerender(['netz', 'karr']));
+    game.on('corp', () => this.pc.rerender(['fin', 'karr']));
     game.on('era', () => { this.office.setEra(this.game.era()); if (this.pc.open) this.pc.build(); });
     game.on('gameover', (go) => this.showGameOver(go));
   }
@@ -213,7 +214,7 @@ export class UI {
     $('#hint').hidden = true;
     const person = PEOPLE[d.who];
     $('#dlg-name').textContent = person.name;
-    $('#dlg-role').textContent = person.role;
+    $('#dlg-role').textContent = typeof person.role === 'function' ? person.role(this.game) : person.role;
     const open = () => {
       if (!this.dialog || this.dialog.id !== id) return;
       $('#dialog').hidden = false;
@@ -433,6 +434,13 @@ export class UI {
           <dt>Vorstand</dt><dd>${f.vote_won ? 'Abstimmung gewonnen' : '–'}</dd>
           <dt>Kartellamt</dt><dd>${f.kartell_confessed ? 'Absprache offengelegt' : f.kartell_denied ? 'Absprache bestritten' : 'nicht betroffen'}</dd>
           <dt>Orion</dt><dd>${f.orion_partner ? 'OrionLine übernommen' : 'Konkurrent'}</dd>`;
+    const sold = (s.corp.sold || []).reduce((a, x) => a + x.got - x.paid, 0);
+    const stats6 = `
+          <dt>Konzernkasse</dt><dd>${fmtDM(s.corp.cash)}</dd>
+          <dt>KB-Aktie</dt><dd>${fmtDM(s.shares.price)}</dd>
+          <dt>Neuer Markt</dt><dd>${s.corp.owned.length ? `${s.corp.owned.length} Beteiligung(en) gehalten` : 'keine Beteiligungen'}${s.corp.sold?.length ? `, Verkäufe ${sold >= 0 ? '+' : ''}${fmtDM(sold)}` : ''}</dd>
+          <dt>KB-Net</dt><dd>${f.net_ipo ? `Börsengang: ${fmtDM(f.net_ipo.value)}` : 'zu 100 % bei KB'}</dd>
+          <dt>Krise</dt><dd>${f.job_cuts ? '2.000 Stellen abgebaut' : f.salary_cut ? 'Gehaltsverzicht des Vorstands' : 'durchgehalten ohne Einschnitte'}</dd>`;
     let nextHtml;
     if (next?.intro) {
       f[`seen_ch${next.no}`] = true;
@@ -444,7 +452,7 @@ export class UI {
       <div class="sheet">
         <div class="eyebrow">Kapitel ${done.no} abgeschlossen · ${esc(done.title)}</div>
         <p>Nach ${this.tenureText()} bei KB bist du jetzt <b>${esc(this.game.stage.title)}</b>. Grundgehalt: ${fmtDM(this.game.stage.salary * (1 + (s.player.salaryBonus || 0)))}.</p>
-        <dl class="sheet-dl">${stage === 5 ? stats5 : stage === 4 ? stats4 : stage === 3 ? stats3 : stats}</dl>
+        <dl class="sheet-dl">${stage === 6 ? stats6 : stage === 5 ? stats5 : stage === 4 ? stats4 : stage === 3 ? stats3 : stats}</dl>
         ${nextHtml}
         <button type="button" class="btn primary" data-close>Weiterarbeiten</button>
       </div>`, 'm-sheet');
@@ -484,11 +492,16 @@ export class UI {
     $('#hud').hidden = true;
     $('#hint').hidden = true;
     const s = this.game.s;
-    $('#go-letter').innerHTML = `
+    $('#go-letter').innerHTML = go.reason === 'abberufen' ? `
+      <p class="r">Kassel, ${esc(go.date)}</p>
+      <p><b>Abberufung aus dem Vorstand</b></p>
+      <p>${esc(s.player.name)},</p>
+      <p>die Konzernkasse der Kessler &amp; Brandt Rechenwerke AG war drei Monate in Folge im Minus. Der Aufsichtsrat hat Sie in seiner heutigen Sitzung mit sofortiger Wirkung als Mitglied des Vorstands abberufen.</p>
+      <p>Für den Aufsichtsrat</p>` : `
       <p class="r">Kassel, ${esc(go.date)}</p>
       <p><b>Kündigung des Arbeitsverhältnisses</b></p>
       <p>${esc(s.player.name)},</p>
-      <p>nach wiederholten Abmahnungen wegen unzureichender Arbeitsleistung kündigen wir das mit Ihnen bestehende Arbeitsverhältnis zum Monatsende. Bitte geben Sie Ihren Hausausweis beim Pförtner ab.</p>
+      <p>nach wiederholten Abmahnungen kündigen wir das mit Ihnen bestehende Arbeitsverhältnis zum Monatsende. Bitte geben Sie Ihren Hausausweis beim Pförtner ab.</p>
       <p>Kessler &amp; Brandt Rechenwerke AG<br>Personalabteilung</p>`;
     $('#go-stats').innerHTML = `
       <dt>Höchste Position</dt><dd>${esc(this.game.stage.title)}</dd>

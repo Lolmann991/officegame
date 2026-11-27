@@ -156,6 +156,13 @@ function buildTextures() {
     c.fillStyle = '#b3302a';
     for (const [x, y] of pts) c.fillRect(x - 1, y - 1, 3, 3);
   });
+  TEX.carpetBlue = tex(32, 32, (c, w, h) => noiseFill(c, w, h, [44, 56, 88], 14, 41), 14, 14);
+  TEX.handy = tex(6, 12, (c) => {
+    c.fillStyle = '#2a2c30'; c.fillRect(0, 0, 6, 12);
+    c.fillStyle = '#9fc48a'; c.fillRect(1, 1, 4, 4);
+    c.fillStyle = '#c9ccd2';
+    for (let y = 7; y < 12; y += 2) for (let x = 1; x < 6; x += 2) c.fillRect(x, y, 1, 1);
+  });
   TEX.leather = tex(8, 8, (c, w, h) => noiseFill(c, w, h, [62, 44, 36], 10, 31));
   TEX.keypad = tex(8, 8, (c) => {
     c.fillStyle = '#6f6a5c'; c.fillRect(0, 0, 8, 8);
@@ -423,7 +430,7 @@ export class Office {
   // -------------------------------------------------- Raum
   buildRoom() {
     const s = this.scene;
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), mat(TEX.carpet));
+    const floor = this.floor = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), mat(TEX.carpet));
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(0, 0, -2.5);
     s.add(floor);
@@ -673,7 +680,9 @@ export class Office {
   }
 
   buildColleagues() {
-    const s = this.scene;
+    this.floorGroup = new THREE.Group();
+    this.scene.add(this.floorGroup);
+    const s = this.floorGroup;
     const people = [
       { suit: 0x6b6f4a, shirt: 0xe4ddc8, hair: 0x3a2a1a, tie: 0x7a4a1f },
       { suit: 0x8a5a7a, shirt: 0xe4ddc8, hair: 0x9a6a3a, longHair: true, skin: SKINS[2] },
@@ -686,7 +695,7 @@ export class Office {
     this.staticPeople = [];
     spots.forEach(([x, z], i) => {
       const s = new THREE.Group();
-      this.scene.add(s);
+      this.floorGroup.add(s);
       if (x < 0 && z > -5) this.leftSpots.push(s);
       buildDesk(s, x, z);
       const tx = new THREE.CanvasTexture(document.createElement('canvas'));
@@ -724,11 +733,12 @@ export class Office {
       { x: 0, z: -5.95, ry: Math.PI }, { x: 1.9, z: -5.95, ry: Math.PI },
       { x: 2.95, z: -3.2, ry: Math.PI / 2 },
     ];
-    buildDesk(this.scene, 3.5, -3.2, Math.PI / 2);
+    buildDesk(this.floorGroup, 3.5, -3.2, Math.PI / 2);
     const pc3 = buildCRT(new THREE.CanvasTexture(document.createElement('canvas')));
     pc3.group.position.set(3.6, 0.75, -3.2);
     pc3.group.rotation.y = -Math.PI / 2;
-    this.scene.add(pc3.group);
+    this.floorGroup.add(pc3.group);
+    this.buildEra3();
     this.buildEra2();
     this.buildOffice();
     this.buildLounge();
@@ -777,10 +787,71 @@ export class Office {
     this.era = 1;
   }
 
+  activeMonitors() { return this.era >= 3 ? [this.flat1, this.flat2] : [this.monitor1, this.monitor2]; }
+  applyMonitors() {
+    const flat = this.era >= 3;
+    this.monitor1.group.visible = !flat;
+    this.monitor2.group.visible = !flat && this.hasMonitor2;
+    this.flat1.group.visible = flat;
+    this.flat2.group.visible = flat && this.hasMonitor2;
+    const [m1, m2] = this.activeMonitors();
+    this.clickables = [...m1.group.children, ...(this.hasMonitor2 ? m2.group.children : [])];
+  }
+
+  // Epoche 2000: Flachbildschirme, Handy, Rechner unter dem Tisch
+  buildEra3() {
+    const flat = (texture) => {
+      const g = new THREE.Group();
+      box(0.2, 0.015, 0.16, 0x2a2c30, 0, 0.008, 0, g);
+      box(0.04, 0.2, 0.03, 0x2a2c30, 0, 0.11, -0.03, g);
+      box(0.5, 0.36, 0.035, 0x30333a, 0, 0.36, 0, g);
+      const screen = plane(0.45, 0.31, new THREE.MeshBasicMaterial({ map: texture }), 0, 0.36, 0.0185, 0, g);
+      box(0.05, 0.012, 0.005, 0x3d8fd5, 0.19, 0.195, 0.019, g);
+      return { group: g, screen };
+    };
+    this.flat1 = flat(this.screenTex);
+    this.flat1.group.position.set(0, 0.75, -0.25);
+    this.flat2 = flat(this.screen2Tex);
+    this.flat2.group.position.set(0.58, 0.75, -0.2);
+    this.flat2.group.rotation.y = -0.45;
+    this.scene.add(this.flat1.group, this.flat2.group);
+    this.flat1.group.visible = this.flat2.group.visible = false;
+    const handy = new THREE.Group();
+    handy.position.set(0.32, 0.752, 0.24);
+    handy.rotation.y = -0.4;
+    box(0.05, 0.02, 0.11, [mat(0x2a2c30), mat(0x2a2c30), mat(TEX.handy), mat(0x2a2c30), mat(0x2a2c30), mat(0x2a2c30)], 0, 0.01, 0, handy);
+    box(0.008, 0.03, 0.008, 0x2a2c30, 0.015, 0.03, -0.05, handy);
+    this.scene.add(handy);
+    this.era3Objs = [handy];
+    handy.visible = false;
+    // Vorstandsetage: Vorzimmer mit Sekretärin statt Großraum
+    const vz = new THREE.Group();
+    buildDesk(vz, 0.4, -2.7, Math.PI);
+    const vf = flat(new THREE.CanvasTexture(document.createElement('canvas')));
+    vf.group.position.set(0.4, 0.75, -2.55);
+    vf.group.rotation.y = Math.PI;
+    vz.add(vf.group);
+    const sommer = buildPerson({ suit: 0x4a3a5a, shirt: 0xe8e0d0, hair: 0x6a4a2a, longHair: true, skin: SKINS[2] }, true);
+    sommer.position.set(0.4, 0, -2.95);
+    vz.add(sommer);
+    this.animated.push({ obj: sommer, phase: 2.2 });
+    const plantPot = (x, z) => {
+      cyl(0.2, 0.15, 0.45, 8, 0xd8d4c8, x, 0.225, z, vz);
+      for (let i = 0; i < 7; i++) { const leaf = box(0.12, 0.02, 0.35, mat(i % 2 ? 0x2f6b34 : 0x3f8a42), x, 0.7 + i * 0.09, z, vz); leaf.rotation.y = i * 2.2; leaf.rotation.x = 0.6; }
+    };
+    plantPot(-0.6, -3.2);
+    plantPot(2.2, -4.5);
+    vz.visible = false;
+    this.scene.add(vz);
+    this.vorzimmer = vz;
+  }
+
   setEra(era) {
     this.era = era;
     const two = era >= 2;
-    this.era2Objs.forEach((o) => { o.visible = two; });
+    this.era2Objs.forEach((o) => { o.visible = two && era < 3 || o === this.era2Objs[1] && two; });
+    this.era3Objs.forEach((o) => { o.visible = era >= 3; });
+    this.applyMonitors();
     this.monitor1.group.position.y = two ? 0.86 : 0.75;
     const mats = this.keyboard.material;
     mats[2] = mat(two ? TEX.keyboard2 : TEX.keyboard);
@@ -858,11 +929,16 @@ export class Office {
 
   setTeam(stage, members) {
     const own = stage >= 2;
+    const board = stage >= 5;
     this.staticPeople.forEach((p) => { p.visible = !own; });
     this.teamPeople.forEach((p) => this.scene.remove(p));
     this.animated = this.animated.filter((a) => !a.obj.userData.team);
     this.teamPeople = [];
-    if (!own) return;
+    // Vorstandsetage: kein Großraum mehr vor der Tür
+    this.floorGroup.visible = !board;
+    this.vorzimmer.visible = board;
+    this.floor.material = mat(board ? TEX.carpetBlue : TEX.carpet);
+    if (!own || board) return;
     const seats = this.teamSeats.map((x) => ({ ...x, used: false }));
     const ordered = [...members].sort((a, b) => (b.name === 'Petra Lang') - (a.name === 'Petra Lang'));
     ordered.forEach((m, i) => {
@@ -901,8 +977,8 @@ export class Office {
   // -------------------------------------------------- Zustand übernehmen
   setUpgrades(upgrades) {
     for (const [id, obj] of Object.entries(this.upgradeObjs)) obj.visible = !!upgrades[id];
-    this.clickables = [...this.monitor1.group.children, ...(upgrades.monitor2 ? this.monitor2.group.children : [])];
     this.hasMonitor2 = !!upgrades.monitor2;
+    this.applyMonitors();
     // Schreibmaschine verdrängt den Papierstapel, Tastentelefon ersetzt die Wählscheibe
     this.paperStack.visible = !upgrades.schreibmaschine;
     this.phoneParts.rotary.visible = !upgrades.tastentelefon;
@@ -961,7 +1037,7 @@ export class Office {
       draw(this.screenCanvas, ['KB-TERMINAL 3270', '', 'VERBINDUNG ...', blink ? '_' : '']);
     } else {
       draw(this.screenCanvas, [
-        two ? 'KB PC  KB-WINDOWS' : 'KB-TERMINAL 3270', info.date, '', `POST ${info.unread ? info.unread + ' NEU' : 'LEER'}`,
+        this.era >= 3 ? 'KB-WINDOWS 2000' : two ? 'KB PC  KB-WINDOWS' : 'KB-TERMINAL 3270', info.date, '', `POST ${info.unread ? info.unread + ' NEU' : 'LEER'}`,
         `LST ${fmtInt(info.perf)}/${fmtInt(info.target)}`, { bar: info.perf / info.target },
         `KONTO ${fmtInt(info.cash)} DM`, blink ? '>_' : '>',
       ]);
@@ -989,11 +1065,12 @@ export class Office {
 
   screenTarget() {
     // Mittelpunkt vor dem Bildschirm (bzw. zwischen beiden)
+    const [m1, m2] = this.activeMonitors();
     const p = new THREE.Vector3();
-    this.monitor1.screen.getWorldPosition(p);
+    m1.screen.getWorldPosition(p);
     if (this.hasMonitor2) {
       const p2 = new THREE.Vector3();
-      this.monitor2.screen.getWorldPosition(p2);
+      m2.screen.getWorldPosition(p2);
       const mid = p.clone().lerp(p2, 0.5);
       return { pos: mid.clone().add(new THREE.Vector3(-0.02, 0.02, 0.62)), look: mid };
     }

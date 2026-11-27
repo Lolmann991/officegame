@@ -12,7 +12,7 @@ export const PEOPLE = {
   petra:    { name: 'Petra Lang', role: 'Kollegin, Rechenzentrum', suit: 0xc8692b, shirt: 0xc8692b, hair: 0x2b1d14, tie: null, longHair: true },
   bergmann: { name: 'Ingrid Bergmann', role: 'Personalabteilung', suit: 0x6d4a6b, shirt: 0xe8e0d0, hair: 0x8a6a3c, tie: null, longHair: true },
   brenner:  { name: 'Klaus Brenner', role: 'Personalberater, am Telefon' },
-  sauer:    { name: 'Dr. Hartwig Sauer', role: 'Finanzvorstand', suit: 0x26262b, shirt: 0xf2f0ea, hair: 0x4a3a2c, tie: 0x1f3a6a, glasses: true },
+  sauer:    { name: 'Dr. Hartwig Sauer', role: (g) => (g.s.player.stage >= 5 ? 'Vorstand Strategie' : 'Finanzvorstand'), suit: 0x26262b, shirt: 0xf2f0ea, hair: 0x4a3a2c, tie: 0x1f3a6a, glasses: true },
   rau:      { name: 'Dr. Viktor Rau', role: 'Vorstandschef von Orion Datentechnik, am Telefon' },
   uwe:      { name: 'Uwe Krämer', role: 'Senior-Entwickler, seit 1961 bei KB', suit: 0x55585a, shirt: 0xd9d2bd, hair: 0xa8a49a, tie: 0x2f3f2a, glasses: true },
 };
@@ -536,6 +536,125 @@ Ihr neues Grundgehalt beträgt ${fmtDM(STAGES[5].salary * (1 + (g.s.player.salar
 Ich habe Ihre erste Personalakte noch. Junior-Sachbearbeiter, Rechenzentrum, 2.400 DM. Herzlichen Glückwunsch.
 Ingrid Bergmann`,
   },
+  // ---------- Kapitel 6
+  c6_finanzen: {
+    from: 'H. Kessler · Vorstandsvorsitzender',
+    subject: 'Willkommen im Vorstand',
+    body: (g) => `${first(g)},
+
+willkommen im zwölften Stock. Ihre Sekretärin heißt Frau Sommer, und sie weiß mehr über dieses Haus als wir beide zusammen.
+
+Sie verantworten jetzt die Finanzen des ganzen Konzerns: Kasse, Kredite, Dividende, Beteiligungen. Alles im Programm FIN. Unsere Kasse ist gut gefüllt, ${fmtDM(g.s.corp.cash)}.
+
+Die Börse ist gerade verrückt. Unsere Aktie steht bei ${fmtDM(g.s.shares.price)}, und jeden Tag ruft ein Banker an, der uns ein Internet-Startup verkaufen will. Behalten Sie einen kühlen Kopf.
+
+Ihr Kessler`,
+  },
+  c6_rekord: {
+    from: 'KB-Hausnachrichten',
+    subject: 'KB-Aktie auf Rekordhoch',
+    body: (g) => `FRANKFURT. Die Aktie der Kessler & Brandt Rechenwerke AG hat ein neues Allzeithoch erreicht: ${fmtDM(g.s.shares.price)}. Der Börsenwert des Konzerns liegt damit bei ${fmtDM(g.s.shares.price * g.s.corp.shares)}.
+
+Analysten loben vor allem KB-Net: „KB ist kein Rechnerhersteller mehr, sondern ein Internetkonzern“, schreibt eine Großbank. Im Kasseler Stammhaus kursiert ein Witz: Der Pförtner sei mit seinen Mitarbeiteraktien jetzt Millionär.`,
+  },
+  c6_crash: {
+    from: 'KB-Hausnachrichten',
+    subject: 'Neuer Markt im freien Fall',
+    body: () => `FRANKFURT. Am Neuen Markt hat die Stimmung gedreht. Seit März haben viele Internetwerte mehr als die Hälfte ihres Wertes verloren. Mehrere Startups haben Insolvenz angemeldet, weil das Geld der Anleger aufgebraucht ist.
+
+Auch die KB-Aktie gibt nach. Ein Händler: „Jetzt wird wieder nach Gewinnen gefragt, nicht nach Visionen.“`,
+  },
+  c6_kartell2: {
+    from: 'Dr. M. Lindner · Rechtsabteilung',
+    subject: 'Dringend: Staatsanwaltschaft',
+    body: (g) => `${g.s.player.name},
+
+die Staatsanwaltschaft hat das Kartellverfahren wieder aufgenommen. Dr. Rau hat ausgesagt, um selbst glimpflich davonzukommen. Er belastet Sie direkt, mit Datum, Uhrzeit und Inhalt des Telefonats von damals.
+
+Abstreiten wird jetzt sehr teuer. Ich rate dringend, alles einzuräumen. Die Geldbuße für KB wird bei etwa 60 Millionen DM liegen, so oder so.
+
+Dr. Marion Lindner`,
+    choices: ['Jetzt alles zugeben', 'Weiter abstreiten'],
+  },
+  c6_kartell_lied: {
+    from: 'Aufsichtsrat',
+    subject: 'Abmahnung durch den Aufsichtsrat',
+    body: (g) => `${g.s.player.name},
+
+der Aufsichtsrat hat das Kartellverfahren beraten. Die Beweislage ist eindeutig, die Geldbuße von 60 Millionen DM ist gezahlt.
+
+Dass Sie die Absprache bis zuletzt bestritten haben, missbilligt der Aufsichtsrat ausdrücklich. Diese Abmahnung wird zu Ihrer Akte genommen.
+
+Für den Aufsichtsrat`,
+  },
+  c6_rau_out: {
+    from: 'KB-Hausnachrichten',
+    subject: 'Orion: Rau tritt zurück',
+    body: () => `FRANKFURT. Dr. Viktor Rau ist als Vorstandschef von Orion Datentechnik zurückgetreten. Er wechselt in den Aufsichtsrat. Orion schreibt nach dem Ende des Internet-Booms tiefrote Zahlen.
+
+Branchenkenner erwarten, dass Rau aus dem Aufsichtsrat heraus weiter die Fäden zieht. „Rau verschwindet nicht“, sagt ein früherer Weggefährte. „Er wartet.“`,
+  },
+  c6_survive: {
+    from: 'H. Kessler · Vorstandsvorsitzender',
+    subject: 'Wir sind noch da',
+    body: (g) => `${first(g)},
+
+ich habe heute die Liste der Firmen gelesen, die es seit letztem Frühjahr nicht mehr gibt. Sie ist lang. KB steht nicht darauf.
+
+Die Kasse ist im Plus, ${fmtDM(g.s.corp.cash)}. Das ist Ihr Verdienst.
+
+Jetzt müssen wir aus der Krise heraus wachsen. Bringen Sie die Ergebnisse und den Kurs wieder nach oben. Und dann reden wir über meine Nachfolge.
+
+Kessler`,
+  },
+  c6_mobilnet: {
+    from: 'MobilNet AG',
+    subject: 'Prototyp: Das Telefon mit Bildschirm',
+    body: () => `Sehr geehrter Vorstand,
+
+unsere Entwickler haben einen Prototypen gebaut: ein Handy mit großem Bildschirm, auf dem E-Mails, Nachrichten und KB-Net laufen. Noch zu teuer und zu langsam für den Markt. Aber in ein paar Jahren?
+
+Wir danken KB, dass Sie in der Krise an uns festgehalten haben.
+
+MobilNet AG, Karlsruhe`,
+  },
+  corp_cash_warning: {
+    from: 'Konzern-Controlling',
+    subject: 'Warnung: Konzernkasse im Minus',
+    body: () => `Die Konzernkasse ist ins Minus gerutscht.
+
+Bleibt sie drei Monate in Folge negativ, muss der Aufsichtsrat handeln. Optionen: Kredit aufnehmen, Beteiligungen verkaufen, Kosten senken, Dividende kürzen.
+
+Konzern-Controlling`,
+  },
+  corp_writedown: {
+    from: 'Konzern-Controlling',
+    subject: 'Wertberichtigung auf Beteiligungen',
+    body: (g, v) => `Nach dem Einbruch am Neuen Markt müssen die Beteiligungen des Konzerns neu bewertet werden.
+
+Die Wertberichtigung beträgt ${fmtDM(v.amount)}. Sie belastet das Konzernergebnis dieses Monats in voller Höhe.
+
+Konzern-Controlling`,
+  },
+  corp_bailout: {
+    from: 'Aufsichtsrat',
+    subject: 'Notkredit',
+    body: () => `Die Hausbank hat auf Druck des Aufsichtsrats einen Notkredit über 150 Millionen DM gewährt. Ein zweites Mal wird das nicht geschehen.
+
+Für den Aufsichtsrat`,
+  },
+  promotion_ceo: {
+    from: 'I. Bergmann · Personalabteilung',
+    subject: 'Ernennung zum Vorstandsvorsitzenden',
+    body: (g) => `${g.s.player.name},
+
+der Aufsichtsrat hat Sie zum Vorsitzenden des Vorstands der Kessler & Brandt Rechenwerke AG ernannt. Herr Kessler übernimmt den Vorsitz des Aufsichtsrats.
+
+Ihr neues Grundgehalt beträgt ${fmtDM(STAGES[6].salary * (1 + (g.s.player.salaryBonus || 0)))} brutto.
+
+Ich gehe nächstes Jahr in Rente. Ich hätte mir keinen schöneren Abschied wünschen können.
+Ingrid Bergmann`,
+  },
   promotion_letter: {
     from: 'I. Bergmann · Personalabteilung',
     subject: 'Beförderung zum Sachbearbeiter',
@@ -751,6 +870,43 @@ export const DIALOGS = {
     ],
     choices: ['Ich bin bereit.'],
   },
+  sauer_neuer_markt: {
+    who: 'sauer',
+    lines: [
+      'Glückwunsch zum Vorstandsposten. Ehrlich gemeint, auch wenn Sie es mir nicht glauben.',
+      'Ich habe vier Beteiligungen geprüft. Internetfirmen vom Neuen Markt. Die Banken reißen sich darum.',
+      'Wer jetzt nicht kauft, ist in zwei Jahren ein Museum. Sehen Sie sich die Liste im Programm FIN an.',
+    ],
+    choices: ['Ich sehe mir das an.', 'Ohne mich, Herr Sauer. Das ist eine Blase.'],
+  },
+  kessler_blase: {
+    who: 'kessler',
+    lines: [
+      'Haben Sie heute den Kurs gesehen? Ich auch. Er macht mir Angst.',
+      'Ich habe 1973 schon eine Blase erlebt. Damals war es Öl, heute ist es das Internet. Die Gesichter in der Kantine sind dieselben.',
+      'Machen Sie die Kasse wetterfest. Wenn es kracht, will ich, dass KB noch steht.',
+    ],
+    choices: ['Sie haben recht. Wir bereiten uns vor.', 'Diesmal ist es anders, Herr Kessler.'],
+  },
+  sauer_krise: {
+    who: 'sauer',
+    lines: [
+      'Die Zahlen sind schlecht. Sie wissen es, ich weiß es, der Aufsichtsrat weiß es.',
+      'Ich habe einen Plan: 2.000 Stellen im Stammgeschäft. Großrechner-Wartung, Verwaltung, Kantine. Das spart 4 Millionen im Monat.',
+      'Kessler wird es hassen. Aber Kessler ist nicht für die Finanzen zuständig. Sie sind es.',
+    ],
+    choices: ['2.000 Stellen abbauen', 'Vorstandsgehälter um 20 % kürzen, keine Entlassungen', 'Wir halten durch.'],
+  },
+  kessler_ceo: {
+    who: 'kessler',
+    lines: [
+      'Setzen Sie sich. Nein, diesmal setze ich mich auch.',
+      'Ich bin dreiundsiebzig. Der Aufsichtsrat hat gestern über meine Nachfolge abgestimmt. Sauer hatte zwei Stimmen.',
+      (g) => (g.s.story.flags.job_cuts ? 'Sie haben in der Krise harte Entscheidungen getroffen. Ich hätte anders entschieden. Aber Sie haben dieses Haus durchgebracht.' : 'Sie haben dieses Haus durch die Krise gebracht, ohne es zu verraten. Das ist mehr, als ich erwartet habe.'),
+      'Ab dem Ersten sind Sie Vorstandsvorsitzender. Ich wechsle in den Aufsichtsrat. Rufen Sie mich nur an, wenn es brennt.',
+    ],
+    choices: ['Danke, Herr Kessler. Für alles.'],
+  },
   hoff_promotion: {
     who: 'hoff',
     lines: [
@@ -803,6 +959,13 @@ export const MISSIONS = [
     { id: 'vote', text: 'Gewinne die Abstimmung im Vorstand', prog: (g) => [g.s.story.flags.vote_won ? 1 : 0, 1] },
     { id: 'shares', text: 'Besitze 150 KB-Aktien als Einfluss im Vorstand', prog: (g) => [g.s.shares.owned, 150] },
     { id: 'streak', text: 'Schreibe 3 Monate in Folge schwarze Zahlen im Bereich', prog: (g) => [g.s.dept.posStreak, 3] },
+  ],
+  [
+    { id: 'survive', text: 'Bring KB mit positiver Kasse durch den Crash (bis April 2001)', prog: (g) => [g.s.story.flags.crisis_survived ? 1 : 0, 1] },
+    { id: 'pos', text: 'Konzernergebnis nach dem Crash 3 Monate in Folge positiv', prog: (g) => [g.s.corp.posAfter, 3] },
+    { id: 'kurs', text: 'Bring die KB-Aktie über den Wert vor dem Hype (in DM)', prog: (g) => [Math.round(g.s.shares.price), Math.round(g.s.corp.base * 0.9)] },
+    { id: 'shares', text: 'Besitze 300 KB-Aktien', prog: (g) => [g.s.shares.owned, 300] },
+    { id: 'kartell', text: 'Keine Altlasten: Kartellverfahren abgeschlossen', prog: (g) => { const f = g.s.story.flags; return [!f.rau_deal || f.kartell_confessed || f.kartell_closed ? 1 : 0, 1]; } },
   ],
   [],
 ];
@@ -972,10 +1135,57 @@ export const EVENTS = [
     run: (g) => g.dialog('kessler_sitzung') },
   { id: 'promotion5', when: (g) => g.s.player.stage === 4 && missionsDone(g) && g.idle(),
     run: (g) => g.dialog('kessler_vorstand') },
+
+  // ---------- Kapitel 6
+  { id: 'c6_start', when: (g) => g.s.player.stage >= 5,
+    run: (g) => {
+      const f = g.s.story.flags, tm = t(g);
+      if (tm.year < 1999 || (tm.year === 1999 && tm.month < 6)) { tm.year = 1999; tm.month = 6; tm.monthProgress = 0; }
+      f.c6_month = tm.totalMonths;
+      g.startCorp();
+      g.mail('c6_finanzen');
+      g.emit('era');
+      if (!f.seen_ch6) { f.seen_ch6 = true; g.emit('chapter', 6); }
+    } },
+  { id: 'c6_sauer', when: (g) => g.s.player.stage >= 5 && t(g).monthProgress > 15 && g.idle(),
+    run: (g) => { g.s.corp.offers = ['klickfix', 'webwelt', 'b2bplus', 'mobilnet']; g.emit('corp'); g.dialog('sauer_neuer_markt'); } },
+  { id: 'c6_blase', when: (g) => g.s.corp.active && g.monthIndex() >= 12 && g.idle(),
+    run: (g) => g.dialog('kessler_blase') },
+  { id: 'c6_rekord', when: (g) => g.s.corp.active && g.hype() >= 2.7,
+    run: (g) => g.mail('c6_rekord') },
+  { id: 'c6_crash', when: (g) => g.s.corp.active && g.monthIndex() >= 16,
+    run: (g) => g.mail('c6_crash') },
+  { id: 'c6_krise', when: (g) => g.s.corp.active && g.monthIndex() >= 21 && g.idle(),
+    run: (g) => g.dialog('sauer_krise') },
+  { id: 'c6_kartell2', when: (g) => g.s.story.flags.kartell_denied && g.s.corp.active && g.monthIndex() >= 23,
+    run: (g) => g.mail('c6_kartell2') },
+  { id: 'c6_rau_out', when: (g) => g.s.corp.active && g.monthIndex() >= 25,
+    run: (g) => g.mail('c6_rau_out') },
+  { id: 'c6_survive', when: (g) => g.s.corp.active && g.monthIndex() >= 27 && g.s.corp.cash > 0,
+    run: (g) => { g.s.story.flags.crisis_survived = true; g.mail('c6_survive'); } },
+  { id: 'c6_mobilnet', when: (g) => g.s.corp.owned.some((o) => o.id === 'mobilnet') && g.monthIndex() >= 30,
+    run: (g) => { g.s.story.flags.mobilnet_kept = true; g.mail('c6_mobilnet'); } },
+  { id: 'promotion6', when: (g) => g.s.player.stage === 5 && missionsDone(g) && g.idle(),
+    run: (g) => g.dialog('kessler_ceo') },
 ];
 
 // ---------------------------------------------------------------- Reaktionen auf Entscheidungen
 export const ON_MAIL_CHOICE = {
+  c6_kartell2: (g, idx) => {
+    const f = g.s.story.flags;
+    g.s.corp.cash -= 60e6;
+    g.s.corp.perfShock -= 0.05;
+    f.kartell_closed = true;
+    if (idx === 0) { g.addRep(-6); f.kartell_late = true; }
+    else {
+      g.addRep(-10);
+      f.kartell_lied = true;
+      g.s.player.warnings++;
+      g.mail('c6_kartell_lied');
+      if (g.s.player.warnings >= g.diff.warningsLimit) g.triggerGameOver('fired');
+    }
+    g.emit('corp');
+  },
   c5_kartell: (g, idx) => {
     if (idx === 0) {
       g.s.story.flags.kartell_confessed = true;
@@ -1123,6 +1333,31 @@ export const ON_DIALOG_DONE = {
     }
     g.mail('c5_vote_result', { won, extra });
     g.emit('net');
+  },
+  sauer_neuer_markt: (g, idx) => { if (idx === 1) g.s.story.flags.sauer_rebuffed = true; },
+  kessler_blase: (g, idx) => {
+    if (idx === 0) { g.s.story.flags.bubble_aware = true; g.addRep(1); }
+    else g.s.story.flags.bubble_believer = true;
+  },
+  sauer_krise: (g, idx) => {
+    const f = g.s.story.flags, c = g.s.corp;
+    if (idx === 0) {
+      f.job_cuts = true;
+      c.legacyBoost += 4e6;
+      g.addRep(-4);
+      g.s.team.members.forEach((m) => g.changeMorale(m, -15));
+    } else if (idx === 1) {
+      f.salary_cut = true;
+      c.legacyBoost += 1e6;
+      g.s.player.salaryBonus = (g.s.player.salaryBonus || 0) - 0.2;
+      g.addRep(3);
+    } else f.hold_out = true;
+    g.emit('corp');
+  },
+  kessler_ceo: (g) => {
+    if (g.s.story.flags.salary_cut) g.s.player.salaryBonus = (g.s.player.salaryBonus || 0) + 0.2; // Verzicht endet
+    g.promote();
+    g.mail('promotion_ceo');
   },
   kessler_vorstand: (g) => {
     g.promote();

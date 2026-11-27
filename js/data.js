@@ -41,9 +41,9 @@ export const STAGES = [
   { title: 'Abteilungsleiter', dept: 'PC-Sparte', salary: 7000, target: 3600, living: 2600, year: 1987 },
   { title: 'Bereichsleiter', dept: 'Geschäftsbereich Netz', salary: 11000, target: 4000, living: 3400, year: 1993 },
   { title: 'Vorstand', dept: 'Ressort Finanzen', salary: 18000, target: 4500, living: 5200, year: 1999 },
-  { title: 'CEO', dept: 'Konzernleitung', salary: 36000, year: 2008 },
+  { title: 'CEO', dept: 'Konzernleitung', salary: 36000, target: 5000, living: 8000, year: 2001 },
 ];
-export const PLAYABLE_STAGES = 6;
+export const PLAYABLE_STAGES = 7;
 
 // Kapitel-Karten: erscheinen beim Erreichen einer Stufe (intro) und bei der nächsten Beförderung (outro).
 export const CHAPTERS = [
@@ -56,7 +56,9 @@ export const CHAPTERS = [
     intro: 'Vier Jahre später, Januar 1987. Du leitest die neue PC-Sparte und hast ein eigenes Büro mit Tür. Neu sind die Programme F&E (Forschung) und ABT (Abteilungsergebnis). Im Programm PROD führst du jetzt mehrere Produktlinien. Dein Erfolg wird am Ergebnis der Abteilung gemessen.' },
   { no: 5, title: 'Die Netz-Wette', stage: 4, jumpYear: 1993,
     intro: 'Sechs Jahre später, Januar 1993. Du leitest den Geschäftsbereich Netz, mit größerem Büro und Sitzecke. Neu ist das Programm NETZ: Baue den Onlinedienst KB-Net auf, Stadt für Stadt. Aber im Vorstand hat das Netz nicht nur Freunde.' },
-  { no: 6, title: 'Im Vorstand', stage: 5 },
+  { no: 6, title: 'Im Vorstand', stage: 5, jumpYear: 1999,
+    intro: 'Sommer 1999. Du sitzt im Vorstand und verantwortest die Finanzen. An der Börse ist alles möglich, jede Firma mit „.de“ im Namen ist Millionen wert. Neu ist das Programm FIN. Aber Kessler sagt: Was so schnell steigt, fällt auch so schnell.' },
+  { no: 7, title: 'Die Übernahme', stage: 6 },
 ];
 
 // ---------------------------------------------------------------- Team (ab Kapitel 3)
@@ -237,4 +239,26 @@ export const NET_UPGRADES = [
 export const NET_COMPETITORS = [
   { id: 'postnet', name: 'PostNet', q: 5, tariff: 24.9, brand: 1.3, from: 1993 },
   { id: 'orionline', name: 'OrionLine', q: 4, tariff: 14.9, brand: 1.0, from: 1994 },
+];
+
+// ---------------------------------------------------------------- Kapitel 6: Konzernfinanzen
+export const CORP_START_CASH = 500e6;
+export const CORP_SHARES = 4800000;
+export const CORP_LEGACY_RESULT = 9e6;     // Großrechner und Services, DM pro Monat
+export const CORP_LOAN_STEP = 100e6;
+export const CORP_LOAN_RATE = 0.065;
+export const DIVIDEND_POLICIES = [
+  { id: 'niedrig', label: 'NIEDRIG', payout: 0.2, perf: -0.05 },
+  { id: 'mittel', label: 'MITTEL', payout: 0.4, perf: 0 },
+  { id: 'hoch', label: 'HOCH', payout: 0.6, perf: 0.05 },
+];
+// Börsenstimmung (Monatsindex ab Januar 1999) – Neuer-Markt-Hype und Crash
+export const HYPE_POINTS = [[0, 1.2], [14, 3.0], [20, 2.0], [26, 0.9], [32, 0.7], [41, 0.85], [53, 1.0]];
+// Wirtschaftslage für Absatz (1 = normal)
+export const ECONOMY_POINTS = [[0, 1], [20, 1], [26, 0.72], [36, 0.75], [48, 0.95], [56, 1]];
+export const STARTUPS = [
+  { id: 'klickfix', name: 'Klickfix AG', desc: 'Online-Kaufhaus, das nie Gewinn gemacht hat', base: 80e6, burn: 2.5e6 },
+  { id: 'webwelt', name: 'WebWelt AG', desc: 'Internetportal mit Chat, Horoskop und Wetter', base: 120e6, burn: 3.5e6 },
+  { id: 'b2bplus', name: 'B2B-Plus AG', desc: 'Marktplatz für den Firmeneinkauf', base: 160e6, burn: 4e6 },
+  { id: 'mobilnet', name: 'MobilNet AG', desc: 'Software für Handys. Klein, aber die Entwickler sind gut', base: 60e6, burn: 0.8e6, future: true },
 ];

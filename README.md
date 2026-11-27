@@ -1,10 +1,10 @@
-# KONZERN (Prototyp v0.5)
+# KONZERN (Prototyp v0.6)
 
 Idle-Wirtschaftsspiel im Browser. Du beginnst 1978 als Junior-Sachbearbeiter bei der fiktiven
 Kessler & Brandt Rechenwerke AG und arbeitest dich hoch. Gespielt wird am Schreibtisch in einem
 3D-Büro (Low-Poly, Pixeltexturen) über den Firmen-PC.
 
-Der Prototyp enthält die Kapitel 1 bis 5:
+Der Prototyp enthält die Kapitel 1 bis 6:
 
 1. **Der erste Tag:** Einstieg im Großraum, Aufträge, Gehaltsabrechnung, Mitarbeiteraktien, Beförderung zum Sachbearbeiter.
 2. **Lochkarten und Ehrgeiz:** Platz am Fenster, eigene Projekte (Programm PROJ), Ideenwettbewerb des Vorstands,
@@ -17,6 +17,9 @@ Der Prototyp enthält die Kapitel 1 bis 5:
 5. **Die Netz-Wette (1993):** größeres Büro mit Sitzecke, Onlinedienst KB-Net mit Einwahlknoten in 12 Städten,
    Tarif, Modem-Ausbau und Marketing (Programm NETZ), Abstimmung im Vorstand gegen Sauer, Kartellamt oder
    Übernahme von OrionLine je nach Entscheidung in Kapitel 4, Berufung in den Vorstand.
+6. **Im Vorstand (1999–2002):** Vorstandsetage mit Flachbildschirmen und Sekretärin, Finanzressort (Programm FIN):
+   Konzernkasse, Kredite, Dividende, Kapitalerhöhung, Börsengang von KB-Net, Beteiligungen am Neuen Markt.
+   Börsenhype, Crash und Krise, Rückkehr des Kartellverfahrens, Ernennung zum CEO.
 
 Danach läuft das Spiel endlos weiter, mit laufend neuen Projekten.
 
@@ -52,6 +55,8 @@ gebraucht. Nur die Schriften kommen von Google Fonts; ohne Internet greifen Ersa
 - Im Programm F&E das Forschungsbudget setzen und die nächste Technologie wählen.
 - Im Programm ABT die monatliche Erfolgsrechnung der Abteilung verfolgen.
 - Im Programm NETZ Einwahlknoten bauen, den Modempool ausbauen, Tarif und Marketing für KB-Net festlegen.
+- Im Programm FIN die Konzernfinanzen steuern. Bleibt die Konzernkasse drei Monate im Minus, beruft dich der
+  Aufsichtsrat ab (auf „Leicht“ gibt es stattdessen einen Notkredit).
 - Maus bewegen: im Büro umsehen.
 
 ## Aufbau
@@ -64,7 +69,7 @@ gebraucht. Nur die Schriften kommen von Google Fonts; ohne Internet greifen Ersa
 | `js/data.js` | Balancing und Konstanten: Stufen, Upgrades, Schwierigkeitsgrade, Auftragsvorlagen |
 | `js/story.js` | Story: Figuren, Projekte, Mails, Dialoge, Ereignisse, Missionen, Entscheidungen |
 | `js/office.js` | Three.js-Büro: Geometrie, Canvas-Pixeltexturen, Kamera, Figuren |
-| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, PERS, PROD, F&E, ABT, NETZ, LOHN, DEPOT, BEDARF, KARR, SYS |
+| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, PERS, PROD, F&E, ABT, NETZ, FIN, LOHN, DEPOT, BEDARF, KARR, SYS |
 | `js/ui.js` | Titel, HUD, Dialogablauf, Entgeltabrechnung, Offline-Zusammenfassung, Game Over |
 
 Neue Kapitel entstehen vor allem in `story.js` (Mails, Dialoge, `EVENTS`, `MISSIONS`) und `data.js`

@@ -8,6 +8,8 @@ import {
   PRODUCT_SPEC, PRODUCT_BASE_NEED, PRODUCT_BASE_Q, PRODUCT_MARKET, PRODUCT_HYPE, PRODUCT_COMMISSION, ORION_HOME,
   TEAM_MAX_BY_STAGE, RD_FP_PER_DM, TECHS, MARKETING, LINES, DEPT_COMMISSION,
   NET_CITIES, NET_NODE_COST, NET_NODE_UPKEEP, NET_ADOPTION, NET_UPGRADES, NET_COMPETITORS,
+  CORP_START_CASH, CORP_SHARES, CORP_LEGACY_RESULT, CORP_LOAN_STEP, CORP_LOAN_RATE, DIVIDEND_POLICIES,
+  HYPE_POINTS, ECONOMY_POINTS, STARTUPS,
 } from './data.js';
 import { EVENTS, MAILS, DIALOGS, ON_MAIL_CHOICE, ON_DIALOG_DONE, ON_PROJECT_DONE, warningVars } from './story.js';
 
@@ -36,6 +38,7 @@ function freshState(name, difficulty) {
     lines: Object.fromEntries(Object.keys(LINES).map((id) => [id, { gen: 0, model: null, pending: null, devGen: null, marketing: 0, units: 0, revenue: 0, last: null }])),
     rd: { budget: 25000, pool: 0, current: null, done: [] },
     dept: { history: [], best: 0, posStreak: 0 },
+    corp: { active: false, cash: 0, debt: 0, policy: 'mittel', shares: CORP_SHARES, base: 0, startPrice: 0, startIdx: 0, owned: [], offers: [], ipo: false, history: [], negMonths: 0, posAfter: 0, lastIssue: -99, legacyBoost: 0, perfShock: 0, lastDps: 0 },
     net: { invest: 0, nodes: [], qLevel: 0, tariff: 19.9, marketing: 0, subs: 0, history: [], frozenUntil: -1 },
     product: { stage: 'none', spec: { mem: '16', drive: 'kassette', gfx: 'mono' }, quality: 0, price: 1995, units: 0, revenue: 0, months: 0, history: [] },
     mails: [],
@@ -79,7 +82,7 @@ export class Game {
       projects: { ...base.projects, ...obj.projects },
       team: { ...base.team, ...obj.team }, product: { ...base.product, ...obj.product },
       lines: { ...base.lines, ...obj.lines }, rd: { ...base.rd, ...obj.rd }, dept: { ...base.dept, ...obj.dept },
-      net: { ...base.net, ...obj.net },
+      net: { ...base.net, ...obj.net }, corp: { ...base.corp, ...obj.corp },
       settings: { ...base.settings, ...obj.settings },
     };
     if (!DIFFICULTIES[this.s.difficulty]) this.s.difficulty = 'normal';
@@ -194,6 +197,8 @@ export class Game {
     const s = this.s, p = s.player, t = s.time, st = this.stage, d = this.diff;
     this.marketMonth();
     this.deptMonth();
+    this.corpMonth();
+    if (s.gameOver) return;
     const target = this.target();
     const ratio = p.perf / target;
     let grade = ratio >= 1.5 ? 'A' : ratio >= 1 ? 'B' : ratio >= 0.7 ? 'C' : 'D';
@@ -254,10 +259,11 @@ export class Game {
     }
 
     // Dezember: Dividende
-    if (t.month === 11 && s.shares.owned > 0) {
-      const total = round2(s.shares.owned * DIVIDEND_PER_SHARE);
+    const dps = s.corp.active ? s.corp.lastDps : DIVIDEND_PER_SHARE;
+    if (t.month === 11 && s.shares.owned > 0 && dps > 0) {
+      const total = round2(s.shares.owned * dps);
       p.cash = round2(p.cash + total);
-      this.mail('dividend', { shares: s.shares.owned, perShare: DIVIDEND_PER_SHARE, total });
+      this.mail('dividend', { shares: s.shares.owned, perShare: dps, total });
     }
 
     this.checkProjectDeadline();
@@ -273,6 +279,7 @@ export class Game {
   }
 
   triggerGameOver(reason) {
+    if (this.s.gameOver) return;
     const t = this.s.time;
     this.s.gameOver = {
       reason, year: t.year, months: t.totalMonths + 1,
@@ -312,6 +319,13 @@ export class Game {
   // ------------------------------------------------------------ Aktien & Shop
   stepShare() {
     const sh = this.s.shares;
+    if (this.s.corp.active) {
+      const target = this.s.corp.base * this.hype() * this.corpPerf();
+      sh.price = round2(Math.max(5, sh.price + (target - sh.price) * 0.15 + sh.price * 0.012 * gauss()));
+      sh.history.push(sh.price);
+      if (sh.history.length > 72) sh.history.shift();
+      return;
+    }
     const drift = 0.0009 + this.s.player.rep * 0.00002;
     sh.price = round2(Math.max(18, sh.price * Math.exp(drift + 0.013 * gauss())));
     sh.history.push(sh.price);
@@ -724,7 +738,7 @@ export class Game {
   }
 
   // ------------------------------------------------------------ Kapitel 4: Abteilung
-  era() { return this.s.player.stage >= 3 ? 2 : 1; }
+  era() { const st = this.s.player.stage; return st >= 5 ? 3 : st >= 3 ? 2 : 1; }
   teamMax() { return TEAM_MAX_BY_STAGE[this.s.player.stage] || TEAM_MAX; }
 
   // Forschung
@@ -820,7 +834,7 @@ export class Game {
       const ln = this.s.lines[id];
       if (!ln.model) continue;
       const hype = PRODUCT_HYPE[Math.min(ln.model.months, PRODUCT_HYPE.length - 1)];
-      const size = (id === 'pc' && f.pc_compat ? def.sizeCompat : def.size) * hype * rand(0.92, 1.08);
+      const size = (id === 'pc' && f.pc_compat ? def.sizeCompat : def.size) * hype * this.economy() * rand(0.92, 1.08);
       const sh = this.lineShare(id, ln.model.q, ln.model.price, ln.marketing);
       const units = Math.round((size * sh.kb) / sh.total);
       const orionUnits = Math.round((size * sh.orion) / sh.total);
@@ -899,7 +913,7 @@ export class Game {
   netMonth() {
     const net = this.s.net;
     if (!net.nodes.length) return { gross: 0, revenue: 0, mkt: 0 };
-    const potential = this.netCovered() * this.adoption();
+    const potential = this.netCovered() * this.adoption() * this.economy();
     const target = potential * this.netShareEstimate();
     const before = net.subs;
     net.subs = Math.max(0, Math.round(net.subs + (target - net.subs) * 0.15));
@@ -909,6 +923,7 @@ export class Game {
     net.history.push({ label: `${MONTH_NAMES[this.s.time.month].slice(0, 3)} ${this.s.time.year}`, subs: net.subs, delta: net.subs - before, revenue, cost: upkeep + mkt, result: revenue - upkeep - mkt });
     if (net.history.length > 24) net.history.shift();
     this.emit('net');
+    this.lastNetGross = revenue - upkeep - mkt;
     return { gross: revenue - upkeep, revenue, mkt };
   }
 
@@ -922,6 +937,151 @@ export class Game {
     if (argument === 'vision' && f.succession_hint) score += 1;
     if (argument === 'kompromiss') score += 3;
     return score;
+  }
+
+  // ------------------------------------------------------------ Kapitel 6: Konzern
+  monthIndex() { const t = this.s.time; return (t.year - 1999) * 12 + t.month + t.monthProgress / 60; }
+  interp(points, x) {
+    if (x <= points[0][0]) return x < 0 ? 1 : points[0][1];
+    for (let i = 1; i < points.length; i++) {
+      const [x1, y1] = points[i - 1], [x2, y2] = points[i];
+      if (x <= x2) return y1 + ((y2 - y1) * (x - x1)) / (x2 - x1);
+    }
+    return points.at(-1)[1];
+  }
+  hype() { return this.interp(HYPE_POINTS, this.monthIndex()); }
+  economy() { return this.interp(ECONOMY_POINTS, this.monthIndex()); }
+  mood() {
+    const h = this.hype();
+    return h > 2.4 ? 'EUPHORIE' : h > 1.6 ? 'HAUSSE' : h > 1.05 ? 'FREUNDLICH' : h > 0.85 ? 'NERVÖS' : 'BAISSE';
+  }
+  policy() { return DIVIDEND_POLICIES.find((x) => x.id === this.s.corp.policy) || DIVIDEND_POLICIES[1]; }
+  corpPerf() {
+    const c = this.s.corp;
+    const recent = c.history.slice(-6);
+    const avg = recent.length ? recent.reduce((a, h) => a + h.result, 0) / recent.length : 15e6;
+    const fund = 1 + 0.5 * Math.max(-1, Math.min(1, (avg - 15e6) / 15e6));
+    const net = this.hype() > 1.5 ? c.owned.length * 0.04 : 0;
+    return Math.max(0.3, fund + this.policy().perf + c.perfShock + net);
+  }
+  startupValue(id) {
+    const st = STARTUPS.find((x) => x.id === id);
+    const idx = this.monthIndex();
+    const future = st.future && idx > 60 ? 1 + (idx - 60) * 0.04 : 1;
+    return Math.round((st.base * Math.pow(this.hype(), 2) / 4) * future / 1e5) * 1e5;
+  }
+  startCorp() {
+    const c = this.s.corp;
+    if (c.active) return;
+    c.active = true;
+    c.cash = CORP_START_CASH;
+    c.base = this.s.shares.price / this.hype();
+    c.startPrice = this.s.shares.price;
+    c.startIdx = this.monthIndex();
+    this.emit('corp');
+  }
+  setPolicy(id) { this.s.corp.policy = id; this.emit('corp'); }
+  loan(dir) {
+    const c = this.s.corp;
+    if (dir > 0) { c.debt += CORP_LOAN_STEP; c.cash += CORP_LOAN_STEP; }
+    else { if (c.debt < CORP_LOAN_STEP || c.cash < CORP_LOAN_STEP) return false; c.debt -= CORP_LOAN_STEP; c.cash -= CORP_LOAN_STEP; }
+    this.emit('corp');
+    this.emit('change');
+    return true;
+  }
+  canIssue() { return this.s.time.totalMonths - this.s.corp.lastIssue >= 12; }
+  issueValue() { return Math.round(this.s.corp.shares * 0.1) * this.s.shares.price * 0.95; }
+  capitalIncrease() {
+    const c = this.s.corp;
+    if (!this.canIssue()) return false;
+    const v = this.issueValue();
+    c.shares += Math.round(c.shares * 0.1);
+    c.cash += v;
+    c.lastIssue = this.s.time.totalMonths;
+    c.perfShock -= 0.05;
+    this.emit('corp');
+    return v;
+  }
+  ipoValue() { return Math.round((Math.min(this.s.net.subs, 400000) * 600 * Math.pow(this.hype(), 1.5) * 0.49) / 1e5) * 1e5; }
+  canIpo() { return !this.s.corp.ipo && this.s.net.subs > 0 && this.s.time.year <= 2001; }
+  ipoNet() {
+    if (!this.canIpo()) return false;
+    const v = this.ipoValue();
+    this.s.corp.cash += v;
+    this.s.corp.ipo = true;
+    this.s.story.flags.net_ipo = { value: v, hype: this.hype() };
+    this.emit('corp');
+    return v;
+  }
+  buyStartup(id) {
+    const c = this.s.corp;
+    if (!c.offers.includes(id) || c.owned.some((o) => o.id === id)) return false;
+    const price = this.startupValue(id);
+    if (c.cash < price) return false;
+    c.cash -= price;
+    c.owned.push({ id, paid: price });
+    c.offers = c.offers.filter((x) => x !== id);
+    c.perfShock += 0.03;
+    this.emit('corp');
+    return price;
+  }
+  sellStartup(id) {
+    const c = this.s.corp;
+    const o = c.owned.find((x) => x.id === id);
+    if (!o) return false;
+    const v = Math.round(this.startupValue(id) * 0.9);
+    c.cash += v;
+    c.owned = c.owned.filter((x) => x.id !== id);
+    c.sold = [...(c.sold || []), { id, paid: o.paid, got: v }];
+    this.emit('corp');
+    return v;
+  }
+  corpMonth() {
+    const c = this.s.corp, f = this.s.story.flags;
+    if (!c.active) return;
+    const months = this.monthIndex() - c.startIdx;
+    const legacy = CORP_LEGACY_RESULT * this.economy() * Math.max(0.5, 1 - months * 0.004) + c.legacyBoost;
+    let bereich = this.s.dept.history.at(-1)?.result || 0;
+    if (c.ipo) bereich -= 0.49 * (this.lastNetGross || 0);
+    const startups = -c.owned.reduce((a, o) => a + (STARTUPS.find((x) => x.id === o.id)?.burn || 0), 0);
+    const interest = (c.debt * CORP_LOAN_RATE) / 12;
+    // Nach dem Crash: Wertberichtigung auf gehaltene Beteiligungen (einmalig)
+    let writedown = 0;
+    if (!c.writedown && this.monthIndex() >= 20) {
+      c.writedown = true;
+      for (const o of c.owned) {
+        const v = this.startupValue(o.id);
+        writedown += Math.max(0, o.paid - v);
+        o.paid = Math.min(o.paid, v);
+      }
+      if (writedown > 0) this.mail('corp_writedown', { amount: writedown });
+    }
+    const result = Math.round(legacy + bereich + startups - interest - writedown);
+    c.cash += result;
+    c.perfShock *= 0.9;
+    c.history.push({ label: `${MONTH_NAMES[this.s.time.month].slice(0, 3)} ${this.s.time.year}`, legacy: Math.round(legacy), bereich: Math.round(bereich), startups: startups - writedown, interest: Math.round(interest), result });
+    if (c.history.length > 24) c.history.shift();
+    // Dividende im Dezember
+    if (this.s.time.month === 11) {
+      const year = c.history.slice(-12).reduce((a, h) => a + h.result, 0);
+      const pay = year > 0 ? year * this.policy().payout : 0;
+      c.cash -= pay;
+      c.lastDps = round2(pay / c.shares);
+    }
+    if (this.monthIndex() >= 27) c.posAfter = result > 0 ? c.posAfter + 1 : 0;
+    c.negMonths = c.cash < 0 ? c.negMonths + 1 : 0;
+    if (c.negMonths >= 3) {
+      if (this.diff.id === 'leicht') {
+        c.cash += 150e6; c.negMonths = 0; this.addRep(-10, true);
+        this.mail('corp_bailout');
+      } else {
+        this.triggerGameOver('abberufen');
+      }
+    } else if (c.cash < 0 && !f.cash_warned) {
+      f.cash_warned = true;
+      this.mail('corp_cash_warning');
+    }
+    this.emit('corp');
   }
 
   promote() {

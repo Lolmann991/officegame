@@ -6,6 +6,7 @@ import {
   DIVIDEND_PER_SHARE, PROJECT_SHARES, TRAITS, PRODUCT_SPEC, PRODUCT_PRICES, ORION_HOME,
   TECHS, LINES, MARKETING, RD_BUDGETS, DEPT_COMMISSION,
   NET_CITIES, NET_NODE_COST, NET_NODE_UPKEEP, NET_TARIFFS, NET_UPGRADES,
+  STARTUPS, DIVIDEND_POLICIES, CORP_LOAN_STEP, CORP_LOAN_RATE,
   fmtDM, fmtNum, fmtInt, fmtPct,
 } from './data.js';
 import { MISSIONS, missionsDone } from './story.js';
@@ -20,6 +21,7 @@ const APPS = [
   { id: 'fue', label: 'F&E', title: 'Forschung', minStage: 3 },
   { id: 'abt', label: 'ABT', title: 'Abteilung', minStage: 3 },
   { id: 'netz', label: 'NETZ', title: 'KB-Net', minStage: 4 },
+  { id: 'fin', label: 'FIN', title: 'Finanzen', minStage: 5 },
   { id: 'lohn', label: 'LOHN', title: 'Entgeltabrechnungen' },
   { id: 'depot', label: 'DEPOT', title: 'Konto und Depot' },
   { id: 'shop', label: 'BEDARF', title: 'Bürobedarf' },
@@ -60,12 +62,13 @@ export class PC {
   build() {
     const n = this.paneCount();
     this.screens.classList.toggle('dual', n === 2);
-    this.root.classList.toggle('era2', this.game.era() === 2);
+    this.root.classList.toggle('era2', this.game.era() >= 2);
+    this.root.classList.toggle('era3', this.game.era() >= 3);
     this.screens.innerHTML = this.panes.slice(0, n).map((_, i) => `
       <section class="crt" data-pane="${i}">
         <div class="crt-glass">
           <header class="crt-top">
-            <span>${this.game.era() === 2 ? (this.game.s.time.year >= 1992 ? 'KB PC 486 · KB-WINDOWS 3.1' : 'KB PC · KB-WINDOWS 1.0') : 'KB-TERMINAL 3270'} · ${i === 0 ? 'DISPLAY 1' : 'DISPLAY 2'}</span>
+            <span>${this.game.era() >= 3 ? 'KB WORKSTATION · KB-WINDOWS 2000' : this.game.era() === 2 ? (this.game.s.time.year >= 1992 ? 'KB PC 486 · KB-WINDOWS 3.1' : 'KB PC · KB-WINDOWS 1.0') : 'KB-TERMINAL 3270'} · ${i === 0 ? 'DISPLAY 1' : 'DISPLAY 2'}</span>
             <span data-live="date"></span>
           </header>
           <nav class="crt-nav" aria-label="Programme">
@@ -499,6 +502,46 @@ export class PC {
       ${rows ? `<h3>LETZTE MONATE <span class="dim">UMSATZ/KOSTEN/ERGEBNIS IN TDM</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">KUNDEN</th><th class="r">NEU</th><th class="r">UMSATZ</th><th class="r">KOSTEN</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="dim">Die ersten Kunden kommen zum Monatsende, sobald ein Knoten steht.</p>'}`;
   }
 
+  app_fin() {
+    const g = this.game, c = g.s.corp, sh = g.s.shares;
+    if (!c.active) return '<h2>FINANZEN</h2><p class="dim">Noch nicht im Vorstand.</p>';
+    const M = (x) => `${fmtNum(x / 1e6)} MIO.`;
+    const last = c.history.at(-1);
+    const owned = c.owned.map((o) => {
+      const st = STARTUPS.find((x) => x.id === o.id), v = g.startupValue(o.id);
+      return `<div class="shop-row"><div><b>${esc(st.name)}</b> <span class="dim">${esc(st.desc)}</span><br>
+        GEKAUFT FÜR ${M(o.paid)} · WERT HEUTE <span class="${v >= o.paid ? 'ok' : 'err'}">${M(v)}</span> · VERBRENNT ${M(st.burn)} IM MONAT</div>
+        <div class="r"><button type="button" class="tbtn small" data-act="sell-st" data-arg="${o.id}">VERKAUFEN · ${M(v * 0.9)}</button></div></div>`;
+    }).join('');
+    const offers = c.offers.map((id) => {
+      const st = STARTUPS.find((x) => x.id === id), v = g.startupValue(id);
+      return `<div class="shop-row"><div><b>${esc(st.name)}</b> <span class="dim">${esc(st.desc)}</span><br>
+        KAUFPREIS ${M(v)} · VERBRENNT ${M(st.burn)} IM MONAT</div>
+        <div class="r"><button type="button" class="tbtn small" data-act="buy-st" data-arg="${id}" ${c.cash < v ? 'disabled' : ''}>KAUFEN</button></div></div>`;
+    }).join('');
+    const rows = c.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${fmtNum(h.legacy / 1e6)}</td><td class="r">${fmtNum(h.bereich / 1e6)}</td><td class="r">${fmtNum(h.startups / 1e6)}</td><td class="r">${fmtNum(-h.interest / 1e6)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${fmtNum(h.result / 1e6)}</td></tr>`).join('');
+    return `<h2>FINANZEN <span class="dim">KONZERN · RESSORT ${esc(g.stage.title.toUpperCase())}</span></h2>
+      <div class="kv">
+        <span>KONZERNKASSE</span><span class="${c.cash < 0 ? 'err' : ''}"><b>${fmtDM(c.cash)}</b>${c.negMonths ? ` · ${c.negMonths} MONAT(E) IM MINUS` : ''}</span>
+        <span>KREDITE</span><span>${fmtDM(c.debt)} · ${fmtPct(CORP_LOAN_RATE, 1)} ZINS</span>
+        <span>LETZTER MONAT</span><span class="${last && last.result < 0 ? 'err' : ''}">${last ? `ERGEBNIS ${M(last.result)}` : 'NOCH KEINE ZAHLEN'}</span>
+        <span>KB-AKTIE</span><span><b>${fmtDM(sh.price)}</b> · BÖRSE: ${g.mood()} · WERT VOR DEM HYPE ${fmtDM(c.base)}</span>
+        <span>BÖRSENWERT</span><span>${fmtDM(sh.price * c.shares)} · ${fmtInt(c.shares)} AKTIEN</span>
+        <span>DEIN ANTEIL</span><span>${fmtInt(sh.owned)} AKTIEN · ${fmtPct(sh.owned / c.shares, 4)}</span>
+      </div>
+      <div class="row"><span class="dim">DIVIDENDE</span>${DIVIDEND_POLICIES.map((d) => `<button type="button" class="tbtn small ${c.policy === d.id ? 'chosen' : ''}" data-act="policy" data-arg="${d.id}">${d.label} · ${fmtPct(d.payout)}</button>`).join('')}</div>
+      <div class="row"><span class="dim">KREDIT</span>
+        <button type="button" class="tbtn small" data-act="loan" data-arg="1">+${M(CORP_LOAN_STEP)} AUFNEHMEN</button>
+        <button type="button" class="tbtn small" data-act="loan" data-arg="-1" ${c.debt < CORP_LOAN_STEP || c.cash < CORP_LOAN_STEP ? 'disabled' : ''}>${M(CORP_LOAN_STEP)} TILGEN</button></div>
+      <div class="row"><span class="dim">KAPITAL</span>
+        <button type="button" class="tbtn small" data-act="issue" ${g.canIssue() ? '' : 'disabled'}>KAPITALERHÖHUNG 10 % · CA. ${M(g.issueValue())}</button>
+        ${g.canIpo() ? `<button type="button" class="tbtn small" data-act="ipo">KB-NET AN DIE BÖRSE (49 %) · CA. ${M(g.ipoValue())}</button>` : c.ipo ? '<span class="dim">KB-NET IST BÖRSENNOTIERT, 49 % GEHÖREN ANLEGERN</span>' : ''}</div>
+      <p class="dim">Eine Kapitalerhöhung bringt Geld, verwässert aber deinen Stimmanteil und drückt kurz den Kurs. Einmal pro Jahr möglich.</p>
+      ${owned ? `<h3>BETEILIGUNGEN</h3>${owned}` : ''}
+      ${offers ? `<h3>ANGEBOTE VOM NEUEN MARKT</h3>${offers}` : ''}
+      ${rows ? `<h3>KONZERNERGEBNIS <span class="dim">IN MIO. DM</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">STAMM</th><th class="r">BEREICHE</th><th class="r">BETEIL.</th><th class="r">ZINS</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="dim">Das erste Konzernergebnis kommt zum Monatsende.</p>'}`;
+  }
+
   app_lohn() {
     const slips = this.game.s.payslips;
     if (!slips.length) return `<h2>ENTGELTABRECHNUNGEN</h2><p class="dim">Die erste Abrechnung kommt zum Monatsende.</p>`;
@@ -557,7 +600,7 @@ export class PC {
     const lo = Math.min(...h) * 0.98, hi = Math.max(...h) * 1.02;
     const W = cv.width, H = cv.height;
     c.clearRect(0, 0, W, H);
-    const two = this.game.era() === 2;
+    const two = this.game.era() >= 2;
     c.fillStyle = two ? 'rgba(0,0,0,0.12)' : 'rgba(77,255,124,0.10)';
     for (let y = 0; y < H; y += 18) c.fillRect(0, y, W, 1);
     const X = (k) => (k / (h.length - 1)) * (W - 4) + 2;
@@ -737,6 +780,12 @@ export class PC {
       case 'node': if (g.buildNode(arg)) this.ui.toast('Einwahlknoten in Betrieb', 'good'); this.rerender(['netz', 'karr']); break;
       case 'net-up': if (g.upgradeNet()) this.ui.toast('Modempool ausgebaut', 'good'); this.rerender(['netz']); break;
       case 'tariff': g.setTariff(Number(arg)); this.rerender(['netz']); break;
+      case 'policy': g.setPolicy(arg); this.rerender(['fin']); break;
+      case 'loan': if (g.loan(Number(arg))) this.ui.toast(Number(arg) > 0 ? 'Kredit aufgenommen' : 'Kredit getilgt'); this.rerender(['fin']); break;
+      case 'issue': { const v = g.capitalIncrease(); if (v) this.ui.toast(`Kapitalerhöhung: ${fmtDM(v)}`, 'good'); this.rerender(['fin']); break; }
+      case 'ipo': { const v = g.ipoNet(); if (v) this.ui.toast(`Börsengang KB-Net: ${fmtDM(v)}`, 'good'); this.rerender(['fin', 'netz']); break; }
+      case 'buy-st': { const v = g.buyStartup(arg); if (v) this.ui.toast(`Beteiligung gekauft: ${fmtDM(v)}`, 'good'); this.rerender(['fin']); break; }
+      case 'sell-st': { const v = g.sellStartup(arg); if (v) this.ui.toast(`Beteiligung verkauft: ${fmtDM(v)}`); this.rerender(['fin']); break; }
       case 'net-mk': g.setNetMarketing(Number(arg)); this.rerender(['netz']); break;
       case 'prod-start': if (g.startProduct()) this.ui.toast('Entwicklung des HC-1 gestartet', 'good'); this.rerender(['prod', 'proj']); break;
       case 'price-sel': this.priceSel = Number(arg); this.rerender(['prod']); break;
