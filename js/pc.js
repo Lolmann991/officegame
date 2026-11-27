@@ -3,7 +3,8 @@
 
 import {
   UPGRADES, STAGES, MONTH_NAMES, MONTH_SHORT, DIFFICULTIES, SHARES_OUTSTANDING, SHARE_DISCOUNT,
-  DIVIDEND_PER_SHARE, PROJECT_SHARES, fmtDM, fmtNum, fmtInt, fmtPct,
+  DIVIDEND_PER_SHARE, PROJECT_SHARES, TEAM_MAX, TRAITS, PRODUCT_SPEC, PRODUCT_PRICES, ORION_HOME,
+  fmtDM, fmtNum, fmtInt, fmtPct,
 } from './data.js';
 import { MISSIONS, missionsDone } from './story.js';
 import { Game } from './game.js';
@@ -12,6 +13,8 @@ const APPS = [
   { id: 'post', label: 'POST', title: 'Postfach' },
   { id: 'aufg', label: 'AUFG', title: 'Aufträge' },
   { id: 'proj', label: 'PROJ', title: 'Projekte', minStage: 1 },
+  { id: 'pers', label: 'PERS', title: 'Personal', minStage: 2 },
+  { id: 'prod', label: 'PROD', title: 'Produkt', minStage: 2 },
   { id: 'lohn', label: 'LOHN', title: 'Entgeltabrechnungen' },
   { id: 'depot', label: 'DEPOT', title: 'Konto und Depot' },
   { id: 'shop', label: 'BEDARF', title: 'Bürobedarf' },
@@ -123,6 +126,9 @@ export class PC {
       owned: fmtInt(s.shares.owned),
       vote: fmtPct(s.shares.owned / SHARES_OUTSTANDING, 4),
       days: `${MONTH_NAMES[s.time.month]}: Tag ${g.day()}`,
+      teamRate: `${fmtNum(g.teamRate())} Pkt/s (${s.team.members.length} Leute)`,
+      payroll: `${fmtDM(g.payroll())} / ${fmtDM(s.team.budget)}`,
+      morale: fmtPct(g.avgMorale() / 100),
       projPP: s.projects.active ? `${fmtInt(s.projects.active.pp)} / ${fmtInt(s.projects.active.need)} (${fmtPct(s.projects.active.pp / s.projects.active.need)})` : '',
       projEta: s.projects.active ? this.projEta() : '',
     };
@@ -134,6 +140,8 @@ export class PC {
     set('[data-bar="perf"] > span', p.perf / target);
     set('[data-bar="month"] > span', s.time.monthProgress / 60);
     if (s.projects.active) set('[data-bar="proj"] > span', s.projects.active.pp / s.projects.active.need);
+    set('[data-bar="payroll"] > span', g.payroll() / (s.team.budget || 1));
+    set('[data-bar="morale"] > span', g.avgMorale() / 100);
     this.root.querySelectorAll('[data-bar="perf"]').forEach((el) => {
       const r = p.perf / target;
       el.dataset.grade = r >= 1.5 ? 'A' : r >= 1 ? 'B' : r >= 0.7 ? 'C' : 'D';
@@ -181,6 +189,7 @@ export class PC {
         <span>MONAT</span><span><span data-live="days"></span></span>
         <span></span><span class="tbar" data-bar="month"><span></span></span>
         <span>GRUNDLEISTUNG</span><span data-live="rate"></span>
+        ${g.s.team.members.length ? '<span>DAVON TEAM</span><span data-live="teamRate"></span>' : ''}
       </div>
       <div class="task">
         <div class="dim">AKTUELLER AUFTRAG</div>
@@ -247,6 +256,121 @@ export class PC {
     if (pr.done.length) {
       html += `<h3>ABGESCHLOSSEN</h3><ul class="tlist">${pr.done.slice(-6).reverse().map((d) => `<li class="${d.late ? 'err' : 'ok'}">${d.late ? '[!]' : '[X]'} ${esc(d.name)} <span class="dim">${esc(d.date)} · ${fmtDM(d.reward)}</span></li>`).join('')}</ul>`;
     }
+    return html;
+  }
+
+  stars(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
+
+  app_pers() {
+    const g = this.game, tm = g.s.team, now = g.s.time.totalMonths;
+    const over = g.payroll() > tm.budget;
+    const dinnerDone = tm.dinnerMonth === now;
+    const members = tm.members.map((m) => {
+      const tr = TRAITS[m.trait] || {};
+      const fire = this.confirmFire === m.id
+        ? `<span class="err">WIRKLICH ENTLASSEN?</span> <button type="button" class="tbtn small" data-act="fire-yes" data-arg="${m.id}">JA</button> <button type="button" class="tbtn small" data-act="fire-no">NEIN</button>`
+        : `<button type="button" class="tbtn small dimbtn" data-act="fire" data-arg="${m.id}">ENTLASSEN</button>`;
+      return `<div class="member">
+        <div><b>${esc(m.name)}</b> <span class="stars">${this.stars(m.skill)}</span> <span class="dim">[${esc(tr.label || m.trait).toUpperCase()}: ${esc(tr.desc || '')}]</span></div>
+        <div class="kv">
+          <span>GEHALT</span><span>${fmtDM(m.salary)} · LEISTUNG ${fmtNum(g.memberRate(m))} PKT/S</span>
+          <span>MORAL</span><span class="mrow">${bar(m.morale / 100, m.morale < 35 ? 'low' : '')} ${fmtInt(m.morale)} %</span>
+        </div>
+        <div class="row">
+          <button type="button" class="tbtn small" data-act="praise" data-arg="${m.id}" ${m.praised === now ? 'disabled' : ''}>${m.praised === now ? 'GELOBT' : 'LOBEN'}</button>
+          <button type="button" class="tbtn small" data-act="raise" data-arg="${m.id}">+10 % GEHALT (+${fmtNum(Math.round(m.salary * 0.1 / 10) * 10)} DM)</button>
+          ${fire}
+        </div>
+      </div>`;
+    }).join('');
+    const cands = tm.candidates.map((c) => {
+      const tr = TRAITS[c.trait] || {};
+      const afterOver = g.payroll() + c.salary > tm.budget;
+      return `<div class="shop-row">
+        <div><b>${esc(c.name)}</b> <span class="stars">${this.stars(c.skill)}</span> <span class="dim">[${esc(tr.label || c.trait).toUpperCase()}: ${esc(tr.desc || '')}]</span><br>
+          GEHALTSWUNSCH ${fmtDM(c.salary)}${afterOver ? ' <span class="err">· ÜBER BUDGET</span>' : ''}</div>
+        <div class="r"><button type="button" class="tbtn" data-act="hire" data-arg="${c.id}" ${tm.members.length >= TEAM_MAX ? 'disabled' : ''}>EINSTELLEN</button></div>
+      </div>`;
+    }).join('');
+    return `<h2>PERSONAL <span class="dim">${esc(g.stage.dept.toUpperCase())}</span></h2>
+      <div class="kv">
+        <span>PERSONALKOSTEN</span><span class="${over ? 'err' : ''}" data-live="payroll"></span>
+        <span></span><span class="tbar ${over ? 'low' : ''}" data-bar="payroll"><span></span></span>
+        <span>Ø MORAL</span><span data-live="morale"></span>
+        <span></span><span class="tbar" data-bar="morale"><span></span></span>
+        <span>TEAMLEISTUNG</span><span data-live="teamRate"></span>
+        <span>GUTE MONATE</span><span>${tm.moraleMonths} (Ø MORAL AB 60 %)</span>
+      </div>
+      <div class="row">
+        <button type="button" class="tbtn" data-act="dinner" data-need="${g.dinnerCost()}" ${dinnerDone || !tm.members.length ? 'disabled' : ''}>${dinnerDone ? 'TEAMESSEN DIESEN MONAT ERLEDIGT' : `TEAMESSEN · ${fmtDM(g.dinnerCost())} PRIVAT`}</button>
+      </div>
+      <h3>TEAM ${tm.members.length}/${TEAM_MAX}</h3>
+      ${members || '<p class="dim">Noch niemand in der Gruppe.</p>'}
+      <h3>BEWERBUNGEN <span class="dim">NEUE JEDEN MONAT</span></h3>
+      ${cands || '<p class="dim">Keine Bewerbungen.</p>'}`;
+  }
+
+  estimateShare(q, price) {
+    const g = this.game;
+    const kb = g.attract(q, price);
+    const orion = g.s.story.flags.orion_home ? g.attract(ORION_HOME.q, ORION_HOME.price) : 0;
+    return kb / (kb + orion + 0.6);
+  }
+
+  app_prod() {
+    const g = this.game, pd = g.s.product;
+    let html = `<h2>PRODUKT <span class="dim">KB HC-1 · HEIMCOMPUTER</span></h2>`;
+    const orionInfo = g.s.story.flags.orion_home
+      ? `<p class="dim">KONKURRENZ: ${esc(ORION_HOME.name)} · QUALITÄT ${ORION_HOME.q}/10 · ${fmtDM(ORION_HOME.price)}</p>` : '';
+    if (pd.stage === 'none') return html + '<p class="dim">Noch kein Produktauftrag. Der Vorstand berät.</p>';
+    if (pd.stage === 'spec') {
+      html += '<p>Lege die Ausstattung fest. Mehr Ausstattung bringt Qualität, kostet aber Entwicklungsarbeit.</p>';
+      for (const [key, def] of Object.entries(PRODUCT_SPEC)) {
+        html += `<h3>${esc(def.label.toUpperCase())}</h3><div class="row">${def.options.map((o) => `
+          <button type="button" class="tbtn ${pd.spec[key] === o.id ? 'chosen' : ''}" data-act="spec" data-arg="${key}" data-val="${o.id}">${esc(o.label)}${o.need ? ` · +${fmtInt(o.need)} PKT` : ''}</button>`).join('')}</div>
+          <p class="dim">${def.options.map((o) => `${esc(o.label)}: ${esc(o.note)}`).join(' · ')}</p>`;
+      }
+      html += `<div class="kv">
+          <span>AUFWAND</span><span><b>${fmtInt(g.productNeed())} PKT</b>${g.s.story.flags.wb_choice === 'mikro' ? ' (−15 % DANK KB-MIKRO-STUDIE)' : ''}</span>
+          <span>QUALITÄT</span><span><b>${g.productQuality()}/10</b> (ERWARTET, JE NACH TEAM)</span>
+        </div>${orionInfo}
+        <div class="row"><button type="button" class="tbtn" data-act="prod-start">ENTWICKLUNG STARTEN</button></div>
+        <p class="dim">Die Entwicklung läuft als Projekt im Programm PROJ. Ein laufendes Projekt wird dafür pausiert.</p>`;
+      return html;
+    }
+    if (pd.stage === 'dev') {
+      const a = g.s.projects.active;
+      html += a?.id === 'hc1' ? `<div class="kv">
+          <span>ENTWICKLUNG</span><span data-live="projPP"></span>
+          <span></span><span class="tbar big" data-bar="proj"><span></span></span>
+          <span>QUALITÄT</span><span>${g.productQuality()}/10 (ERWARTET)</span>
+        </div>
+        <h3>ARBEITSZEIT IM PROJEKT</h3>
+        <div class="row">${PROJECT_SHARES.map((x) => `<button type="button" class="tbtn ${g.s.projects.share === x ? 'chosen' : ''}" data-act="share" data-arg="${x}">${fmtPct(x)}</button>`).join('')}</div>
+        <p class="dim">Gilt für dich und dein ganzes Team. Ab 50 % leidet die Moral unter dem Termindruck.</p>`
+        : '<p class="dim">Die Entwicklung ist pausiert. Übernimm sie im Programm PROJ wieder.</p>';
+      return html + orionInfo;
+    }
+    const sel = this.priceSel || pd.price;
+    const priceRow = (act) => `<div class="row">${PRODUCT_PRICES.map((pr) => `
+      <button type="button" class="tbtn ${sel === pr ? 'chosen' : ''}" data-act="${act}" data-arg="${pr}">${fmtDM(pr)} · ~${fmtPct(this.estimateShare(pd.quality, pr))} ANTEIL</button>`).join('')}</div>`;
+    if (pd.stage === 'launch') {
+      html += `<p>Der HC-1 ist fertig. Qualität laut Prüfabteilung: <b>${pd.quality}/10</b>.</p>
+        <h3>VERKAUFSPREIS</h3>${priceRow('price-sel')}${orionInfo}
+        <div class="row"><button type="button" class="tbtn" data-act="launch">MARKTEINFÜHRUNG ZU ${fmtDM(sel)}</button></div>
+        <p class="dim">Der Anteil ist eine Schätzung des Vertriebs. Pro verkauftem Gerät erhältst du eine Erfolgsbeteiligung.</p>`;
+      return html;
+    }
+    // Markt
+    const rows = pd.history.slice(-8).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${fmtInt(h.units)}</td><td class="r">${fmtInt(h.orion)}</td><td class="r">${fmtPct(h.share)}</td><td class="r">${fmtInt(h.price)}</td></tr>`).join('');
+    html += `<div class="kv">
+        <span>VERKAUFT</span><span><b>${fmtInt(pd.units)} GERÄTE</b></span>
+        <span>UMSATZ</span><span>${fmtDM(pd.revenue)}</span>
+        <span>QUALITÄT</span><span>${pd.quality}/10</span>
+      </div>
+      <h3>PREIS ÄNDERN</h3>${priceRow('price-set')}
+      ${rows ? `<h3>VERKÄUFE</h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">HC-1</th><th class="r">OR-HOME</th><th class="r">ANTEIL</th><th class="r">PREIS</th></tr></thead><tbody>${rows}</tbody></table>`
+        : '<p class="dim">Die ersten Verkaufszahlen kommen zum Monatsende.</p>'}`;
     return html;
   }
 
@@ -469,7 +593,19 @@ export class PC {
       case 'project':
         if (g.startProject(arg)) this.ui.toast('Projekt übernommen', 'good');
         this.rerender(['proj']); break;
-      case 'share': g.setProjectShare(Number(arg)); this.rerender(['proj']); break;
+      case 'share': g.setProjectShare(Number(arg)); this.rerender(['proj', 'prod']); break;
+      case 'praise': if (g.praise(Number(arg))) this.ui.toast('Lob ausgesprochen', 'good'); this.rerender(['pers']); break;
+      case 'raise': g.raiseSalary(Number(arg)); this.ui.toast('Gehalt erhöht'); this.rerender(['pers']); break;
+      case 'fire': this.confirmFire = Number(arg); this.rerender(['pers']); break;
+      case 'fire-no': this.confirmFire = null; this.rerender(['pers']); break;
+      case 'fire-yes': { const m = g.fire(Number(arg)); this.confirmFire = null; if (m) this.ui.toast(`${m.name} entlassen`, 'bad'); this.rerender(['pers', 'karr']); break; }
+      case 'hire': { const m = g.hire(Number(arg)); if (m) this.ui.toast(`${m.name} eingestellt`, 'good'); this.rerender(['pers', 'karr']); break; }
+      case 'dinner': { const c = g.dinner(); if (c) this.ui.toast(`Teamessen beim Griechen: ${fmtDM(c)}`, 'good'); this.rerender(['pers']); break; }
+      case 'spec': g.setSpec(arg, b.dataset.val); this.rerender(['prod']); break;
+      case 'prod-start': if (g.startProduct()) this.ui.toast('Entwicklung des HC-1 gestartet', 'good'); this.rerender(['prod', 'proj']); break;
+      case 'price-sel': this.priceSel = Number(arg); this.rerender(['prod']); break;
+      case 'launch': if (g.launchProduct(this.priceSel || g.s.product.price)) this.ui.toast('Der HC-1 ist im Handel', 'good'); this.priceSel = null; this.rerender(['prod', 'karr']); break;
+      case 'price-set': g.setPrice(Number(arg)); this.priceSel = null; this.ui.toast(`Neuer Preis: ${fmtDM(Number(arg))}`); this.rerender(['prod']); break;
       case 'buy': {
         const n = g.buyShares(arg === 'max' ? 'max' : Number(arg));
         if (n) this.ui.toast(`${n} KB-Aktie${n > 1 ? 'n' : ''} gekauft`, 'good');

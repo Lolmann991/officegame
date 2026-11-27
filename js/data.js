@@ -37,21 +37,65 @@ export const DIFFICULTIES = {
 export const STAGES = [
   { title: 'Junior-Sachbearbeiter', dept: 'Rechenzentrum', salary: 2400, target: 500, living: 1200, year: 1978 },
   { title: 'Sachbearbeiter', dept: 'Rechenzentrum', salary: 3100, target: 800, living: 1450, year: 1980 },
-  { title: 'Teamleiter', dept: 'Heimcomputer', salary: 4500, target: 1150, living: 1900, year: 1983 },
-  { title: 'Abteilungsleiter', dept: 'PC-Sparte', salary: 7000, year: 1987 },
+  { title: 'Teamleiter', dept: 'Gruppe Heimcomputer', salary: 4500, target: 2100, living: 1900, year: 1983 },
+  { title: 'Abteilungsleiter', dept: 'PC-Sparte', salary: 7000, target: 3600, living: 2600, year: 1987 },
   { title: 'Bereichsleiter', dept: 'Geschäftsbereich Netz', salary: 11000, year: 1993 },
   { title: 'Vorstand', dept: 'Ressort Finanzen', salary: 18000, year: 1999 },
   { title: 'CEO', dept: 'Konzernleitung', salary: 36000, year: 2008 },
 ];
-export const PLAYABLE_STAGES = 3;
+export const PLAYABLE_STAGES = 4;
 
 // Kapitel-Karten: erscheinen beim Erreichen einer Stufe (intro) und bei der nächsten Beförderung (outro).
 export const CHAPTERS = [
   { no: 1, title: 'Der erste Tag', stage: 0 },
   { no: 2, title: 'Lochkarten und Ehrgeiz', stage: 1,
     intro: 'Du bist jetzt Sachbearbeiter und hast einen Platz am Fenster. Neu ist das Programm PROJ: Dort übernimmst du eigene Projekte. Aber Vorsicht, jede Stunde im Projekt fehlt deinem Monatsziel.' },
-  { no: 3, title: 'Das erste Team', stage: 2 },
+  { no: 3, title: 'Das erste Team', stage: 2,
+    intro: 'Du leitest jetzt die Gruppe Heimcomputer. Neu sind die Programme PERS und PROD: Stelle Leute ein, halte die Moral hoch und bring den ersten Heimcomputer von KB auf den Markt. Ab jetzt zählt die Leistung des ganzen Teams.' },
+  { no: 4, title: 'Abteilung PC', stage: 3 },
 ];
+
+// ---------------------------------------------------------------- Team (ab Kapitel 3)
+export const TEAM_MAX = 5;
+export const TEAM_BUDGET = 14000;          // Personalbudget der Gruppe in DM pro Monat
+export const TEAM_RATE_PER_SKILL = 1.6;    // Leistung/s je Fähigkeitspunkt bei Moral 50
+export const DINNER_COST = 45;             // DM pro Person, privat bezahlt
+
+export const TRAITS = {
+  fleissig:    { label: 'fleißig', desc: '+20 % Leistung', mult: 1.2 },
+  kreativ:     { label: 'kreativ', desc: '+30 % im Produkt', prodMult: 1.3 },
+  gesellig:    { label: 'gesellig', desc: 'Teamessen wirkt doppelt', dinner: 2 },
+  eigensinnig: { label: 'eigensinnig', desc: 'Moral sinkt schneller', drift: 45 },
+  loyal:       { label: 'loyal', desc: 'kündigt nie', loyal: true },
+};
+
+export const FIRST_NAMES = ['Jürgen', 'Monika', 'Bernd', 'Sabine', 'Klaus', 'Ayşe', 'Rainer', 'Gabriele', 'Thomas',
+  'Ute', 'Dieter', 'Karin', 'Mehmet', 'Birgit', 'Stefan', 'Renate', 'Frank', 'Angelika', 'Holger', 'Elke'];
+export const LAST_NAMES = ['Falk', 'Weber', 'Kowalski', 'Hartmann', 'Demir', 'Schulte', 'Brandl', 'Neumann', 'Vogt',
+  'Sommer', 'Yılmaz', 'Krüger', 'Lorenz', 'Hofmann', 'Pohl', 'Albers', 'Engel', 'Wolff'];
+
+// ---------------------------------------------------------------- Produkt HC-1
+export const PRODUCT_SPEC = {
+  mem: { label: 'Arbeitsspeicher', options: [
+    { id: '16', label: '16 KB', need: 0, q: 0, note: 'reicht für Spiele und Briefe' },
+    { id: '64', label: '64 KB', need: 1500, q: 2, note: 'Platz für richtige Programme' },
+  ] },
+  drive: { label: 'Datenträger', options: [
+    { id: 'kassette', label: 'Kassettenrekorder', need: 0, q: 0, note: 'billig, aber langsam' },
+    { id: 'diskette', label: '5¼-Zoll-Diskette', need: 2000, q: 2, note: 'schnell und teuer' },
+  ] },
+  gfx: { label: 'Grafik', options: [
+    { id: 'mono', label: 'Grün-Monitor', need: 0, q: 0, note: 'wie im Büro' },
+    { id: 'farbe', label: 'Farbe am Fernseher', need: 1200, q: 2, note: 'Familien lieben Farbe' },
+  ] },
+};
+export const PRODUCT_BASE_NEED = 4500;
+export const PRODUCT_BASE_Q = 3;           // Qualität 3–10
+export const PRODUCT_PRICES = [1495, 1995, 2495];
+export const PRODUCT_MARKET = 9000;        // Heimcomputer-Käufer pro Monat in Deutschland (Spielwert)
+export const PRODUCT_HYPE = [1.5, 1.3, 1.15, 1.0, 0.9, 0.8, 0.7, 0.65, 0.6];
+export const PRODUCT_COMMISSION = 0.0004;  // Erfolgsbeteiligung am Umsatz
+export const ORION_HOME = { name: 'Orion OR-Home', price: 1795, q: 6 };
 
 // Arbeitsanteil, der in ein Projekt fließen kann
 export const PROJECT_SHARES = [0, 0.25, 0.5, 0.75];

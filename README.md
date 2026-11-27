@@ -1,14 +1,16 @@
-# KONZERN (Prototyp v0.2)
+# KONZERN (Prototyp v0.3)
 
 Idle-Wirtschaftsspiel im Browser. Du beginnst 1978 als Junior-Sachbearbeiter bei der fiktiven
 Kessler & Brandt Rechenwerke AG und arbeitest dich hoch. Gespielt wird am Schreibtisch in einem
 3D-Büro (Low-Poly, Pixeltexturen) über den Firmen-PC.
 
-Der Prototyp enthält die Kapitel 1 und 2:
+Der Prototyp enthält die Kapitel 1 bis 3:
 
 1. **Der erste Tag:** Einstieg im Großraum, Aufträge, Gehaltsabrechnung, Mitarbeiteraktien, Beförderung zum Sachbearbeiter.
 2. **Lochkarten und Ehrgeiz:** Platz am Fenster, eigene Projekte (Programm PROJ), Ideenwettbewerb des Vorstands,
    ein Abwerbeversuch von Orion am Telefon und die Beförderung zum Teamleiter.
+3. **Das erste Team:** eigene Gruppe mit Personal, Budget und Moral (Programm PERS), Entwicklung und
+   Markteinführung des KB-Heimcomputers HC-1 gegen Orion (Programm PROD), Beförderung zum Abteilungsleiter.
 
 Danach läuft das Spiel endlos weiter, mit laufend neuen Projekten.
 
@@ -37,6 +39,9 @@ gebraucht. Nur die Schriften kommen von Google Fonts; ohne Internet greifen Ersa
 - Im Programm AUFG den Auftragscode abtippen und `Enter` drücken.
 - Im Programm PROJ ein Projekt übernehmen und festlegen, wie viel Arbeitszeit hineinfließt (0–75 %).
   Dieser Anteil fehlt dem Monatsziel. Fertige Projekte bringen eine Prämie auf der nächsten Abrechnung.
+- Im Programm PERS Leute einstellen, loben, Gehälter erhöhen und zum Teamessen einladen. Das Teamessen zahlst du privat.
+  Unter 25 % Moral kündigen Leute.
+- Im Programm PROD die Ausstattung des HC-1 wählen, die Entwicklung starten und später den Verkaufspreis festlegen.
 - Maus bewegen: im Büro umsehen.
 
 ## Aufbau
@@ -45,11 +50,11 @@ gebraucht. Nur die Schriften kommen von Google Fonts; ohne Internet greifen Ersa
 | --- | --- |
 | `index.html` | Seite, gesamtes CSS, Overlays (Titel, HUD, PC, Dialog, Modale) |
 | `js/main.js` | Einstieg, Hauptschleife, Auto-Save, Hintergrund-Tab |
-| `js/game.js` | Spiellogik ohne Rendering: Zeit, Monatsabschluss, Gehalt, Aktien, Speichern/Export |
+| `js/game.js` | Spiellogik ohne Rendering: Zeit, Monatsabschluss, Gehalt, Aktien, Projekte, Team, Produkt und Markt, Speichern/Export |
 | `js/data.js` | Balancing und Konstanten: Stufen, Upgrades, Schwierigkeitsgrade, Auftragsvorlagen |
 | `js/story.js` | Story: Figuren, Projekte, Mails, Dialoge, Ereignisse, Missionen, Entscheidungen |
 | `js/office.js` | Three.js-Büro: Geometrie, Canvas-Pixeltexturen, Kamera, Figuren |
-| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, LOHN, DEPOT, BEDARF, KARR, SYS |
+| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, PERS, PROD, LOHN, DEPOT, BEDARF, KARR, SYS |
 | `js/ui.js` | Titel, HUD, Dialogablauf, Entgeltabrechnung, Offline-Zusammenfassung, Game Over |
 
 Neue Kapitel entstehen vor allem in `story.js` (Mails, Dialoge, `EVENTS`, `MISSIONS`) und `data.js`

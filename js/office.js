@@ -648,6 +648,7 @@ export class Office {
     ];
     const spots = [[-1.9, -2.3], [0, -2.3], [1.9, -2.3], [-1.9, -4.2], [1.9, -4.2], [0, -4.2]];
     this.leftSpots = [];
+    this.staticPeople = [];
     spots.forEach(([x, z], i) => {
       const s = new THREE.Group();
       this.scene.add(s);
@@ -665,6 +666,7 @@ export class Office {
         p.rotation.y = Math.PI; // Rücken zu uns
         s.add(p);
         this.animated.push({ obj: p, phase: i * 1.7 });
+        this.staticPeople.push(p);
       }
     });
     // Petra am Seitentisch, im Profil sichtbar
@@ -678,6 +680,60 @@ export class Office {
     petra.rotation.y = Math.PI / 2; // schaut zu ihrem Tisch (+x)
     s.add(petra);
     this.animated.push({ obj: petra, phase: 0.4 });
+    this.staticPeople.push(petra);
+    // Sitzplätze für das eigene Team ab Kapitel 3
+    this.teamSeats = [
+      { x: 0, z: -2.05, ry: Math.PI }, { x: 1.9, z: -2.05, ry: Math.PI },
+      { x: 0, z: -3.95, ry: Math.PI }, { x: 1.9, z: -3.95, ry: Math.PI },
+      { x: 2.95, z: -1.2, ry: Math.PI / 2, petra: true },
+    ];
+    this.teamPeople = [];
+    this.buildGlassWall();
+  }
+
+  // Glaswand des Eckabteils (ab Teamleiter); links bleibt eine Türöffnung für Besucher
+  buildGlassWall() {
+    const g = new THREE.Group();
+    const glass = new THREE.MeshLambertMaterial({ color: 0xbcd8e0, transparent: true, opacity: 0.22, depthWrite: false });
+    const frame = 0x6f6b60;
+    plane(1.25, 1.3, glass, 0.825, 1.72, -0.655, 0, g);
+    box(0.05, 2.3, 0.06, frame, 0.2, 1.15, -0.66, g);
+    box(0.05, 2.3, 0.06, frame, 1.45, 1.15, -0.66, g);
+    box(2.55, 0.06, 0.06, frame, 0.2, 2.37, -0.66, g);
+    box(1.25, 0.04, 0.06, frame, 0.825, 1.07, -0.66, g);
+    const sign = tex(72, 12, (c) => {
+      c.fillStyle = '#1f3557'; c.fillRect(0, 0, 72, 12);
+      c.fillStyle = '#f0e6c8'; c.font = '8px monospace'; c.textBaseline = 'middle'; c.textAlign = 'center';
+      c.fillText('HEIMCOMPUTER', 36, 6.5);
+    });
+    plane(0.48, 0.08, sign, 0.825, 2.28, -0.625, 0, g);
+    g.visible = false;
+    this.scene.add(g);
+    this.glassWall = g;
+  }
+
+  setTeam(stage, members) {
+    const own = stage >= 2;
+    this.staticPeople.forEach((p) => { p.visible = !own; });
+    this.teamPeople.forEach((p) => this.scene.remove(p));
+    this.animated = this.animated.filter((a) => !a.obj.userData.team);
+    this.teamPeople = [];
+    if (!own) return;
+    const seats = this.teamSeats.map((x) => ({ ...x, used: false }));
+    const ordered = [...members].sort((a, b) => (b.name === 'Petra Lang') - (a.name === 'Petra Lang'));
+    ordered.forEach((m, i) => {
+      const seat = (m.name === 'Petra Lang' && seats.find((x) => x.petra && !x.used)) || seats.find((x) => !x.used && !x.petra) || seats.find((x) => !x.used);
+      if (!seat) return;
+      seat.used = true;
+      const look = m.look || {};
+      const p = buildPerson({ suit: look.suit ?? 0x6b6f4a, shirt: look.shirt ?? 0xe4ddc8, hair: look.hair ?? 0x3a2a1a, longHair: !!look.longHair, skin: SKINS[look.skin || 0] }, true);
+      p.position.set(seat.x, 0, seat.z);
+      p.rotation.y = seat.ry;
+      p.userData.team = true;
+      this.scene.add(p);
+      this.teamPeople.push(p);
+      this.animated.push({ obj: p, phase: i * 1.3 + 0.2 });
+    });
   }
 
   // -------------------------------------------------- Besucher
@@ -685,7 +741,7 @@ export class Office {
     this.hideVisitor();
     const opt = PEOPLE[who];
     if (!opt) return;
-    const p = buildPerson({ ...opt, glasses: who === 'kessler' }, false);
+    const p = buildPerson({ ...opt, glasses: opt.glasses || who === 'kessler' }, false);
     p.position.copy(this.visitorAnchor);
     p.position.x -= 1.6;
     p.userData.walk = 0;
@@ -713,6 +769,7 @@ export class Office {
   // Arbeitsplatz je Karrierestufe: ab Stufe 1 am Fenster
   setStage(stage) {
     const atWindow = stage >= 1;
+    this.glassWall.visible = stage >= 2;
     this.windowWall.visible = atWindow;
     this.leftPartition.forEach((m) => { m.visible = !atWindow; });
     this.rightPartition.visible = atWindow;

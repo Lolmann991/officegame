@@ -4,6 +4,8 @@ import {
   SAVE_KEY, SAVE_VERSION, MONTH_SECONDS, OFFLINE_SECONDS_PER_MONTH, OFFLINE_MAX_MONTHS,
   BASE_PASSIVE, TASK_BASE_VALUE, SHARE_DISCOUNT, DIVIDEND_PER_SHARE, DIFFICULTIES, STAGES,
   PLAYABLE_STAGES, UPGRADES, TASKS, WERKE, KUNDEN, DAYS_IN_MONTH, MONTH_NAMES, PROJECT_TEMPLATES,
+  TEAM_MAX, TEAM_BUDGET, TEAM_RATE_PER_SKILL, DINNER_COST, TRAITS, FIRST_NAMES, LAST_NAMES,
+  PRODUCT_SPEC, PRODUCT_BASE_NEED, PRODUCT_BASE_Q, PRODUCT_MARKET, PRODUCT_HYPE, PRODUCT_COMMISSION, ORION_HOME,
 } from './data.js';
 import { EVENTS, MAILS, DIALOGS, ON_MAIL_CHOICE, ON_DIALOG_DONE, ON_PROJECT_DONE, warningVars } from './story.js';
 
@@ -28,6 +30,8 @@ function freshState(name, difficulty) {
     shares: { price, owned: 0, history: Array.from({ length: 24 }, (_, i) => round2(price * (1 + Math.sin(i / 3) * 0.02 - (24 - i) * 0.001))) },
     upgrades: {},
     projects: { active: null, offered: [], done: [], share: 0.5 },
+    team: { members: [], candidates: [], budget: TEAM_BUDGET, nextId: 1, dinnerMonth: -1, moraleMonths: 0, overBudget: 0 },
+    product: { stage: 'none', spec: { mem: '16', drive: 'kassette', gfx: 'mono' }, quality: 0, price: 1995, units: 0, revenue: 0, months: 0, history: [] },
     mails: [],
     payslips: [],
     story: { fired: {}, flags: {} },
@@ -67,6 +71,7 @@ export class Game {
       time: { ...base.time, ...obj.time }, player: { ...base.player, ...obj.player },
       shares: { ...base.shares, ...obj.shares }, story: { ...base.story, ...obj.story },
       projects: { ...base.projects, ...obj.projects },
+      team: { ...base.team, ...obj.team }, product: { ...base.product, ...obj.product },
       settings: { ...base.settings, ...obj.settings },
     };
     if (!DIFFICULTIES[this.s.difficulty]) this.s.difficulty = 'normal';
@@ -108,8 +113,9 @@ export class Game {
   owned(id) { return !!this.s.upgrades[id]; }
 
   passiveRate() {
-    return UPGRADES.reduce((sum, u) => sum + (this.owned(u.id) ? (u.passive || 0) : 0), BASE_PASSIVE);
+    return UPGRADES.reduce((sum, u) => sum + (this.owned(u.id) ? (u.passive || 0) : 0), BASE_PASSIVE) + this.teamRate();
   }
+  ownRate() { return this.passiveRate() - this.teamRate(); }
   taskMult() {
     return UPGRADES.reduce((m, u) => m + (this.owned(u.id) ? (u.taskMult || 0) : 0), 1);
   }
@@ -178,6 +184,7 @@ export class Game {
 
   endMonth() {
     const s = this.s, p = s.player, t = s.time, st = this.stage, d = this.diff;
+    this.marketMonth();
     const target = this.target();
     const ratio = p.perf / target;
     let grade = ratio >= 1.5 ? 'A' : ratio >= 1 ? 'B' : ratio >= 0.7 ? 'C' : 'D';
@@ -245,6 +252,7 @@ export class Game {
     }
 
     this.checkProjectDeadline();
+    this.teamMonth(grade);
 
     // nächster Monat
     p.perf = 0;
@@ -367,7 +375,7 @@ export class Game {
     const m = MAILS[id];
     const body = typeof m.body === 'function' ? m.body(this, vars) : m.body;
     const mail = {
-      uid: `${id}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`, id, from: m.from, subject: m.subject, body,
+      uid: `${id}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`, id, from: typeof m.from === "function" ? m.from(this, vars) : m.from, subject: m.subject, body,
       date: this.dateText(), read: false, choices: m.choices || null, chosen: null,
     };
     this.s.mails.unshift(mail);
@@ -416,7 +424,7 @@ export class Game {
     if (!act) { p.perf += points; return; }
     const share = pr.share;
     p.perf += points * (1 - share);
-    act.pp += points * share * (1 + (act.boost || 0));
+    act.pp += points * share * (1 + (act.boost || 0) + (act.id === 'hc1' ? this.creativeBonus() : 0));
     if (act.pp >= act.need) this.finishProject();
   }
 
@@ -429,13 +437,14 @@ export class Game {
     this.emit('change');
   }
 
-  startProject(id) {
+  startProject(id, force = false) {
     const pr = this.s.projects;
-    if (pr.active) return false;
+    if (pr.active && !force) return false;
+    if (pr.active) { pr.offered.unshift(pr.active); pr.active = null; } // pausiert, Fortschritt bleibt
     const i = pr.offered.findIndex((x) => x.id === id);
     if (i < 0) return false;
     const proj = pr.offered.splice(i, 1)[0];
-    proj.pp = 0;
+    proj.pp = proj.pp || 0;
     proj.deadline = this.s.time.totalMonths + proj.months;
     proj.late = false;
     pr.active = proj;
@@ -494,6 +503,214 @@ export class Game {
         reward: Math.round((need * 1.15) / 10) * 10, rep: 1,
       });
     }
+  }
+
+  // ------------------------------------------------------------ Team (ab Kapitel 3)
+  makeMember(opt = {}) {
+    const tm = this.s.team;
+    const traitIds = Object.keys(TRAITS);
+    const skill = opt.skill ?? Math.max(1, Math.min(5, Math.round(rand(1.2, 4.6))));
+    const suits = [0x6b6f4a, 0x8a5a7a, 0x4a5a7a, 0x7a6a4a, 0x3f5a4a, 0x7a3f32, 0x5a6670, 0x8a7448];
+    const hairs = [0x3a2a1a, 0x9a6a3a, 0x1f1a16, 0xb8b4aa, 0x2b1d14, 0x6a4a2a, 0xc8a060];
+    const long = opt.longHair ?? Math.random() < 0.45;
+    return {
+      id: tm.nextId++,
+      name: opt.name || `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`,
+      skill,
+      salary: opt.salary ?? Math.round((1500 + skill * 430 + rand(-150, 250)) / 10) * 10,
+      morale: opt.morale ?? 65,
+      trait: opt.trait || pick(traitIds),
+      praised: -1,
+      look: opt.look || { suit: pick(suits), shirt: 0xe4ddc8, hair: pick(hairs), longHair: long, skin: Math.floor(Math.random() * 4) },
+    };
+  }
+
+  refreshCandidates() {
+    const tm = this.s.team;
+    tm.candidates = [this.makeMember(), this.makeMember(), this.makeMember()];
+  }
+
+  memberRate(m) {
+    const tr = TRAITS[m.trait] || {};
+    return m.skill * TEAM_RATE_PER_SKILL * (0.5 + m.morale / 100) * (tr.mult || 1);
+  }
+  teamRate() { return this.s.team.members.reduce((a, m) => a + this.memberRate(m), 0); }
+  creativeBonus() {
+    const all = this.teamRate();
+    if (!all) return 0;
+    const cre = this.s.team.members.filter((m) => m.trait === 'kreativ').reduce((a, m) => a + this.memberRate(m), 0);
+    return 0.3 * (cre / all);
+  }
+  payroll() { return this.s.team.members.reduce((a, m) => a + m.salary, 0); }
+  avgMorale() {
+    const ms = this.s.team.members;
+    return ms.length ? ms.reduce((a, m) => a + m.morale, 0) / ms.length : 0;
+  }
+  member(id) { return this.s.team.members.find((m) => m.id === id); }
+  changeMorale(m, d) { m.morale = Math.max(0, Math.min(100, m.morale + d)); }
+
+  hire(id) {
+    const tm = this.s.team;
+    if (tm.members.length >= TEAM_MAX) return false;
+    const i = tm.candidates.findIndex((c) => c.id === id);
+    if (i < 0) return false;
+    const m = tm.candidates.splice(i, 1)[0];
+    m.since = this.s.time.totalMonths;
+    tm.members.push(m);
+    this.emit('team');
+    this.emit('change');
+    return m;
+  }
+
+  fire(id) {
+    const tm = this.s.team;
+    const m = this.member(id);
+    if (!m) return false;
+    tm.members = tm.members.filter((x) => x.id !== id);
+    tm.members.forEach((x) => this.changeMorale(x, -6));
+    this.addRep(-1, true);
+    this.emit('team');
+    this.emit('change');
+    return m;
+  }
+
+  praise(id) {
+    const m = this.member(id);
+    if (!m || m.praised === this.s.time.totalMonths) return false;
+    m.praised = this.s.time.totalMonths;
+    this.changeMorale(m, 7);
+    this.emit('team');
+    return true;
+  }
+
+  raiseSalary(id) {
+    const m = this.member(id);
+    if (!m) return false;
+    m.salary = Math.round((m.salary * 1.1) / 10) * 10;
+    this.changeMorale(m, 15);
+    this.emit('team');
+    this.emit('change');
+    return true;
+  }
+
+  dinnerCost() { return DINNER_COST * (this.s.team.members.length + 1); }
+  dinner() {
+    const tm = this.s.team, p = this.s.player;
+    const cost = this.dinnerCost();
+    if (!tm.members.length || tm.dinnerMonth === this.s.time.totalMonths || p.cash < cost) return false;
+    tm.dinnerMonth = this.s.time.totalMonths;
+    p.cash = round2(p.cash - cost);
+    tm.members.forEach((m) => this.changeMorale(m, 9 * (TRAITS[m.trait]?.dinner || 1)));
+    this.emit('team');
+    this.emit('change');
+    return cost;
+  }
+
+  // Monatsende fürs Team: Moral, Kündigungen, Budget, Bewerber
+  teamMonth(grade) {
+    const tm = this.s.team;
+    if (!tm.members.length) return;
+    const share = this.s.projects.active ? this.s.projects.share : 0;
+    const over = this.payroll() > tm.budget;
+    for (const m of [...tm.members]) {
+      const tr = TRAITS[m.trait] || {};
+      const base = tr.drift || 60;
+      let d = (base - m.morale) * 0.15;
+      if (share >= 0.75) d -= 8; else if (share >= 0.5) d -= 4;
+      if (grade === 'A') d += 4;
+      if (grade === 'D') d -= 6;
+      if (over) d -= 3;
+      this.changeMorale(m, d);
+      if (m.morale < 25 && !tr.loyal && Math.random() < 0.5) {
+        tm.members = tm.members.filter((x) => x.id !== m.id);
+        tm.members.forEach((x) => this.changeMorale(x, -4));
+        this.mail('team_quit', { name: m.name });
+      }
+    }
+    if (over) {
+      tm.overBudget++;
+      this.addRep(-1, true);
+      this.mail('team_budget', { payroll: this.payroll(), budget: tm.budget });
+    }
+    if (tm.members.length && this.avgMorale() >= 60) tm.moraleMonths++;
+    this.refreshCandidates();
+    this.emit('team');
+  }
+
+  // ------------------------------------------------------------ Produkt HC-1
+  specValue(key) {
+    const sp = this.s.product.spec;
+    return Object.entries(PRODUCT_SPEC).reduce((a, [k, def]) => a + (def.options.find((o) => o.id === sp[k])?.[key] || 0), 0);
+  }
+  productNeed() {
+    const f = this.s.story.flags;
+    const n = PRODUCT_BASE_NEED + this.specValue('need');
+    return Math.round((n * (f.wb_choice === 'mikro' ? 0.85 : 1)) / 50) * 50;
+  }
+  productQuality() {
+    const ms = this.s.team.members;
+    const avgSkill = ms.length ? ms.reduce((a, m) => a + m.skill, 0) / ms.length : 2;
+    const f = this.s.story.flags;
+    return Math.max(1, Math.min(10, Math.round(PRODUCT_BASE_Q + this.specValue('q') + (avgSkill - 3) + (f.uwe_compromise ? 1 : 0))));
+  }
+  setSpec(key, id) {
+    if (this.s.product.stage !== 'spec') return;
+    this.s.product.spec[key] = id;
+    this.emit('product');
+  }
+  startProduct() {
+    const pd = this.s.product;
+    if (pd.stage !== 'spec') return false;
+    pd.stage = 'dev';
+    const proj = {
+      id: 'hc1', name: 'Entwicklung KB-Heimcomputer HC-1', short: 'HC-1', sponsor: 'Vorstand · H. Kessler',
+      desc: 'Der erste Heimcomputer von KB. Das ganze Team arbeitet mit, sobald du Arbeitszeit ins Projekt gibst.',
+      need: this.productNeed(), months: 8, reward: 0, rep: 4, pp: 0, boost: 0,
+    };
+    this.s.projects.offered.unshift(proj);
+    this.startProject('hc1', true);
+    this.emit('product');
+    return true;
+  }
+  launchProduct(price) {
+    const pd = this.s.product;
+    if (pd.stage !== 'launch') return false;
+    pd.price = price;
+    pd.stage = 'market';
+    pd.months = 0;
+    this.emit('product');
+    this.emit('change');
+    return true;
+  }
+  setPrice(price) {
+    if (this.s.product.stage !== 'market') return;
+    this.s.product.price = price;
+    this.emit('product');
+  }
+  attract(q, price) { return Math.pow(q / 5, 1.5) * Math.pow(1995 / price, 2); }
+
+  marketMonth() {
+    const pd = this.s.product;
+    if (pd.stage !== 'market') return;
+    const hype = PRODUCT_HYPE[Math.min(pd.months, PRODUCT_HYPE.length - 1)];
+    const size = PRODUCT_MARKET * hype * rand(0.92, 1.08);
+    const kb = this.attract(pd.quality, pd.price);
+    const orion = this.s.story.flags.orion_home ? this.attract(ORION_HOME.q, ORION_HOME.price) : 0;
+    const others = 0.6;
+    const total = kb + orion + others;
+    const units = Math.round((size * kb) / total);
+    const orionUnits = Math.round((size * orion) / total);
+    const revenue = units * pd.price;
+    pd.units += units;
+    pd.revenue += revenue;
+    pd.months++;
+    pd.history.push({ label: `${MONTH_NAMES[this.s.time.month].slice(0, 3)} ${this.s.time.year}`, units, orion: orionUnits, share: units / (units + orionUnits + (size * others) / total), price: pd.price });
+    if (pd.history.length > 24) pd.history.shift();
+    const commission = round2(revenue * PRODUCT_COMMISSION);
+    if (commission > 0) this.s.player.pendingBonus.push({ label: 'Erfolgsbeteiligung HC-1', amount: commission });
+    const sh = units / (size || 1);
+    this.shareShock(sh > 0.4 ? 0.015 : sh < 0.15 ? -0.015 : 0.004);
+    this.emit('product');
   }
 
   promote() {

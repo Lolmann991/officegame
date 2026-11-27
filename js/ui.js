@@ -41,7 +41,9 @@ export class UI {
     game.on('toast', ({ text, kind }) => this.toast(text, kind));
     game.on('promotion', () => this.onPromotion());
     game.on('chapter', (no) => this.showChapterIntro(no));
-    game.on('projects', () => this.pc.rerender(['proj', 'karr']));
+    game.on('projects', () => this.pc.rerender(['proj', 'karr', 'prod']));
+    game.on('team', () => { this.pc.rerender(['pers', 'karr']); this.office.setTeam(this.game.s.player.stage, this.game.s.team.members); });
+    game.on('product', () => this.pc.rerender(['prod', 'karr', 'proj']));
     game.on('gameover', (go) => this.showGameOver(go));
   }
 
@@ -131,6 +133,7 @@ export class UI {
     $('#gameover').hidden = true;
     this.office.setUpgrades(this.game.s.upgrades);
     this.office.setStage(this.game.s.player.stage);
+    this.office.setTeam(this.game.s.player.stage, this.game.s.team.members);
     this.screen = 'desk';
     this.office.setMode('desk');
     $('#hud').hidden = false;
@@ -391,6 +394,7 @@ export class UI {
   // Kapitelabschluss bei Beförderung, danach Intro des nächsten Kapitels (falls spielbar)
   onPromotion() {
     this.office.setStage(this.game.s.player.stage);
+    this.office.setTeam(this.game.s.player.stage, this.game.s.team.members);
     this.pc.rerender();
     this.updateHUD();
     const s = this.game.s, f = s.story.flags, stage = s.player.stage;
@@ -405,6 +409,12 @@ export class UI {
           <dt>Angebot aus Frankfurt</dt><dd>${f.negotiated ? 'als Druckmittel genutzt (+12 % Gehalt)' : 'abgelehnt'}</dd>
           <dt>KB-Aktien</dt><dd>${fmtInt(s.shares.owned)}</dd>
           <dt>Ruf</dt><dd>${s.player.rep}</dd>`;
+    const stats3 = `
+          <dt>HC-1 verkauft</dt><dd>${fmtInt(s.product.units)} Geräte</dd>
+          <dt>Umsatz</dt><dd>${fmtDM(s.product.revenue)}</dd>
+          <dt>Qualität</dt><dd>${s.product.quality}/10</dd>
+          <dt>Team</dt><dd>${s.team.members.map((m) => esc(m.name)).join(', ')}</dd>
+          <dt>Uwe</dt><dd>${f.uwe_compromise ? 'Kompromiss mit Großrechner-Schnittstelle' : f.uwe_overruled ? 'überstimmt' : '–'}</dd>`;
     let nextHtml;
     if (next?.intro) {
       f[`seen_ch${next.no}`] = true;
@@ -416,7 +426,7 @@ export class UI {
       <div class="sheet">
         <div class="eyebrow">Kapitel ${done.no} abgeschlossen · ${esc(done.title)}</div>
         <p>Nach ${s.time.totalMonths} Monaten bei KB bist du jetzt <b>${esc(this.game.stage.title)}</b>. Grundgehalt: ${fmtDM(this.game.stage.salary * (1 + (s.player.salaryBonus || 0)))}.</p>
-        <dl class="sheet-dl">${stats}</dl>
+        <dl class="sheet-dl">${stage === 3 ? stats3 : stats}</dl>
         ${nextHtml}
         <button type="button" class="btn primary" data-close>Weiterarbeiten</button>
       </div>`, 'm-sheet');

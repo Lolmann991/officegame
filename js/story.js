@@ -1,7 +1,7 @@
 // Kapitel 1: Mails, Dialoge, Ereignisse und Missionen.
 // Texte dürfen Funktionen sein: (g) => string. Eine Dialogzeile, die null liefert, wird übersprungen.
 
-import { DIFFICULTIES, STAGES, fmtDM, fmtPct, MONTH_NAMES } from './data.js';
+import { DIFFICULTIES, STAGES, TEAM_BUDGET, ORION_HOME, fmtDM, fmtPct, fmtInt, MONTH_NAMES } from './data.js';
 
 const first = (g) => g.s.player.name.split(' ')[0];
 
@@ -12,6 +12,7 @@ export const PEOPLE = {
   petra:    { name: 'Petra Lang', role: 'Kollegin, Rechenzentrum', suit: 0xc8692b, shirt: 0xc8692b, hair: 0x2b1d14, tie: null, longHair: true },
   bergmann: { name: 'Ingrid Bergmann', role: 'Personalabteilung', suit: 0x6d4a6b, shirt: 0xe8e0d0, hair: 0x8a6a3c, tie: null, longHair: true },
   brenner:  { name: 'Klaus Brenner', role: 'Personalberater, am Telefon' },
+  uwe:      { name: 'Uwe Krämer', role: 'Senior-Entwickler, seit 1961 bei KB', suit: 0x55585a, shirt: 0xd9d2bd, hair: 0xa8a49a, tie: 0x2f3f2a, glasses: true },
 };
 
 // ---------------------------------------------------------------- Story-Projekte (Kapitel 2)
@@ -283,6 +284,112 @@ Ihr neues Grundgehalt beträgt ${fmtDM(STAGES[2].salary * (1 + (g.s.player.salar
 Herzlichen Glückwunsch.
 Ingrid Bergmann`,
   },
+  // ---------- Kapitel 3
+  c3_hoff_gruppe: {
+    from: 'W. Hoff · Abteilungsleiter',
+    subject: 'Ihre Gruppe',
+    body: (g) => `${first(g)},
+
+willkommen in der Führungsetage. Na ja, im Eckabteil.
+
+Ihre Gruppe Heimcomputer besteht vorerst aus ${g.s.team.members.map((m) => m.name).join(', ')}. Alles Weitere finden Sie im neuen Programm PERS.
+
+Drei Dinge, die ich in zwanzig Jahren gelernt habe:
+1. Ihr Personalbudget beträgt ${fmtDM(g.s.team.budget)} im Monat. Wer darüber liegt, fällt oben auf.
+2. Unzufriedene Leute arbeiten schlecht und kündigen irgendwann. Ein Lob kostet nichts.
+3. Ab jetzt werden Sie an der Leistung Ihrer Gruppe gemessen, nicht an Ihrer eigenen.
+
+Hoff`,
+  },
+  c3_auftrag: {
+    from: 'H. Kessler · Vorstand',
+    subject: 'Produktauftrag HC-1',
+    body: (g) => `${first(g)},
+
+wie besprochen: Ihre Gruppe entwickelt den ersten Heimcomputer von KB, den HC-1. Die Ausstattung legen Sie im Programm PROD fest. Mehr Ausstattung heißt mehr Qualität, aber auch mehr Entwicklungsarbeit.
+
+Für die Entwicklung erhöhe ich Ihr Personalbudget um 2.000 DM im Monat.
+${g.s.story.flags.wb_choice === 'mikro' ? '\nIhre KB-Mikro-Studie von damals ist die Grundlage. Das spart Ihnen ein gutes Stück Arbeit.\n' : ''}
+Enttäuschen Sie mich nicht. Und enttäuschen Sie vor allem den Vorstand nicht, der wartet nur darauf.
+
+Heinrich Kessler`,
+  },
+  c3_orion_home: {
+    from: 'KB-Hausnachrichten',
+    subject: `Orion kündigt ${ORION_HOME.name} an`,
+    body: () => `FRANKFURT. Orion Datentechnik steigt in den Heimcomputer-Markt ein. Der ${ORION_HOME.name} soll zum Weihnachtsgeschäft für ${fmtDM(ORION_HOME.price)} in den Kaufhäusern stehen, mit 64 KB Speicher und Farbgrafik.
+
+Dr. Viktor Rau: „KB baut Computer für Rechenzentren. Wir bauen Computer für Menschen.“
+
+In Kassel heißt es, die eigene Entwicklung laufe nach Plan.`,
+  },
+  c3_hc1_ready: {
+    from: 'H. Kessler · Vorstand',
+    subject: 'HC-1 ist fertig',
+    body: (g) => `${first(g)},
+
+der HC-1 ist fertig. Qualitätsnote der Prüfabteilung: ${g.s.product.quality} von 10.
+
+Jetzt fehlt nur noch der Preis. Legen Sie ihn im Programm PROD fest. Billig verkauft sich gut, teuer bringt mehr pro Gerät. Und denken Sie an Orion.
+
+Kessler`,
+  },
+  c3_market_report: {
+    from: 'KB-Hausnachrichten',
+    subject: 'HC-1: Der erste Monat im Handel',
+    body: (g) => {
+      const h = g.s.product.history.at(-1);
+      return `KASSEL. Der KB HC-1 hat im ersten Monat ${fmtInt(h.units)} Käufer gefunden. Orion verkaufte im selben Zeitraum ${fmtInt(h.orion)} Geräte des ${ORION_HOME.name}.
+
+${h.units > h.orion ? 'In den Kaufhäusern ist der HC-1 das Gerät, nach dem gefragt wird. Ein Verkäufer in Hannover: „Die Leute wollen den Computer von KB. Den kennen sie aus der Bank.“' : 'Händler berichten von Zurückhaltung. Ein Verkäufer in Hannover: „Für das Geld nehmen die Leute lieber den Orion.“'}
+
+Der Kurs der KB-Aktie reagierte ${h.units > h.orion ? 'freundlich' : 'verhalten'}.`;
+    },
+  },
+  team_quit: {
+    from: 'I. Bergmann · Personalabteilung',
+    subject: 'Kündigung',
+    body: (g, v) => `${g.s.player.name},
+
+${v.name} hat heute gekündigt. Als Grund wurde „Unzufriedenheit mit der Arbeitssituation“ angegeben.
+
+Im Programm PERS finden Sie neue Bewerbungen.
+
+Personalabteilung`,
+  },
+  team_budget: {
+    from: 'W. Hoff · Abteilungsleiter',
+    subject: 'Personalbudget überschritten',
+    body: (g, v) => `${first(g)},
+
+Ihre Gruppe kostet ${fmtDM(v.payroll)} im Monat, Ihr Budget liegt bei ${fmtDM(v.budget)}. Das sieht die Controlling-Abteilung jeden Monat, und dann sehe ich es auch.
+
+Hoff`,
+  },
+  c3_poach: {
+    from: (g) => g.s.story.flags.poach_name,
+    subject: 'Orion hat mich angerufen',
+    body: (g) => `Hallo ${first(g)},
+
+ich will offen sein: Orion hat mir ein Angebot gemacht. 25 % mehr Gehalt, Arbeit am ${ORION_HOME.name}.
+
+Ich arbeite gern in deiner Gruppe. Aber das Geld ist das Geld.
+
+${g.s.story.flags.poach_name}`,
+    choices: ['Gegenangebot: 20 % mehr Gehalt aus dem Gruppenbudget', 'Ich halte dich nicht auf. Viel Glück.'],
+  },
+  promotion_abteilung: {
+    from: 'I. Bergmann · Personalabteilung',
+    subject: 'Ernennung zum Abteilungsleiter',
+    body: (g) => `${g.s.player.name},
+
+der Vorstand hat Sie mit Wirkung zum nächsten Monatsersten zum Leiter der neuen Abteilung PC-Sparte ernannt.
+
+Ihr neues Grundgehalt beträgt ${fmtDM(STAGES[3].salary * (1 + (g.s.player.salaryBonus || 0)))} brutto.
+
+Herzlichen Glückwunsch.
+Ingrid Bergmann`,
+  },
   promotion_letter: {
     from: 'I. Bergmann · Personalabteilung',
     subject: 'Beförderung zum Sachbearbeiter',
@@ -384,6 +491,35 @@ export const DIALOGS = {
     ],
     choices: ['Ich werde Sie nicht enttäuschen.'],
   },
+  kessler_hc: {
+    who: 'kessler',
+    lines: [
+      'Ein Eckabteil mit Glaswand. Steht Ihnen.',
+      'Ich komme gerade aus der Vorstandssitzung. Wir bauen einen Heimcomputer. Der Beschluss war knapp, sehr knapp.',
+      (g) => (g.s.story.flags.wb_choice === 'mikro' ? 'Ohne Ihre Studie von damals hätte ich keine Mehrheit bekommen. Jetzt müssen Sie liefern.' : 'Ich hätte gern eine Studie gehabt, auf die ich mich stützen kann. Jetzt müssen wir ohne auskommen.'),
+      'Ihre Gruppe macht die Entwicklung. Was der HC-1 können soll, entscheiden Sie. Aber Sie tragen auch die Verantwortung.',
+    ],
+    choices: ['Wir fangen sofort an.'],
+  },
+  uwe_conflict: {
+    who: 'uwe',
+    lines: [
+      'Chef, haben Sie fünf Minuten? Ich mach es kurz.',
+      'Ich baue seit 1961 Rechner für dieses Haus. Richtige Rechner. Und jetzt soll ich ein Spielzeug für Kinderzimmer bauen?',
+      'Ich sage Ihnen, was ich mitmache: Wenn das Ding wenigstens an unsere Großrechner angeschlossen werden kann, dann verkaufen wir es auch an Firmen. Das kostet aber Zeit.',
+    ],
+    choices: ['Wir bauen einen Heimcomputer. Punkt.', 'Einverstanden, wir bauen die Großrechner-Schnittstelle ein.'],
+  },
+  kessler_abteilung: {
+    who: 'kessler',
+    lines: [
+      (g) => `Der HC-1 hat ${fmtInt(g.s.product.units)} Käufer gefunden. Ich habe die Zahl im Vorstand dreimal vorgelesen. Beim dritten Mal hat keiner mehr gelacht.`,
+      'Wir gründen eine eigene PC-Sparte. Und jemand muss sie leiten.',
+      'Hoff hat Sie vorgeschlagen. Das hat mich überrascht. Hoff schlägt nie jemanden vor.',
+      'Ab dem Ersten sind Sie Abteilungsleiter. Sie bekommen ein eigenes Büro. Mit Tür.',
+    ],
+    choices: ['Ich nehme an.'],
+  },
   hoff_promotion: {
     who: 'hoff',
     lines: [
@@ -415,6 +551,13 @@ export const MISSIONS = [
     { id: 'orion', text: 'Entscheide über das Angebot aus Frankfurt', prog: (g) => [g.s.story.flags.orion_decided ? 1 : 0, 1] },
     { id: 'good', text: 'Schaffe 4 Monate mit Note B oder besser', prog: (g) => [g.s.player.goodMonths, 4] },
     { id: 'shares', text: 'Besitze 40 KB-Aktien', prog: (g) => [g.s.shares.owned, 40] },
+  ],
+  [
+    { id: 'team', text: 'Baue deine Gruppe auf 5 Leute aus', prog: (g) => [g.s.team.members.length, 5] },
+    { id: 'moral', text: 'Halte die Team-Moral 3 Monate bei 60 % oder mehr', prog: (g) => [g.s.team.moraleMonths, 3] },
+    { id: 'hc1', text: 'Entwickle den KB-Heimcomputer HC-1', prog: (g) => [['launch', 'market'].includes(g.s.product.stage) ? 1 : 0, 1] },
+    { id: 'units', text: 'Verkaufe 15.000 HC-1', prog: (g) => [g.s.product.units, 15000] },
+    { id: 'good', text: 'Schaffe 3 Monate mit Note B oder besser', prog: (g) => [g.s.player.goodMonths, 3] },
   ],
   [],
 ];
@@ -479,10 +622,65 @@ export const EVENTS = [
     run: (g) => g.dialog('brenner_call') },
   { id: 'promotion2', when: (g) => g.s.player.stage === 1 && missionsDone(g) && g.idle(),
     run: (g) => g.dialog('hoff_teamleiter') },
+
+  // ---------- Kapitel 3
+  { id: 'c3_start', when: (g) => g.s.player.stage >= 2,
+    run: (g) => {
+      const f = g.s.story.flags, tm = g.s.team;
+      f.c3_month = t(g).totalMonths;
+      tm.budget = TEAM_BUDGET;
+      if (!tm.members.length) {
+        tm.members.push(f.loyal_petra
+          ? g.makeMember({ name: 'Petra Lang', skill: 4, trait: 'loyal', salary: 3300, morale: 75, look: { suit: 0xc8692b, shirt: 0xc8692b, hair: 0x2b1d14, longHair: true, skin: 0 } })
+          : g.makeMember({ name: 'Monika Weber', skill: 3, trait: 'fleissig', salary: 2900, longHair: true }));
+        tm.members.push(g.makeMember({ name: 'Uwe Krämer', skill: 4, trait: 'eigensinnig', salary: 3900, morale: 55, look: { suit: 0x55585a, shirt: 0xd9d2bd, hair: 0xa8a49a, longHair: false, skin: 0 } }));
+        tm.members.push(g.makeMember({ name: 'Bernd Kowalski', skill: 2, trait: 'kreativ', salary: 2200, morale: 70, longHair: false }));
+        tm.members.forEach((m) => { m.since = t(g).totalMonths; });
+        f.uwe_id = tm.members[1].id;
+      }
+      g.refreshCandidates();
+      g.mail('c3_hoff_gruppe');
+      g.emit('team');
+      if (!f.seen_ch3) { f.seen_ch3 = true; g.emit('chapter', 3); }
+    } },
+  { id: 'c3_kessler', when: (g) => g.s.player.stage >= 2 && t(g).totalMonths >= g.s.story.flags.c3_month + 1 && t(g).monthProgress > 10 && g.idle(),
+    run: (g) => g.dialog('kessler_hc') },
+  { id: 'c3_orion_home', when: (g) => g.s.product.stage === 'dev' && t(g).monthProgress > 25,
+    run: (g) => { g.s.story.flags.orion_home = true; g.mail('c3_orion_home'); g.shareShock(-0.04); } },
+  { id: 'c3_uwe',
+    when: (g) => { const a = g.s.projects.active; return a?.id === 'hc1' && a.pp / a.need > 0.3 && g.member(g.s.story.flags.uwe_id) && g.idle(); },
+    run: (g) => g.dialog('uwe_conflict') },
+  { id: 'c3_poach',
+    when: (g) => g.s.player.stage === 2 && t(g).totalMonths >= g.s.story.flags.c3_month + 3 && t(g).monthProgress > 35
+      && g.s.team.members.some((m) => m.trait !== 'loyal'),
+    run: (g) => {
+      const best = g.s.team.members.filter((m) => m.trait !== 'loyal').sort((a, b) => b.skill - a.skill)[0];
+      g.s.story.flags.poach_id = best.id;
+      g.s.story.flags.poach_name = best.name;
+      g.mail('c3_poach');
+    } },
+  { id: 'c3_market_report', when: (g) => g.s.product.stage === 'market' && g.s.product.months >= 1,
+    run: (g) => { g.mail('c3_market_report'); const h = g.s.product.history.at(-1); g.addRep(h.units > h.orion ? 2 : 0); } },
+  { id: 'promotion3', when: (g) => g.s.player.stage === 2 && missionsDone(g) && g.idle(),
+    run: (g) => g.dialog('kessler_abteilung') },
 ];
 
 // ---------------------------------------------------------------- Reaktionen auf Entscheidungen
 export const ON_MAIL_CHOICE = {
+  c3_poach: (g, idx) => {
+    const m = g.member(g.s.story.flags.poach_id);
+    if (!m) return;
+    if (idx === 0) {
+      m.salary = Math.round((m.salary * 1.2) / 10) * 10;
+      g.changeMorale(m, 12);
+      g.s.story.flags.poach_kept = true;
+    } else {
+      g.s.team.members = g.s.team.members.filter((x) => x.id !== m.id);
+      g.s.team.members.forEach((x) => g.changeMorale(x, -5));
+      g.s.story.flags.poach_lost = true;
+    }
+    g.emit('team');
+  },
   petra_ask: (g, idx) => {
     g.s.story.flags.petra_answered = g.s.time.totalMonths;
     if (idx === 0) {
@@ -498,6 +696,12 @@ export const ON_MAIL_CHOICE = {
 };
 
 export const ON_PROJECT_DONE = {
+  hc1: (g) => {
+    g.s.product.stage = 'launch';
+    g.s.product.quality = g.productQuality();
+    g.mail('c3_hc1_ready');
+    g.emit('product');
+  },
   archiv: (g) => { g.s.story.flags.archiv_done = true; },
   fernwartung: (g, late) => wettbewerbDone(g, 'fernwartung', late),
   mikro: (g, late) => wettbewerbDone(g, 'mikro', late),
@@ -531,6 +735,30 @@ export const ON_DIALOG_DONE = {
       g.addRep(-2);
       g.mail('c2_hoff_raise');
     }
+  },
+  kessler_hc: (g) => {
+    g.s.product.stage = 'spec';
+    g.s.team.budget += 2000;
+    g.mail('c3_auftrag');
+    g.emit('product');
+  },
+  uwe_conflict: (g, idx) => {
+    const uwe = g.member(g.s.story.flags.uwe_id);
+    if (idx === 0) {
+      if (uwe) g.changeMorale(uwe, -25);
+      g.s.team.members.forEach((m) => { if (m !== uwe) g.changeMorale(m, 5); });
+      g.s.story.flags.uwe_overruled = true;
+    } else {
+      if (uwe) g.changeMorale(uwe, 20);
+      g.s.story.flags.uwe_compromise = true;
+      const a = g.s.projects.active;
+      if (a?.id === 'hc1') a.need = Math.round(a.need * 1.1);
+    }
+    g.emit('team');
+  },
+  kessler_abteilung: (g) => {
+    g.promote();
+    g.mail('promotion_abteilung');
   },
   hoff_teamleiter: (g) => {
     g.promote();
