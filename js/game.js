@@ -10,7 +10,7 @@ import {
   NET_CITIES, NET_NODE_COST, NET_NODE_UPKEEP, NET_ADOPTION, NET_UPGRADES, NET_COMPETITORS,
   CORP_START_CASH, CORP_SHARES, CORP_LEGACY_RESULT, CORP_LOAN_STEP, CORP_LOAN_RATE, DIVIDEND_POLICIES,
   HYPE_POINTS, ECONOMY_POINTS, STARTUPS, TAKEOVER, ACHIEVEMENTS,
-  futureName, futureCost, WORLD_REGIONS, LEGACY_KEY, PERKS, perkCost,
+  futureName, futureCost, WORLD_REGIONS, LEGACY_KEY, PERKS, perkCost, ENDLESS_TECHS, lineTrend,
 } from './data.js';
 import { EVENTS, MAILS, DIALOGS, ON_MAIL_CHOICE, ON_DIALOG_DONE, ON_PROJECT_DONE, ENDLESS_EVENTS, SIDE_GOALS, warningVars } from './story.js';
 
@@ -892,7 +892,11 @@ export class Game {
 
   // Forschung
   techDone(id) { return this.s.rd.done.includes(id); }
-  techAvailable(t) { return !this.techDone(t.id) && t.req.every((r) => this.techDone(r)); }
+  allTechs() { return [...TECHS, ...ENDLESS_TECHS]; }
+  techAvailable(t) {
+    if (t.year && (this.s.player.stage < 6 || this.s.time.year < t.year)) return false;
+    return !this.techDone(t.id) && t.req.every((r) => this.techDone(r));
+  }
   setRdBudget(x) { this.s.rd.budget = x; this.emit('dept'); this.emit('change'); }
   selectTech(id) {
     if (id === 'future') {
@@ -902,7 +906,7 @@ export class Game {
       this.emit('dept');
       return true;
     }
-    const t = TECHS.find((x) => x.id === id);
+    const t = this.allTechs().find((x) => x.id === id);
     if (!t || !this.techAvailable(t)) return false;
     this.s.rd.current = id;
     this.tryResearch();
@@ -922,7 +926,7 @@ export class Game {
       this.emit('dept');
       return;
     }
-    const t = TECHS.find((x) => x.id === rd.current);
+    const t = this.allTechs().find((x) => x.id === rd.current);
     if (!t || rd.pool < t.cost) return;
     rd.pool -= t.cost;
     rd.done.push(t.id);
@@ -933,9 +937,10 @@ export class Game {
 
   // Produktlinien
   lineUnlocked(id) { const n = LINES[id].needs; return !n || this.techDone(n); }
-  techQ(id) { return TECHS.reduce((a, t) => a + (this.techDone(t.id) ? (t.q?.[id] || 0) : 0), 0) + (this.s.rd.futureDone || 0); }
+  techQ(id) { return this.allTechs().reduce((a, t) => a + (this.techDone(t.id) ? (t.q?.[id] || 0) : 0), 0) + (this.s.rd.futureDone || 0); }
   futureAvailable() { return this.s.player.stage >= 6; }
-  qualityCap() { return 10 + (this.s.rd.futureDone || 0); }
+  qualityCap() { return 10 + (this.s.rd.futureDone || 0) + Math.floor(ENDLESS_TECHS.filter((t) => this.techDone(t.id)).length / 2); }
+  linesVisible() { return Object.entries(LINES).filter(([, d]) => (d.minStage || 0) <= this.s.player.stage); }
   lineQuality(id) {
     const ms = this.s.team.members;
     const avg = ms.length ? ms.reduce((a, m) => a + m.skill, 0) / ms.length : 3;
@@ -1006,7 +1011,7 @@ export class Game {
       const ln = this.s.lines[id];
       if (!ln.model) continue;
       const hype = PRODUCT_HYPE[Math.min(ln.model.months, PRODUCT_HYPE.length - 1)];
-      const size = (id === 'pc' && f.pc_compat ? def.sizeCompat : def.size) * hype * this.economy() * this.worldFactor() * rand(0.92, 1.08);
+      const size = (id === 'pc' && f.pc_compat ? def.sizeCompat : def.size) * hype * this.economy() * this.worldFactor() * lineTrend(id, this.s.time.year) * rand(0.92, 1.08);
       const sh = this.lineShare(id, ln.model.q, ln.model.price, ln.marketing);
       const units = Math.round((size * sh.kb) / sh.total);
       const orionUnits = Math.round((size * sh.orion) / sh.total);

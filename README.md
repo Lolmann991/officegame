@@ -1,4 +1,4 @@
-# KONZERN (v0.8)
+# KONZERN (v0.9)
 
 Idle-Wirtschaftsspiel im Browser. Du beginnst 1978 als Junior-Sachbearbeiter bei der fiktiven
 Kessler & Brandt Rechenwerke AG und arbeitest dich hoch. Gespielt wird am Schreibtisch in einem
@@ -31,12 +31,27 @@ In jedem Kapitel gibt es außerdem Eilaufträge mit Zeitlimit, drei freiwillige 
 
 Nach dem Finale läuft das Spiel endlos weiter:
 
+- **Neue Technologien** (Programm F&E): 16 Erfindungen von 2005 bis 2034, jede erscheint in ihrem Jahr. Von Mehrkern-Prozessor,
+  SSD und Touchscreen über Cloud, 5G und KI-Chips bis zu großen Sprachmodellen, KI-Agenten und Quantenprozessor.
+  Je zwei erforschte heben die Höchstqualität um 1.
+- **Neue Produktlinien**: Smartphones (Touchscreen), Cloud-Dienste (Cloud-Rechenzentrum) und KI-Assistenten (große Sprachmodelle).
+  Heimcomputer verlieren ab den 90ern Käufer, Tragbare gewinnen dazu. Als CEO gibt es ein höheres Forschungsbudget bis 1 Mio. DM im Monat.
 - **Zukunftsforschung** (Programm F&E): unendlich viele Technologie-Generationen, jede hebt Qualität und Höchstqualität.
 - **Weltmarkt** (Programm WELT): zehn Auslandsregionen von Benelux bis China vergrößern den Markt aller Produktlinien.
 - **Zufallsereignisse** mit Entscheidungen als CEO.
 - **Nachfolge**: Im Programm KARR gehst du in den Ruhestand. Das Spiel endet, du erhältst Vermächtnis-Punkte und kaufst
   auf dem Titelbildschirm dauerhafte Boni für neue Spiele (Startkapital, Grundleistung, Ruf, Aktien).
   Frühere Karrieren stehen in der Ahnengalerie.
+
+## Der PC
+
+- Die Bildschirme füllen fast das ganze Fenster, mit zweitem Monitor teilen sich zwei Displays die Breite.
+- Auf breiten Displays stehen die Programme in einer Seitenleiste, gruppiert nach Arbeit, Firma, Privat und Ich.
+  Auf schmalen Displays bleibt die kompakte Leiste oben.
+- Markierungen an den Programmen: ungelesene Mails, offene Entscheidungen (?), Eilauftrag (!), Beförderungsziele erreicht (★).
+- Jedes Programm beginnt mit einer kurzen Erklärung und Kennzahlen-Kacheln, die Statusleiste unten zeigt Konto und Leistung
+  oder die Konzernkasse.
+- Beträge stehen ausgeschrieben da: „35.000 DM“, „1,25 Mio. €“, „2,4 Mrd. €“ statt Abkürzungen wie TDM.
 
 ## Komfort
 

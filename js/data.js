@@ -186,7 +186,25 @@ export const EURO_RATE = 1.95583;
 export const CURRENCY = { euro: false };
 export const cur = () => (CURRENCY.euro ? '€' : 'DM');
 export const toCur = (v) => (CURRENCY.euro ? v / EURO_RATE : v);
-export const fmtDM = (v) => `${dm.format(toCur(v))} ${cur()}`;
+// Gut lesbare Beträge: 950 DM · 35.000 DM · 1,25 Mio. DM · 2,4 Mrd. DM (ohne Abkürzungen wie TDM)
+const dec = (v, d) => new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: d }).format(v);
+export const fmtMoney = (v) => {
+  const x = toCur(v), a = Math.abs(x), u = cur();
+  if (a < 0.005) return `0 ${u}`;
+  if (a >= 1e9) return `${dec(x / 1e9, 2)} Mrd. ${u}`;
+  if (a >= 1e6) return `${dec(x / 1e6, a >= 1e8 ? 0 : 2)} Mio. ${u}`;
+  if (a >= 1000) return `${dec(Math.round(x), 0)} ${u}`;
+  return `${dec(x, 2)} ${u}`;
+};
+// Beträge ab 10.000 ohne Pfennig/Cent, ab 1 Mio. als „1,25 Mio. DM“
+export const fmtDM = (v) => {
+  const a = Math.abs(toCur(v));
+  if (a >= 1e6) return fmtMoney(v);
+  if (a >= 10000) return `${int.format(Math.round(toCur(v)))} ${cur()}`;
+  return `${dm.format(toCur(v))} ${cur()}`;
+};
+// Große Zahlen ohne Währung (Stück, Kunden): 12.400 · 1,3 Mio.
+export const fmtCount = (v) => (Math.abs(v) >= 1e6 ? `${dec(v / 1e6, 2)} Mio.` : dec(Math.round(v), 0));
 // Betrag in der Währung eines bestimmten Jahres (für alte Abrechnungen)
 export const fmtAt = (v, year) => (year >= 2002 ? `${dm.format(v / EURO_RATE)} €` : `${dm.format(v)} DM`);
 export const numAt = (v, year) => dm.format(year >= 2002 ? v / EURO_RATE : v);
@@ -197,6 +215,7 @@ export const fmtPct = (v, digits = 0) =>
 
 // ---------------------------------------------------------------- Kapitel 4: Forschung, Produktlinien, Abteilung
 export const RD_BUDGETS = [0, 25000, 50000, 100000];  // DM pro Monat
+export const RD_BUDGETS_CEO = [0, 100000, 250000, 500000, 1000000]; // als CEO deutlich mehr
 export const RD_FP_PER_DM = 1 / 250;                  // Forschungspunkte je DM
 
 export const TECHS = [
@@ -217,12 +236,44 @@ export const MARKETING = [
   { cost: 50000, mult: 1.45, label: 'TV + ANZEIGEN' },
 ];
 
+// Preise der Endlos-Linien sind in Euro gedacht und werden intern in DM gespeichert.
+const eur = (list) => list.map((x) => x * EURO_RATE);
 // Produktlinien der PC-Sparte. size = Käufer pro Monat, margin = Rohertrag am Umsatz.
 export const LINES = {
   home: { name: 'Heimcomputer', model: 'HC', size: 9000, prices: [995, 1495, 1995], baseQ: 4, margin: 0.08, devNeed: 7000, orion: 'OR-Home', orionQ: 6 },
   pc: { name: 'Bürocomputer', model: 'KB PC', size: 6000, sizeCompat: 11000, prices: [3995, 5995, 7995], baseQ: 4, margin: 0.22, marginCompat: 0.14, devNeed: 9000, orion: 'OR-PC', orionQ: 5, needs: 'cpu16' },
-  portable: { name: 'Tragbare', model: 'KB Portable', size: 2500, prices: [5995, 7995, 9995], baseQ: 4, margin: 0.2, devNeed: 10000, orion: 'OR-Mobil', orionQ: 5, needs: 'portable' },
+  portable: { name: 'Tragbare', model: 'KB Portable', size: 2500, prices: [5995, 7995, 9995], baseQ: 4, margin: 0.2, devNeed: 10000, orion: 'OR-Mobil', orionQ: 5, needs: 'portable', growFrom: 1995 },
+  // ab 2008 (CEO): neue Märkte, freigeschaltet durch neue Technologien
+  smartphone: { name: 'Smartphones', model: 'KB Phone', size: 40000, prices: eur([599, 999, 1599]), baseQ: 5, margin: 0.18, devNeed: 14000, orion: 'OR-Phone', orionQ: 6, needs: 'touch', minStage: 6 },
+  cloud: { name: 'Cloud-Dienste', model: 'KB Cloud', size: 22000, prices: eur([199, 399, 799]), baseQ: 5, margin: 0.35, devNeed: 16000, orion: 'OrionCloud', orionQ: 6, needs: 'cloud', minStage: 6 },
+  ki: { name: 'KI-Assistenten', model: 'KB Mind', size: 30000, prices: eur([399, 799, 1599]), baseQ: 5, margin: 0.4, devNeed: 20000, orion: 'Orion AI', orionQ: 6, needs: 'llm', minStage: 6 },
 };
+// Heimcomputer verlieren ab den 90ern Käufer, Tragbare gewinnen
+export const lineTrend = (id, year) => {
+  if (id === 'home') return Math.max(0.15, 1 - Math.max(0, year - 1992) * 0.06);
+  if (id === 'portable') return 1 + Math.max(0, Math.min(25, year - 1995)) * 0.12;
+  return 1;
+};
+
+// Neue Technologien ab 2005 (nur als CEO). Danach folgt die endlose Zukunftsforschung.
+export const ENDLESS_TECHS = [
+  { id: 'multicore', name: 'Mehrkern-Prozessor', cost: 1200, year: 2005, req: [], q: { pc: 1, portable: 1 }, desc: '+1 Qualität für Büro und Tragbare.' },
+  { id: 'ssd', name: 'SSD-Speicher', cost: 1300, year: 2007, req: [], q: { pc: 1, portable: 1 }, desc: 'Schneller und leiser als die Festplatte.' },
+  { id: 'touch', name: 'Touchscreen', cost: 1500, year: 2007, req: [], unlock: 'smartphone', desc: 'Schaltet die Produktlinie Smartphones frei.' },
+  { id: 'cloud', name: 'Cloud-Rechenzentrum', cost: 1800, year: 2008, req: ['multicore'], unlock: 'cloud', desc: 'Schaltet die Produktlinie Cloud-Dienste frei.' },
+  { id: 'virt', name: 'Virtualisierung', cost: 1600, year: 2009, req: ['cloud'], q: { cloud: 1 }, desc: '+1 Qualität für Cloud-Dienste.' },
+  { id: 'lte', name: 'Mobilfunk 4G', cost: 2000, year: 2010, req: ['touch'], q: { smartphone: 2 }, desc: '+2 Qualität für Smartphones.' },
+  { id: 'gpu', name: 'Grafikbeschleuniger für Rechenzentren', cost: 2400, year: 2012, req: ['multicore'], q: { pc: 1, cloud: 1 }, desc: '+1 Qualität für Büro und Cloud.' },
+  { id: 'ml', name: 'Maschinelles Lernen', cost: 2800, year: 2014, req: ['gpu'], q: { cloud: 1, smartphone: 1 }, desc: '+1 Qualität für Cloud und Smartphones.' },
+  { id: 'voice', name: 'Sprachassistent', cost: 3000, year: 2016, req: ['ml'], q: { smartphone: 1, home: 1 }, desc: 'Geräte verstehen gesprochene Befehle.' },
+  { id: 'aichip', name: 'KI-Chips', cost: 3600, year: 2018, req: ['ml'], q: { pc: 1, portable: 1, smartphone: 1, cloud: 1 }, desc: '+1 Qualität für vier Linien.' },
+  { id: 'g5', name: 'Mobilfunk 5G', cost: 3400, year: 2019, req: ['lte'], q: { smartphone: 2 }, desc: '+2 Qualität für Smartphones.' },
+  { id: 'llm', name: 'Große Sprachmodelle', cost: 4500, year: 2021, req: ['aichip'], unlock: 'ki', desc: 'Schaltet die Produktlinie KI-Assistenten frei.' },
+  { id: 'agents', name: 'KI-Agenten', cost: 5200, year: 2024, req: ['llm'], q: { ki: 2, cloud: 1 }, desc: 'KI erledigt ganze Aufgaben selbstständig.' },
+  { id: 'quantum', name: 'Quantenprozessor', cost: 6500, year: 2028, req: ['gpu'], q: { cloud: 2, ki: 1 }, desc: '+2 Qualität für Cloud, +1 für KI.' },
+  { id: 'neuro', name: 'Neuromorphe Chips', cost: 7000, year: 2031, req: ['agents'], q: { ki: 2, smartphone: 1 }, desc: 'Rechnen wie ein Gehirn.' },
+  { id: 'holo', name: 'Holografische Displays', cost: 7500, year: 2034, req: ['g5'], q: { smartphone: 2, pc: 1 }, desc: 'Bilder, die im Raum schweben.' },
+];
 export const DEPT_COMMISSION = 0.0008; // Erfolgsbeteiligung am positiven Abteilungsergebnis
 
 // ---------------------------------------------------------------- Kapitel 5: KB-Net

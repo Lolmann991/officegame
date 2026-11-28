@@ -4,36 +4,42 @@
 import {
   UPGRADES, STAGES, MONTH_NAMES, MONTH_SHORT, DIFFICULTIES, SHARES_OUTSTANDING, SHARE_DISCOUNT,
   DIVIDEND_PER_SHARE, PROJECT_SHARES, TRAITS, PRODUCT_SPEC, PRODUCT_PRICES, ORION_HOME,
-  TECHS, LINES, MARKETING, RD_BUDGETS, DEPT_COMMISSION,
+  TECHS, ENDLESS_TECHS, LINES, MARKETING, RD_BUDGETS, RD_BUDGETS_CEO, DEPT_COMMISSION,
   NET_CITIES, NET_NODE_COST, NET_NODE_UPKEEP, NET_TARIFFS, NET_UPGRADES,
   STARTUPS, DIVIDEND_POLICIES, CORP_LOAN_STEP, CORP_LOAN_RATE,
-  TAKEOVER, ACHIEVEMENTS, WORLD_REGIONS, futureName, futureCost, fmtDM, fmtNum, fmtInt, fmtPct, cur, toCur, numAt,
+  TAKEOVER, ACHIEVEMENTS, WORLD_REGIONS, futureName, futureCost, fmtDM, fmtMoney, fmtCount, fmtNum, fmtInt, fmtPct, numAt,
 } from './data.js';
 import { sfx, setSound } from './sound.js';
 import { MISSIONS, SIDE_GOALS, missionsDone } from './story.js';
 import { Game } from './game.js';
 
+// group: Bereich in der Seitenleiste · help: kurze Erklärung unter der Überschrift
 const APPS = [
-  { id: 'post', label: 'POST', title: 'Postfach' },
-  { id: 'aufg', label: 'AUFG', title: 'Aufträge' },
-  { id: 'proj', label: 'PROJ', title: 'Projekte', minStage: 1 },
-  { id: 'pers', label: 'PERS', title: 'Personal', minStage: 2 },
-  { id: 'prod', label: 'PROD', title: 'Produkt', minStage: 2 },
-  { id: 'fue', label: 'F&E', title: 'Forschung', minStage: 3 },
-  { id: 'abt', label: 'ABT', title: 'Abteilung', minStage: 3 },
-  { id: 'netz', label: 'NETZ', title: 'KB-Net', minStage: 4 },
-  { id: 'fin', label: 'FIN', title: 'Finanzen', minStage: 5 },
-  { id: 'abwehr', label: 'ABWEHR', title: 'Übernahmeabwehr', minStage: 6 },
-  { id: 'welt', label: 'WELT', title: 'Weltmarkt', minStage: 6 },
-  { id: 'lohn', label: 'LOHN', title: 'Entgeltabrechnungen' },
-  { id: 'depot', label: 'DEPOT', title: 'Konto und Depot' },
-  { id: 'shop', label: 'BEDARF', title: 'Bürobedarf' },
-  { id: 'karr', label: 'KARR', title: 'Karriere' },
-  { id: 'erf', label: 'ERFOLGE', title: 'Erfolge' },
-  { id: 'sys', label: 'SYS', title: 'System' },
+  { id: 'post', label: 'POST', title: 'Postfach', group: 'ARBEIT', help: 'Mails von Kollegen und Vorstand. Mit ? markierte Mails warten auf deine Entscheidung.' },
+  { id: 'aufg', label: 'AUFG', title: 'Aufträge', group: 'ARBEIT', help: 'Code abtippen, Enter drücken. Jeder Auftrag bringt Punkte fürs Monatsziel. Ab 100 % gibt es Note B, ab 150 % Note A.' },
+  { id: 'proj', label: 'PROJ', title: 'Projekte', group: 'ARBEIT', minStage: 1, help: 'Ein Projekt läuft neben dem Monatsziel. Fertige Projekte bringen eine Prämie auf die nächste Abrechnung.' },
+  { id: 'pers', label: 'PERS', title: 'Personal', group: 'FIRMA', minStage: 2, help: 'Dein Team arbeitet mit. Gute Moral steigert die Leistung. Unter 25 % Moral kündigen Leute.' },
+  { id: 'prod', label: 'PROD', title: 'Produkte', group: 'FIRMA', minStage: 2, help: 'Modelle entwickeln, Preis und Marketing festlegen. Der geschätzte Marktanteil steht neben jedem Preis.' },
+  { id: 'fue', label: 'F&E', title: 'Forschung', group: 'FIRMA', minStage: 3, help: 'Das Budget erzeugt Forschungspunkte (FP). Jede Technologie hebt die Qualität deiner Produkte oder schaltet neue frei.' },
+  { id: 'abt', label: 'ABT', title: 'Abteilung', group: 'FIRMA', minStage: 3, help: 'Monatliche Erfolgsrechnung: Rohertrag aller Produkte minus Personal, Forschung und Marketing.' },
+  { id: 'netz', label: 'NETZ', title: 'KB-Net', group: 'FIRMA', minStage: 4, help: 'Einwahlknoten bauen, Tarif wählen und Kunden gewinnen. Mehr Qualität und Reichweite schlagen die Konkurrenz.' },
+  { id: 'fin', label: 'FIN', title: 'Finanzen', group: 'FIRMA', minStage: 5, help: 'Konzernkasse, Kredite, Dividende und Beteiligungen. Bleibt die Kasse drei Monate im Minus, droht die Abberufung.' },
+  { id: 'abwehr', label: 'ABWEHR', title: 'Übernahmeabwehr', group: 'FIRMA', minStage: 6, help: 'Orion braucht 50 % der Stimmen. Hoher Kurs, Rückkäufe und Kampagnen halten die Aktionäre bei KB.' },
+  { id: 'welt', label: 'WELT', title: 'Weltmarkt', group: 'FIRMA', minStage: 6, help: 'Jede Niederlassung vergrößert den Markt aller Produktlinien und bringt zusätzliches Stammgeschäft.' },
+  { id: 'lohn', label: 'LOHN', title: 'Abrechnungen', group: 'PRIVAT', help: 'Deine monatlichen Gehaltsabrechnungen mit Note, Brutto und Netto.' },
+  { id: 'depot', label: 'DEPOT', title: 'Konto & Depot', group: 'PRIVAT', help: 'Dein privates Geld. KB-Aktien gibt es für Mitarbeiter mit Rabatt, im Dezember kommt die Dividende.' },
+  { id: 'shop', label: 'BEDARF', title: 'Bürobedarf', group: 'PRIVAT', help: 'Ausstattung für deinen Platz, bezahlt vom Girokonto. Viele Teile erhöhen die Grundleistung.' },
+  { id: 'karr', label: 'KARR', title: 'Karriere', group: 'ICH', help: 'Ziele für die nächste Beförderung, freiwillige Nebenziele und deine Laufbahn.' },
+  { id: 'erf', label: 'ERFOLGE', title: 'Erfolge', group: 'ICH', help: 'Besondere Leistungen über das ganze Spiel.' },
+  { id: 'sys', label: 'SYS', title: 'System', group: 'ICH', help: 'Speichern, Export, Monatslänge und Töne.' },
 ];
+const GROUPS = ['ARBEIT', 'FIRMA', 'PRIVAT', 'ICH'];
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Kennzahlen-Kacheln: [Titel, Wert (HTML), Zusatz, Klasse]
+const tiles = (list) => `<div class="tiles">${list.filter(Boolean).map(([l, v, sub, cls]) => `<div class="tile ${cls || ''}"><span class="t-l">${l}</span><b class="t-v">${v}</b>${sub ? `<span class="t-s">${sub}</span>` : ''}</div>`).join('')}</div>`;
+const table = (head, rows) => `<div class="tscroll"><table class="ttable"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+const signed = (v, f = fmtMoney) => `${v > 0 ? '+' : ''}${f(v)}`;
 const bar = (frac, cls = '') => `<span class="tbar ${cls}"><span style="width:${Math.max(0, Math.min(100, frac * 100)).toFixed(1)}%"></span></span>`;
 
 export class PC {
@@ -63,24 +69,39 @@ export class PC {
   }
   hide() { this.root.hidden = true; }
 
+  osName() {
+    const g = this.game, y = g.s.time.year;
+    if (g.era() >= 4) return y >= 2020 ? 'KB OS 26' : y >= 2014 ? 'KB OS 14' : 'KB OS 2008';
+    if (g.era() >= 3) return 'KB-WINDOWS 2000';
+    if (g.era() === 2) return y >= 1992 ? 'KB-WINDOWS 3.1' : 'KB-WINDOWS 1.0';
+    return 'KB-TERMINAL 3270';
+  }
+
   build() {
-    const n = this.paneCount();
+    const n = this.paneCount(), g = this.game;
     this.screens.classList.toggle('dual', n === 2);
-    this.root.classList.toggle('era2', this.game.era() >= 2);
-    this.root.classList.toggle('era3', this.game.era() >= 3);
-    this.root.classList.toggle('era4', this.game.era() >= 4);
+    this.root.classList.toggle('era2', g.era() >= 2);
+    this.root.classList.toggle('era3', g.era() >= 3);
+    this.root.classList.toggle('era4', g.era() >= 4);
+    const apps = APPS.filter((a) => (a.minStage || 0) <= g.s.player.stage);
     this.screens.innerHTML = this.panes.slice(0, n).map((_, i) => `
       <section class="crt" data-pane="${i}">
         <div class="crt-glass">
           <header class="crt-top">
-            <span>${this.game.era() >= 4 ? 'KB BOOK PRO · KB OS 2008' : this.game.era() >= 3 ? 'KB WORKSTATION · KB-WINDOWS 2000' : this.game.era() === 2 ? (this.game.s.time.year >= 1992 ? 'KB PC 486 · KB-WINDOWS 3.1' : 'KB PC · KB-WINDOWS 1.0') : 'KB-TERMINAL 3270'} · ${i === 0 ? 'DISPLAY 1' : 'DISPLAY 2'}</span>
+            <span class="os">${this.osName()}${n === 2 ? ` · DISPLAY ${i + 1}` : ''}</span>
+            <span class="app-title" data-title></span>
             <span data-live="date"></span>
           </header>
-          <nav class="crt-nav" aria-label="Programme">
-            ${APPS.filter((a) => (a.minStage || 0) <= this.game.s.player.stage).map((a) => `<button type="button" data-app="${a.id}" data-pane="${i}">${a.label}${a.id === 'post' ? '<i data-live="unread"></i>' : ''}</button>`).join('')}
-          </nav>
-          <div class="crt-body" id="pane-${i}"></div>
-          <footer class="crt-foot"><span data-live="footer"></span><span>[ESC] AUFSTEHEN</span></footer>
+          <div class="crt-main">
+            <nav class="crt-nav" aria-label="Programme">
+              ${GROUPS.map((gr) => {
+                const list = apps.filter((a) => a.group === gr);
+                return list.length ? `<div class="nav-group"><span class="nav-h">${gr}</span>${list.map((a) => `<button type="button" data-app="${a.id}" data-pane="${i}" title="${esc(a.title)}"><span class="nav-s">${a.label}</span><span class="nav-l">${esc(a.title)}</span><i class="badge" data-badge="${a.id}"></i></button>`).join('')}</div>` : '';
+              }).join('')}
+            </nav>
+            <div class="crt-body" id="pane-${i}"></div>
+          </div>
+          <footer class="crt-foot"><span data-live="foot1"></span><span data-live="foot2"></span><span class="foot-esc">[ESC] AUFSTEHEN</span></footer>
         </div>
       </section>`).join('');
     for (let i = 0; i < n; i++) this.renderPane(i);
@@ -91,9 +112,15 @@ export class PC {
     const body = this.root.querySelector(`#pane-${i}`);
     if (!body) return;
     const app = this.panes[i];
+    const def = APPS.find((a) => a.id === app);
     body.dataset.view = app;
-    body.innerHTML = this['app_' + app](i);
-    this.root.querySelectorAll(`.crt[data-pane="${i}"] .crt-nav button`).forEach((b) => b.classList.toggle('on', b.dataset.app === app));
+    let html = this['app_' + app](i);
+    if (def?.help) html = html.replace('</h2>', `</h2><p class="app-help">${esc(def.help)}</p>`);
+    body.innerHTML = html;
+    const crt = this.root.querySelector(`.crt[data-pane="${i}"]`);
+    const title = crt?.querySelector('[data-title]');
+    if (title) title.textContent = (def?.title || '').toUpperCase();
+    crt?.querySelectorAll('.crt-nav button').forEach((b) => b.classList.toggle('on', b.dataset.app === app));
     if (app === 'depot') this.drawChart(i);
     if (app === 'welt') this.drawMap(i);
   }
@@ -127,8 +154,9 @@ export class PC {
     const target = g.target();
     const vals = {
       date: g.dateText().toUpperCase(),
-      unread: g.unreadCount() ? ` ${g.unreadCount()}` : '',
-      footer: `KONTO ${fmtDM(p.cash)} · LEISTUNG ${fmtInt(p.perf)}/${fmtInt(target)}`,
+      foot1: `KONTO ${fmtDM(p.cash)}`,
+      foot2: p.stage >= 5 && s.corp.active ? `KONZERNKASSE ${fmtMoney(s.corp.cash)}` : `LEISTUNG ${fmtPct(p.perf / target)} · NOTE ${this.gradeNow()}`,
+      gradeNow: this.gradeNow(),
       perf: `${fmtInt(p.perf)} / ${fmtInt(target)}`,
       perfPct: fmtPct(p.perf / target),
       rate: `${fmtInt(g.perMonth(g.passiveRate()))} Pkt/Monat`,
@@ -163,7 +191,24 @@ export class PC {
       const r = p.perf / target;
       el.dataset.grade = r >= 1.5 ? 'A' : r >= 1 ? 'B' : r >= 0.7 ? 'C' : 'D';
     });
+    const decide = s.mails.filter((m) => m.choices && m.chosen == null).length;
+    const badges = {
+      post: g.unreadCount() ? String(g.unreadCount()) : decide ? '?' : '',
+      aufg: s.rush ? '!' : '',
+      proj: !s.projects.active && s.projects.offered.length ? String(s.projects.offered.length) : '',
+      karr: missionsDone(g) && p.stage < 6 ? '★' : '',
+    };
+    this.root.querySelectorAll('[data-badge]').forEach((el) => {
+      const v = badges[el.dataset.badge] || '';
+      if (el.textContent !== v) el.textContent = v;
+      el.classList.toggle('hot', el.dataset.badge === 'post' ? decide > 0 : v === '!');
+    });
     this.root.querySelectorAll('button[data-need]').forEach((b) => { b.disabled = p.cash < Number(b.dataset.need); });
+  }
+
+  gradeNow() {
+    const g = this.game, r = g.s.player.perf / g.target();
+    return r >= 1.5 ? 'A' : r >= 1 ? 'B' : r >= 0.7 ? 'C' : 'D';
   }
 
   // ------------------------------------------------------------ Programme
@@ -200,12 +245,16 @@ export class PC {
     const fb = r ? (r.ok ? `<p class="ok">✓ ${esc(r.code)} BEARBEITET · +${r.value} PKT</p>` : `<p class="err">✗ CODE FALSCH · SERIE VERLOREN</p>`) : '<p class="dim">Tippe den Auftragscode ab und drücke die Eingabetaste.</p>';
     return `
       <h2>AUFTRAGSBEARBEITUNG <span class="dim">RECHENZENTRUM</span></h2>
+      ${tiles([
+        ['LEISTUNG', '<span data-live="perfPct"></span>', '<span data-live="perf"></span> PKT'],
+        ['NOTE BISHER', '<span data-live="gradeNow"></span>', 'B AB 100 % · A AB 150 %'],
+        ['JE AUFTRAG', '<span data-live="taskValue"></span>', '<span data-live="streak"></span>'],
+        ['GRUNDLEISTUNG', '<span data-live="rate"></span>', g.s.team.members.length ? 'INKL. TEAM' : 'AUTOMATISCH'],
+      ])}
       <div class="kv">
-        <span>LEISTUNG</span><span><b data-live="perf"></b> (<span data-live="perfPct"></span>)</span>
-        <span></span><span class="tbar big" data-bar="perf"><span></span><em style="left:${(100 / 1.5).toFixed(1)}%">B</em><em style="left:100%">A</em></span>
+        <span>MONATSZIEL</span><span class="tbar big" data-bar="perf"><span></span><em style="left:${(100 / 1.5).toFixed(1)}%">B</em><em style="left:100%">A</em></span>
         <span>MONAT</span><span><span data-live="days"></span></span>
         <span></span><span class="tbar" data-bar="month"><span></span></span>
-        <span>GRUNDLEISTUNG</span><span data-live="rate"></span>
         ${g.s.team.members.length ? '<span>DAVON TEAM</span><span data-live="teamRate"></span>' : ''}
       </div>
       ${g.s.rush ? `<div class="task rush">
@@ -317,12 +366,17 @@ export class PC {
       </div>`;
     }).join('');
     return `<h2>PERSONAL <span class="dim">${esc(g.stage.dept.toUpperCase())}</span></h2>
+      ${tiles([
+        ['TEAM', `${tm.members.length}/${g.teamMax()}`, `${tm.candidates.length} BEWERBUNGEN`],
+        ['PERSONALKOSTEN', fmtMoney(g.payroll()), `BUDGET ${fmtMoney(tm.budget)}`, over ? 'bad' : ''],
+        ['Ø MORAL', fmtPct(g.avgMorale() / 100), g.avgMorale() >= 60 ? 'GUT' : g.avgMorale() < 35 ? 'KRITISCH' : 'MITTEL', g.avgMorale() < 35 ? 'bad' : ''],
+        ['TEAMLEISTUNG', fmtInt(g.perMonth(g.teamRate())), 'PKT PRO MONAT'],
+      ])}
       <div class="kv">
         <span>PERSONALKOSTEN</span><span class="${over ? 'err' : ''}" data-live="payroll"></span>
         <span></span><span class="tbar ${over ? 'low' : ''}" data-bar="payroll"><span></span></span>
         <span>Ø MORAL</span><span data-live="morale"></span>
         <span></span><span class="tbar" data-bar="morale"><span></span></span>
-        <span>TEAMLEISTUNG</span><span data-live="teamRate"></span>
         <span>GUTE MONATE</span><span>${tm.moraleMonths} (Ø MORAL AB 60 %)</span>
       </div>
       <div class="row">
@@ -401,14 +455,24 @@ export class PC {
 
   app_lines() {
     const g = this.game, f = g.s.story.flags;
-    let html = `<h2>PRODUKTLINIEN <span class="dim">${esc(g.stage.dept.toUpperCase())}</span></h2>`;
-    for (const [id, def] of Object.entries(LINES)) {
+    const vis = g.linesVisible();
+    const lastD = g.s.dept.history.at(-1);
+    const active = vis.filter(([id]) => g.s.lines[id].model).length;
+    const unitsLast = vis.reduce((a, [id]) => a + (g.s.lines[id].last?.units || 0), 0);
+    let html = `<h2>PRODUKTLINIEN <span class="dim">${esc(g.stage.dept.toUpperCase())}</span></h2>
+      ${tiles([
+        ['IM HANDEL', `${active}/${vis.length}`, 'PRODUKTLINIEN'],
+        ['VERKAUFT', fmtCount(unitsLast), 'STÜCK IM LETZTEN MONAT'],
+        ['ABTEILUNG', lastD ? signed(lastD.result) : '–', 'ERGEBNIS LETZTER MONAT', lastD && lastD.result < 0 ? 'bad' : 'good'],
+        ['HÖCHSTQUALITÄT', String(g.qualityCap()), g.qualityCap() > 10 ? 'ÜBER 10 DURCH NEUE TECHNIK' : 'SKALA 1 BIS 10'],
+      ])}`;
+    for (const [id, def] of vis) {
       const ln = g.s.lines[id];
       const unlocked = g.lineUnlocked(id);
-      html += `<div class="member"><div><b>${esc(def.name.toUpperCase())}</b> <span class="dim">ORION: ${esc(def.orion)} · QUALITÄT ${g.orionQ(id)}/10 · ${fmtDM(g.orionPrice(id))}</span></div>`;
+      html += `<div class="member"><div><b>${esc(def.name.toUpperCase())}</b> <span class="dim">KONKURRENZ ${esc(def.orion)} · QUALITÄT ${g.orionQ(id)} · ${fmtMoney(g.orionPrice(id))}</span></div>`;
       if (!unlocked) {
-        const t = TECHS.find((x) => x.id === def.needs);
-        html += `<p class="dim">GESPERRT · BRAUCHT DIE TECHNOLOGIE „${esc(t.name)}“ (PROGRAMM F&amp;E)</p></div>`;
+        const t = g.allTechs().find((x) => x.id === def.needs);
+        html += `<p class="dim">GESPERRT · BRAUCHT DIE TECHNOLOGIE „${esc(t.name)}“${t.year ? ` (AB ${t.year})` : ''} IM PROGRAMM F&amp;E</p></div>`;
         continue;
       }
       if (id === 'pc' && f.pc_compat == null && !ln.model) html += '<p class="err">STANDARD NOCH NICHT ENTSCHIEDEN (SIEHE POST). OHNE ENTSCHEIDUNG GILT „EIGENER STANDARD“.</p>';
@@ -416,14 +480,14 @@ export class PC {
         const m = ln.model, last = ln.last;
         html += `<div class="kv">
           <span>IM HANDEL</span><span><b>${esc(m.name)}</b> · QUALITÄT ${m.q}/10 · SEIT ${m.months} MONATEN</span>
-          <span>LETZTER MONAT</span><span>${last ? `${fmtInt(last.units)} STÜCK · ORION ${fmtInt(last.orion)} · ANTEIL ${fmtPct(last.share)}` : 'NOCH KEINE ZAHLEN'}</span>
-          <span>GESAMT</span><span>${fmtInt(ln.units)} STÜCK · ${fmtDM(ln.revenue)}</span>
+          <span>LETZTER MONAT</span><span>${last ? `${fmtCount(last.units)} STÜCK · ORION ${fmtCount(last.orion)} · MARKTANTEIL ${fmtPct(last.share)}` : 'NOCH KEINE ZAHLEN'}</span>
+          <span>GESAMT</span><span>${fmtCount(ln.units)} STÜCK · UMSATZ ${fmtMoney(ln.revenue)}</span>
         </div>
         <div class="row"><span class="dim">PREIS</span>${def.prices.map((pr) => {
           const sh = g.lineShare(id, m.q, pr, ln.marketing);
-          return `<button type="button" class="tbtn small ${m.price === pr ? 'chosen' : ''}" data-act="line-price" data-line="${id}" data-arg="${pr}">${fmtInt(toCur(pr))} · ~${fmtPct(sh.kb / sh.total)}</button>`;
+          return `<button type="button" class="tbtn small ${m.price === pr ? 'chosen' : ''}" data-act="line-price" data-line="${id}" data-arg="${pr}">${fmtMoney(pr)} · ~${fmtPct(sh.kb / sh.total)} ANTEIL</button>`;
         }).join('')}</div>
-        <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => `<button type="button" class="tbtn small ${ln.marketing === k ? 'chosen' : ''}" data-act="line-mk" data-line="${id}" data-arg="${k}">${mk.label}${mk.cost ? ` ${fmtInt(toCur(mk.cost) / 1000)} T${cur()}` : ''}</button>`).join('')}</div>`;
+        <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => `<button type="button" class="tbtn small ${ln.marketing === k ? 'chosen' : ''}" data-act="line-mk" data-line="${id}" data-arg="${k}">${mk.label}${mk.cost ? ` · ${fmtMoney(mk.cost)}/MONAT` : ''}</button>`).join('')}</div>`;
       }
       if (ln.devGen) {
         const a = g.s.projects.active;
@@ -434,7 +498,7 @@ export class PC {
         html += `<p class="ok">FERTIG: <b>${esc(pn.name)}</b> · QUALITÄT ${pn.q}/10. PREIS WÄHLEN UND IN DEN HANDEL BRINGEN:</p>
           <div class="row">${def.prices.map((pr) => {
             const sh = g.lineShare(id, pn.q, pr, ln.marketing);
-            return `<button type="button" class="tbtn small" data-act="line-launch" data-line="${id}" data-arg="${pr}">${fmtDM(pr)} · ~${fmtPct(sh.kb / sh.total)}</button>`;
+            return `<button type="button" class="tbtn small" data-act="line-launch" data-line="${id}" data-arg="${pr}">${fmtMoney(pr)} · ~${fmtPct(sh.kb / sh.total)} ANTEIL</button>`;
           }).join('')}</div>`;
       } else {
         const gen = ln.gen + 1;
@@ -447,26 +511,46 @@ export class PC {
     return html + '<p class="dim">Neue Modelle laufen als Projekt im Programm PROJ. Das alte Modell verkauft sich weiter, bis der Nachfolger im Handel ist.</p>';
   }
 
+  techRow(t) {
+    const g = this.game, rd = g.s.rd, all = g.allTechs();
+    const done = g.techDone(t.id), avail = g.techAvailable(t), isCur = rd.current === t.id;
+    const early = t.year && !done && g.s.time.year < t.year;
+    const missing = t.req.filter((r) => !g.techDone(r)).map((r) => all.find((x) => x.id === r)?.name || r);
+    const state = done ? '<span class="ok">ERFORSCHT</span>' : isCur ? '<span class="ok">IN ARBEIT</span>'
+      : avail ? `<button type="button" class="tbtn small" data-act="tech" data-arg="${t.id}">FORSCHEN</button>`
+        : early ? `<span class="dim">AB ${t.year}</span>` : '<span class="dim">GESPERRT</span>';
+    return `<div class="shop-row ${done ? 'owned' : !avail && !isCur ? 'locked' : ''}">
+      <div><b>${done ? '[X]' : isCur ? '[>]' : '[ ]'} ${esc(t.name)}</b> <span class="dim">${fmtInt(t.cost)} FP${t.year ? ` · AB ${t.year}` : ''}</span><br>
+        <span class="dim">${esc(t.desc)}${!done && missing.length ? ` · BRAUCHT ERST: ${esc(missing.join(', '))}` : ''}</span></div>
+      <div class="r">${state}</div>
+    </div>`;
+  }
+
   app_fue() {
-    const g = this.game, rd = g.s.rd;
-    const curTech = rd.current === 'future' ? { name: futureName(rd.futureDone || 0), cost: futureCost(rd.futureDone || 0) } : TECHS.find((x) => x.id === rd.current);
-    const list = TECHS.map((t) => {
-      const done = g.techDone(t.id), avail = g.techAvailable(t), isCur = rd.current === t.id;
-      const req = t.req.length ? ` · BRAUCHT ${t.req.map((r) => TECHS.find((x) => x.id === r).name).join(', ')}` : '';
-      return `<div class="shop-row ${done ? 'owned' : !avail ? 'locked' : ''}">
-        <div><b>${done ? '[X]' : isCur ? '[>]' : '[ ]'} ${esc(t.name)}</b> <span class="dim">${fmtInt(t.cost)} FP${esc(req)}</span><br><span class="dim">${esc(t.desc)}</span></div>
-        <div class="r">${done ? '<span class="ok">ERFORSCHT</span>' : isCur ? '<span class="ok">IN ARBEIT</span>' : avail ? `<button type="button" class="tbtn small" data-act="tech" data-arg="${t.id}">FORSCHEN</button>` : '<span class="dim">GESPERRT</span>'}</div>
-      </div>`;
-    }).join('');
+    const g = this.game, rd = g.s.rd, ceo = g.s.player.stage >= 6;
+    const curTech = rd.current === 'future' ? { name: futureName(rd.futureDone || 0), cost: futureCost(rd.futureDone || 0) } : g.allTechs().find((x) => x.id === rd.current);
+    const budgets = ceo ? RD_BUDGETS_CEO : RD_BUDGETS;
+    const fpm = g.rdPerMonth();
+    const eta = curTech && fpm > 0 ? Math.max(0, Math.ceil((curTech.cost - rd.pool) / fpm)) : null;
+    const baseDone = TECHS.filter((t) => g.techDone(t.id)).length;
+    const newDone = ENDLESS_TECHS.filter((t) => g.techDone(t.id)).length;
+    const next = ENDLESS_TECHS.find((t) => !g.techDone(t.id) && g.s.time.year < t.year);
     return `<h2>FORSCHUNG &amp; ENTWICKLUNG <span class="dim">LABOR GEBÄUDE D</span></h2>
+      ${tiles([
+        ['BUDGET', fmtMoney(rd.budget), 'PRO MONAT, GEHT VOM ERGEBNIS AB'],
+        ['FORSCHUNGSPUNKTE', `+${fmtInt(fpm)} FP`, 'ZUM MONATSENDE'],
+        ['GUTHABEN', `${fmtInt(rd.pool)} FP`, curTech ? `NÖTIG ${fmtInt(curTech.cost)} FP` : 'NICHTS AUSGEWÄHLT', curTech ? '' : 'bad'],
+        ['ERFORSCHT', ceo ? `${baseDone + newDone}/${TECHS.length + ENDLESS_TECHS.length}` : `${baseDone}/${TECHS.length}`, `HÖCHSTQUALITÄT ${g.qualityCap()}`],
+      ])}
       <div class="kv">
-        <span>BUDGET</span><span>${fmtDM(rd.budget)} / MONAT (GEHT VOM ERGEBNIS AB)</span>
-        <span>GUTHABEN</span><span><b>${fmtInt(rd.pool)} FP</b> · +${fmtInt(g.rdPerMonth())} FP ZUM MONATSENDE</span>
-        <span>AKTUELL</span><span>${curTech ? `${esc(curTech.name)} · ${fmtInt(Math.min(rd.pool, curTech.cost))}/${fmtInt(curTech.cost)} FP` : '<span class="err">NICHTS AUSGEWÄHLT</span>'}</span>
+        <span>AKTUELL</span><span>${curTech ? `<b>${esc(curTech.name)}</b> · ${eta === 0 ? 'FERTIG ZUM MONATSENDE' : eta ? `NOCH CA. ${eta} MONAT${eta === 1 ? '' : 'E'}` : 'OHNE BUDGET KEIN FORTSCHRITT'}` : '<span class="err">NICHTS AUSGEWÄHLT, WÄHLE UNTEN EINE TECHNOLOGIE</span>'}</span>
+        ${curTech ? `<span></span><span class="tbar big"><span style="width:${Math.min(100, (rd.pool / curTech.cost) * 100).toFixed(1)}%"></span></span>` : ''}
       </div>
-      ${curTech ? `<span class="tbar big"><span style="width:${Math.min(100, (rd.pool / curTech.cost) * 100).toFixed(1)}%"></span></span>` : ''}
-      <div class="row"><span class="dim">BUDGET</span>${RD_BUDGETS.map((b) => `<button type="button" class="tbtn small ${rd.budget === b ? 'chosen' : ''}" data-act="rd-budget" data-arg="${b}">${b ? `${fmtInt(toCur(b) / 1000)} T${cur()}` : 'KEINS'}</button>`).join('')}</div>
-      <h3>TECHNOLOGIEN ${rd.done.length}/${TECHS.length}</h3>${list}
+      <div class="row"><span class="dim">BUDGET PRO MONAT</span>${budgets.map((b) => `<button type="button" class="tbtn small ${rd.budget === b ? 'chosen' : ''}" data-act="rd-budget" data-arg="${b}">${b ? fmtMoney(b) : 'KEINS'}</button>`).join('')}</div>
+      ${ceo ? `<h3>NEUE TECHNOLOGIEN <span class="dim">${newDone}/${ENDLESS_TECHS.length}${next ? ` · NÄCHSTE AB ${next.year}: ${esc(next.name.toUpperCase())}` : ''}</span></h3>
+      <p class="dim">Jede neue Technik erscheint in ihrem Erfindungsjahr. Je zwei erforschte heben die Höchstqualität um 1.</p>
+      ${ENDLESS_TECHS.map((t) => this.techRow(t)).join('')}` : ''}
+      <h3>${ceo ? 'KLASSISCHE TECHNIK' : 'TECHNOLOGIEN'} <span class="dim">${baseDone}/${TECHS.length}</span></h3>${TECHS.map((t) => this.techRow(t)).join('')}
       ${g.futureAvailable() ? `<h3>ZUKUNFTSFORSCHUNG <span class="dim">${rd.futureDone || 0} ERFORSCHT · HÖCHSTQUALITÄT ${g.qualityCap()}</span></h3>
       <div class="shop-row"><div><b>${rd.current === 'future' ? '[>]' : '[ ]'} ${esc(futureName(rd.futureDone || 0))}</b> <span class="dim">${fmtInt(futureCost(rd.futureDone || 0))} FP</span><br>
         <span class="dim">+1 Qualität für alle Linien und +1 Höchstqualität. Danach folgt die nächste Generation.</span></div>
@@ -475,18 +559,19 @@ export class PC {
   }
 
   app_abt() {
-    const g = this.game, d = g.s.dept;
-    const T = (x) => fmtInt(Math.round(toCur(x) / 1000));
-    const rows = d.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${T(h.revenue)}</td><td class="r">${T(h.gross)}</td><td class="r">${T(h.payroll)}</td><td class="r">${T(h.rd)}</td><td class="r">${T(h.mkt)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${T(h.result)}</td></tr>`).join('');
+    const g = this.game, d = g.s.dept, last = d.history.at(-1);
+    const cell = (v, cls = '') => `<td class="r ${cls}">${fmtMoney(v)}</td>`;
+    const rows = d.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td>${cell(h.revenue)}${cell(h.gross)}${cell(h.payroll)}${cell(h.rd)}${cell(h.mkt)}${cell(h.result, h.result >= 0 ? 'ok' : 'err')}</tr>`).join('');
     return `<h2>ABTEILUNGSERGEBNIS <span class="dim">${esc(g.stage.dept.toUpperCase())}</span></h2>
-      <div class="kv">
-        <span>BESTER MONAT</span><span>${fmtDM(Math.max(0, d.best))}</span>
-        <span>SCHWARZE ZAHLEN</span><span>${d.posStreak} MONAT${d.posStreak === 1 ? '' : 'E'} IN FOLGE</span>
-        <span>BETEILIGUNG</span><span>${fmtPct(DEPT_COMMISSION, 2)} DES POSITIVEN ERGEBNISSES AUF DEINER ABRECHNUNG</span>
-      </div>
-      ${rows ? `<h3>LETZTE MONATE <span class="dim">IN TAUSEND ${cur()}</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">UMSATZ</th><th class="r">ROHERTR.</th><th class="r">PERSONAL</th><th class="r">F&amp;E</th><th class="r">MARKET.</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>`
+      ${tiles([
+        ['LETZTER MONAT', last ? signed(last.result) : '–', last ? `UMSATZ ${fmtMoney(last.revenue)}` : 'NOCH KEINE ZAHLEN', last ? (last.result >= 0 ? 'good' : 'bad') : ''],
+        ['BESTER MONAT', fmtMoney(Math.max(0, d.best)), 'ERGEBNIS'],
+        ['SCHWARZE ZAHLEN', `${d.posStreak}`, `MONAT${d.posStreak === 1 ? '' : 'E'} IN FOLGE`],
+        ['DEIN ANTEIL', last && last.result > 0 ? fmtMoney(last.result * DEPT_COMMISSION) : '–', `${fmtPct(DEPT_COMMISSION, 2)} DES GEWINNS AUF DER ABRECHNUNG`],
+      ])}
+      ${rows ? `<h3>LETZTE MONATE</h3>${table('<th>MONAT</th><th class="r">UMSATZ</th><th class="r">ROHERTRAG</th><th class="r">PERSONAL</th><th class="r">F&amp;E</th><th class="r">MARKETING</th><th class="r">ERGEBNIS</th>', rows)}`
         : '<p class="dim">Die erste Abrechnung der Abteilung kommt zum Monatsende.</p>'}
-      <p class="dim">Ergebnis = Rohertrag aller Linien minus Personal, Forschung und Marketing.</p>`;
+      <p class="dim">Rohertrag = Umsatz minus Material und Fertigung.</p>`;
   }
 
   app_netz() {
@@ -497,34 +582,38 @@ export class PC {
     const cities = NET_CITIES.map((c) => {
       const built = net.nodes.includes(c.id), cost = NET_NODE_COST(c.pop);
       return `<div class="shop-row ${built ? 'owned' : ''}">
-        <div><b>${esc(c.name)}</b> <span class="dim">${fmtInt(c.pop)} EINWOHNER</span></div>
-        <div class="r">${built ? '<span class="ok">KNOTEN AKTIV</span>' : `<button type="button" class="tbtn small" data-act="node" data-arg="${c.id}" ${net.invest < cost || frozen ? 'disabled' : ''}>BAUEN · ${fmtNum(cost / 1e6)} MIO.</button>`}</div>
+        <div><b>${esc(c.name)}</b> <span class="dim">${fmtCount(c.pop)} EINWOHNER</span></div>
+        <div class="r">${built ? '<span class="ok">KNOTEN AKTIV</span>' : `<button type="button" class="tbtn small" data-act="node" data-arg="${c.id}" ${net.invest < cost || frozen ? 'disabled' : ''}>BAUEN · ${fmtMoney(cost)}</button>`}</div>
       </div>`;
     }).join('');
     const up = NET_UPGRADES[net.qLevel];
     const comps = g.netCompetitors().map((c) => `${esc(c.name)} Q${c.q} · ${fmtDM(c.tariff)}`).join(' · ');
-    const rows = net.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${fmtInt(h.subs)}</td><td class="r ${h.delta >= 0 ? 'ok' : 'err'}">${h.delta >= 0 ? '+' : ''}${fmtInt(h.delta)}</td><td class="r">${fmtInt(toCur(h.revenue) / 1000)}</td><td class="r">${fmtInt(toCur(h.cost) / 1000)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${fmtInt(toCur(h.result) / 1000)}</td></tr>`).join('');
+    const rows = net.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${fmtCount(h.subs)}</td><td class="r ${h.delta >= 0 ? 'ok' : 'err'}">${h.delta >= 0 ? '+' : ''}${fmtCount(h.delta)}</td><td class="r">${fmtMoney(h.revenue)}</td><td class="r">${fmtMoney(h.cost)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${fmtMoney(h.result)}</td></tr>`).join('');
     return `<h2>KB-NET <span class="dim">ONLINEDIENST</span></h2>
       ${frozen ? '<p class="err">INVESTITIONEN VOM VORSTAND EINGEFROREN</p>' : ''}
+      ${tiles([
+        ['KUNDEN', fmtCount(net.subs), last ? `${last.delta >= 0 ? '+' : ''}${fmtCount(last.delta)} IM LETZTEN MONAT` : 'NOCH KEINE ZAHLEN', last && last.delta < 0 ? 'bad' : ''],
+        ['ERGEBNIS', last ? signed(last.result) : '–', 'LETZTER MONAT', last ? (last.result >= 0 ? 'good' : 'bad') : ''],
+        ['INVESTITION', fmtMoney(net.invest), 'NOCH VERFÜGBAR'],
+        ['QUALITÄT', `${g.netQuality()}/10`, `${net.nodes.length}/${NET_CITIES.length} KNOTEN`],
+      ])}
       <div class="kv">
-        <span>KUNDEN</span><span><b>${fmtInt(net.subs)}</b>${last ? ` (${last.delta >= 0 ? '+' : ''}${fmtInt(last.delta)} IM LETZTEN MONAT)` : ''}</span>
-        <span>REICHWEITE</span><span>${fmtInt(g.netCovered())} EINWOHNER · ${fmtPct(g.adoption(), 1)} DAVON ONLINE</span>
-        <span>INVESTITION</span><span>${fmtDM(net.invest)} VERFÜGBAR</span>
-        <span>QUALITÄT</span><span>${g.netQuality()}/10 · ${esc(NET_UPGRADES[net.qLevel - 1]?.name || 'Modems mit 2.400 Baud')}</span>
+        <span>REICHWEITE</span><span>${fmtCount(g.netCovered())} EINWOHNER · ${fmtPct(g.adoption(), 1)} DAVON ONLINE</span>
+        <span>TECHNIK</span><span>${esc(NET_UPGRADES[net.qLevel - 1]?.name || 'Modems mit 2.400 Baud')}</span>
         <span>BETRIEB</span><span>${fmtDM(NET_NODE_UPKEEP)} JE KNOTEN UND MONAT</span>
         <span>KONKURRENZ</span><span>${comps}</span>
       </div>
       <div class="row"><span class="dim">TARIF/MONAT</span>${NET_TARIFFS.map((x) => `<button type="button" class="tbtn small ${net.tariff === x ? 'chosen' : ''}" data-act="tariff" data-arg="${x}">${fmtDM(x)} · ~${fmtPct(g.netShareEstimate(x))}</button>`).join('')}</div>
-      <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => `<button type="button" class="tbtn small ${net.marketing === k ? 'chosen' : ''}" data-act="net-mk" data-arg="${k}">${mk.label}${mk.cost ? ` ${fmtInt(toCur(mk.cost) / 1000)} T${cur()}` : ''}</button>`).join('')}</div>
-      ${up ? `<div class="row"><button type="button" class="tbtn" data-act="net-up" ${net.invest < up.cost || frozen ? 'disabled' : ''}>AUSBAU: ${esc(up.name.toUpperCase())} · ${fmtNum(up.cost / 1e6)} MIO.</button><span class="dim">+QUALITÄT</span></div>` : '<p class="ok">TECHNIK AUF DEM NEUESTEN STAND</p>'}
+      <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => `<button type="button" class="tbtn small ${net.marketing === k ? 'chosen' : ''}" data-act="net-mk" data-arg="${k}">${mk.label}${mk.cost ? ` · ${fmtMoney(mk.cost)}/MONAT` : ''}</button>`).join('')}</div>
+      ${up ? `<div class="row"><button type="button" class="tbtn" data-act="net-up" ${net.invest < up.cost || frozen ? 'disabled' : ''}>AUSBAU: ${esc(up.name.toUpperCase())} · ${fmtMoney(up.cost)}</button><span class="dim">+QUALITÄT</span></div>` : '<p class="ok">TECHNIK AUF DEM NEUESTEN STAND</p>'}
       <h3>EINWAHLKNOTEN ${net.nodes.length}/${NET_CITIES.length}</h3>${cities}
-      ${rows ? `<h3>LETZTE MONATE <span class="dim">UMSATZ/KOSTEN/ERGEBNIS IN T${cur()}</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">KUNDEN</th><th class="r">NEU</th><th class="r">UMSATZ</th><th class="r">KOSTEN</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="dim">Die ersten Kunden kommen zum Monatsende, sobald ein Knoten steht.</p>'}`;
+      ${rows ? `<h3>LETZTE MONATE</h3>${table('<th>MONAT</th><th class="r">KUNDEN</th><th class="r">NEU</th><th class="r">UMSATZ</th><th class="r">KOSTEN</th><th class="r">ERGEBNIS</th>', rows)}` : '<p class="dim">Die ersten Kunden kommen zum Monatsende, sobald ein Knoten steht.</p>'}`;
   }
 
   app_fin() {
     const g = this.game, c = g.s.corp, sh = g.s.shares;
     if (!c.active) return '<h2>FINANZEN</h2><p class="dim">Noch nicht im Vorstand.</p>';
-    const M = (x) => `${fmtNum(toCur(x) / 1e6)} MIO. ${cur()}`;
+    const M = fmtMoney;
     const last = c.history.at(-1);
     const owned = c.owned.map((o) => {
       const st = STARTUPS.find((x) => x.id === o.id), v = g.startupValue(o.id);
@@ -538,14 +627,17 @@ export class PC {
         KAUFPREIS ${M(v)} · VERBRENNT ${M(st.burn)} IM MONAT</div>
         <div class="r"><button type="button" class="tbtn small" data-act="buy-st" data-arg="${id}" ${c.cash < v ? 'disabled' : ''}>KAUFEN</button></div></div>`;
     }).join('');
-    const rows = c.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${fmtNum(toCur(h.legacy) / 1e6)}</td><td class="r">${fmtNum(toCur(h.bereich) / 1e6)}</td><td class="r">${fmtNum(toCur(h.startups) / 1e6)}</td><td class="r">${fmtNum(toCur(-h.interest) / 1e6)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${fmtNum(toCur(h.result) / 1e6)}</td></tr>`).join('');
+    const rows = c.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${M(h.legacy)}</td><td class="r">${M(h.bereich)}</td><td class="r">${M(h.startups)}</td><td class="r">${M(-h.interest)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${M(h.result)}</td></tr>`).join('');
     return `<h2>FINANZEN <span class="dim">KONZERN · RESSORT ${esc(g.stage.title.toUpperCase())}</span></h2>
+      ${tiles([
+        ['KONZERNKASSE', M(c.cash), c.negMonths ? `${c.negMonths} MONAT(E) IM MINUS` : 'VERFÜGBAR', c.cash < 0 ? 'bad' : ''],
+        ['ERGEBNIS', last ? signed(last.result) : '–', 'LETZTER MONAT', last ? (last.result >= 0 ? 'good' : 'bad') : ''],
+        ['KB-AKTIE', fmtDM(sh.price), `BÖRSE: ${g.mood()}`],
+        ['BÖRSENWERT', M(sh.price * c.shares), `${fmtCount(c.shares)} AKTIEN`],
+      ])}
       <div class="kv">
-        <span>KONZERNKASSE</span><span class="${c.cash < 0 ? 'err' : ''}"><b>${fmtDM(c.cash)}</b>${c.negMonths ? ` · ${c.negMonths} MONAT(E) IM MINUS` : ''}</span>
-        <span>KREDITE</span><span>${fmtDM(c.debt)} · ${fmtPct(CORP_LOAN_RATE, 1)} ZINS</span>
-        <span>LETZTER MONAT</span><span class="${last && last.result < 0 ? 'err' : ''}">${last ? `ERGEBNIS ${M(last.result)}` : 'NOCH KEINE ZAHLEN'}</span>
-        <span>KB-AKTIE</span><span><b>${fmtDM(sh.price)}</b> · BÖRSE: ${g.mood()} · WERT VOR DEM HYPE ${fmtDM(c.base)}</span>
-        <span>BÖRSENWERT</span><span>${fmtDM(sh.price * c.shares)} · ${fmtInt(c.shares)} AKTIEN</span>
+        <span>KREDITE</span><span>${M(c.debt)} · ${fmtPct(CORP_LOAN_RATE, 1)} ZINS IM JAHR</span>
+        <span>KURS VOR DEM HYPE</span><span>${fmtDM(c.base)}</span>
         <span>DEIN ANTEIL</span><span>${fmtInt(sh.owned)} AKTIEN · ${fmtPct(sh.owned / c.shares, 4)}</span>
       </div>
       <div class="row"><span class="dim">DIVIDENDE</span>${DIVIDEND_POLICIES.map((d) => `<button type="button" class="tbtn small ${c.policy === d.id ? 'chosen' : ''}" data-act="policy" data-arg="${d.id}">${d.label} · ${fmtPct(d.payout)}</button>`).join('')}</div>
@@ -558,7 +650,7 @@ export class PC {
       <p class="dim">Eine Kapitalerhöhung bringt Geld, verwässert aber deinen Stimmanteil und drückt kurz den Kurs. Einmal pro Jahr möglich.</p>
       ${owned ? `<h3>BETEILIGUNGEN</h3>${owned}` : ''}
       ${offers ? `<h3>ANGEBOTE VOM NEUEN MARKT</h3>${offers}` : ''}
-      ${rows ? `<h3>KONZERNERGEBNIS <span class="dim">IN MIO. ${cur()}</span></h3><table class="ttable"><thead><tr><th>MONAT</th><th class="r">STAMM</th><th class="r">BEREICHE</th><th class="r">BETEIL.</th><th class="r">ZINS</th><th class="r">ERGEBNIS</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="dim">Das erste Konzernergebnis kommt zum Monatsende.</p>'}`;
+      ${rows ? `<h3>KONZERNERGEBNIS</h3>${table('<th>MONAT</th><th class="r">STAMMGESCHÄFT</th><th class="r">BEREICHE</th><th class="r">BETEILIGUNGEN</th><th class="r">ZINSEN</th><th class="r">ERGEBNIS</th>', rows)}` : '<p class="dim">Das erste Konzernergebnis kommt zum Monatsende.</p>'}`;
   }
 
   app_abwehr() {
@@ -573,6 +665,12 @@ export class PC {
       : `<p>HAUPTVERSAMMLUNG IN <b>${left} MONAT${left === 1 ? '' : 'EN'}</b>. ORION BRAUCHT 50 %.</p>`;
     return `<h2>ÜBERNAHMEABWEHR <span class="dim">ORION GEGEN KB</span></h2>
       ${status}
+      ${tiles([
+        ['ORION', `${fmtNum(to.orion)} %`, 'BRAUCHT 50 %', 'bad'],
+        ['TREU ZU KB', `${fmtNum(loyal)} %`, 'STIMMEN SICHER', 'good'],
+        ['STREUBESITZ', `${fmtNum(float)} %`, 'KÖNNEN VERKAUFEN'],
+        ['HAUPTVERSAMMLUNG', to.done ? 'VORBEI' : `${left} MON.`, to.done ? '' : 'BIS ZUR ABSTIMMUNG'],
+      ])}
       <div class="stack" aria-label="Stimmenverteilung">${seg(to.orion, 'orion', 'Orion')}${seg(float, 'float', 'Streubesitz')}${seg(to.buyback, 'retired', 'Zurückgekauft')}${seg(loyal, 'loyal', 'Treue Aktionäre')}<i class="mid"></i></div>
       <div class="kv">
         <span class="err">ORION</span><span><b>${fmtNum(to.orion)} %</b> · KAUFT MONATLICH CA. ${fmtPct(g.orionBuyRate())} DES STREUBESITZES</span>
@@ -582,7 +680,7 @@ export class PC {
       </div>
       <ul class="tlist">${blocks.map((b) => `<li>${fmtNum(b.pct)} % ${esc(b.label)}</li>`).join('')}</ul>
       <p class="dim">Je höher der KB-Kurs im Vergleich zum Angebot, desto weniger Aktionäre verkaufen an Orion. Gute Ergebnisse und Kampagnen helfen.</p>
-      ${to.done ? '' : `<h3>MASSNAHMEN · KASSE ${fmtDM(c.cash)}</h3>
+      ${to.done ? '' : `<h3>MASSNAHMEN · KASSE ${fmtMoney(c.cash)}</h3>
       <div class="row"><button type="button" class="tbtn" data-act="buyback" ${to.buybacks >= TAKEOVER.maxBuybacks || c.cash < g.buybackCost() ? 'disabled' : ''}>AKTIENRÜCKKAUF −${TAKEOVER.buybackPct} % STREUBESITZ · ${fmtDM(g.buybackCost())}</button><span class="dim">${to.buybacks}/${TAKEOVER.maxBuybacks}</span></div>
       <div class="row"><button type="button" class="tbtn" data-act="campaign" ${to.campaignMonth === g.s.time.totalMonths || c.cash < TAKEOVER.campaignCost ? 'disabled' : ''}>KAMPAGNE FÜR DIE AKTIONÄRE · ${fmtDM(TAKEOVER.campaignCost)}</button><span class="dim">STÜTZT DEN KURS, 1× PRO MONAT</span></div>
       <div class="row"><button type="button" class="tbtn" data-act="pacman" ${c.cash < g.orionTakeoverPrice() ? 'disabled' : ''}>GEGENANGEBOT: ORION KAUFEN · ${fmtDM(g.orionTakeoverPrice())}</button></div>
@@ -595,18 +693,20 @@ export class PC {
     const rows = WORLD_REGIONS.map((r) => {
       const open = w.open.includes(r.id), b = w.building.find((x) => x.id === r.id);
       const state = open ? '<span class="ok">AKTIV</span>' : b ? `<span class="dim">IM AUFBAU · NOCH ${Math.max(1, b.ready - g.s.time.totalMonths)} MON.</span>`
-        : `<button type="button" class="tbtn small" data-act="region" data-arg="${r.id}" ${c.cash < r.cost ? 'disabled' : ''}>ERÖFFNEN · ${fmtDM(r.cost)}</button>`;
-      return `<div class="shop-row ${open ? 'owned' : ''}"><div><b>${esc(r.name)}</b> <span class="dim">+${Math.round(r.factor * 100)} % MARKT · ${r.months} MONATE AUFBAU</span></div><div class="r">${state}</div></div>`;
+        : `<button type="button" class="tbtn small" data-act="region" data-arg="${r.id}" ${c.cash < r.cost ? 'disabled' : ''}>ERÖFFNEN · ${fmtMoney(r.cost)}</button>`;
+      return `<div class="shop-row ${open ? 'owned' : ''}"><div><b>${esc(r.name)}</b> <br><span class="dim">+${Math.round(r.factor * 100)} % MARKT · ${r.months} MONATE AUFBAU</span></div><div class="r">${state}</div></div>`;
     }).join('');
     return `<h2>WELTMARKT <span class="dim">NIEDERLASSUNGEN</span></h2>
-      <canvas class="chart map" id="map-${i}" width="320" height="160" aria-label="Weltkarte mit Niederlassungen"></canvas>
-      <p class="dim">GRÜN: AKTIV · ORANGE: IM AUFBAU · ROT: KASSEL</p>
-      <div class="kv">
-        <span>MARKTGRÖSSE</span><span><b>${fmtPct(g.worldFactor())}</b> DES HEIMATMARKTS</span>
-        <span>KONZERNKASSE</span><span>${fmtDM(c.cash)}</span>
-      </div>
-      <p class="dim">Jede Niederlassung vergrößert den Markt aller Produktlinien und bringt zusätzliches Stammgeschäft.</p>
-      ${rows}`;
+      ${tiles([
+        ['NIEDERLASSUNGEN', `${w.open.length}/${WORLD_REGIONS.length}`, w.building.length ? `${w.building.length} IM AUFBAU` : 'AKTIV'],
+        ['MARKTGRÖSSE', fmtPct(g.worldFactor()), 'DES HEIMATMARKTS'],
+        ['KONZERNKASSE', fmtMoney(c.cash), 'FÜR NEUE STANDORTE', c.cash < 0 ? 'bad' : ''],
+      ])}
+      <div class="split">
+        <div><canvas class="chart map" id="map-${i}" width="320" height="160" aria-label="Weltkarte mit Niederlassungen"></canvas>
+        <p class="dim">GRÜN: AKTIV · ORANGE: IM AUFBAU · ROT: KASSEL</p></div>
+        <div>${rows}</div>
+      </div>`;
   }
 
   drawMap(i) {
@@ -658,10 +758,12 @@ export class PC {
     const unit = g.employeePrice();
     return `
       <h2>KONTO UND DEPOT <span class="dim">KB-MITARBEITERDEPOT</span></h2>
-      <div class="kv">
-        <span>GIROKONTO</span><span><b data-live="cash"></b></span>
-        <span>LEBENSHALTUNG</span><span>${fmtDM(g.stage.living)} / MONAT (MIETE, ESSEN, FAHRT)</span>
-      </div>
+      ${tiles([
+        ['GIROKONTO', '<span data-live="cash"></span>', `LEBENSHALTUNG ${fmtDM(g.stage.living)}/MONAT`],
+        ['DEPOTWERT', '<span data-live="depotValue"></span>', '<span data-live="owned"></span> AKTIEN'],
+        ['KB-AKTIE', '<span data-live="price"></span>', `${chg >= 0 ? '▲' : '▼'} ${fmtPct(Math.abs(chg), 1)} IN 6 MONATEN`, chg >= 0 ? 'good' : 'bad'],
+        ['STIMMANTEIL', '<span data-live="vote"></span>', 'DER KB-AKTIEN'],
+      ])}
       <div class="stock">
         <div class="stock-head">
           <span>KB RECHENWERKE AG · INHABERAKTIE</span>
@@ -670,8 +772,6 @@ export class PC {
         <canvas class="chart" id="chart-${i}" width="320" height="90" aria-label="Kursverlauf der KB-Aktie"></canvas>
       </div>
       <div class="kv">
-        <span>BESTAND</span><span><b data-live="owned"></b> STÜCK · <span data-live="depotValue"></span></span>
-        <span>STIMMANTEIL</span><span data-live="vote"></span>
         <span>MITARBEITERPREIS</span><span><b data-live="eprice"></b> (${fmtPct(SHARE_DISCOUNT)} RABATT)</span>
         <span>DIVIDENDE</span><span>${fmtDM(DIVIDEND_PER_SHARE)} JE AKTIE IM DEZEMBER</span>
       </div>
@@ -736,12 +836,17 @@ export class PC {
     const ladder = STAGES.map((st, i) => `<li class="${i === p.stage ? 'here' : i < p.stage ? 'past' : 'dim'}">${i === p.stage ? '►' : ' '} ${String(i + 1)} ${esc(st.title.toUpperCase())} <span class="dim">AB CA. ${st.year}</span></li>`).join('');
     const grades = p.grades.slice(-12).map((x) => `<span class="g-${x}">${x}</span>`).join(' ') || '<span class="dim">noch keine</span>';
     const warnText = d.warningsLimit === Infinity ? `${p.warnings} (kein Game Over)` : `${p.warnings} von ${d.warningsLimit}`;
+    const mDone = ms.filter((m) => { const [a, b] = m.prog(g); return a >= b; }).length;
     return `<h2>KARRIERE <span class="dim">PERSONALAKTE ${esc(p.pnr)}</span></h2>
+      ${tiles([
+        ['POSITION', esc(g.stage.title), `STUFE ${p.stage + 1} VON ${STAGES.length}`],
+        ['GRUNDGEHALT', fmtDM(g.stage.salary), 'BRUTTO IM MONAT'],
+        ['RUF', String(p.rep), p.warnings ? `${p.warnings} ABMAHNUNG(EN)` : 'KEINE ABMAHNUNG', p.warnings ? 'bad' : ''],
+        ['ZIELE', ms.length ? `${mDone}/${ms.length}` : '–', ms.length ? 'FÜR DIE BEFÖRDERUNG' : 'ENDLOSMODUS', ms.length && mDone === ms.length ? 'good' : ''],
+      ])}
       <div class="kv">
         <span>NAME</span><span>${esc(p.name)}</span>
-        <span>POSITION</span><span><b>${esc(g.stage.title)}</b>, ${esc(g.stage.dept)}</span>
-        <span>GRUNDGEHALT</span><span>${fmtDM(g.stage.salary)} BRUTTO</span>
-        <span>RUF</span><span>${p.rep}</span>
+        <span>ABTEILUNG</span><span>${esc(g.stage.dept)}</span>
         <span>ABMAHNUNGEN</span><span class="${p.warnings ? 'err' : ''}">${warnText}</span>
         <span>NOTEN</span><span class="grades">${grades}</span>
       </div>
