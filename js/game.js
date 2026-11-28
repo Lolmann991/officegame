@@ -11,6 +11,8 @@ import {
   CORP_START_CASH, CORP_SHARES, CORP_LEGACY_RESULT, CORP_LOAN_STEP, CORP_LOAN_RATE, DIVIDEND_POLICIES,
   HYPE_POINTS, ECONOMY_POINTS, STARTUPS, TAKEOVER, ACHIEVEMENTS,
   SUBSIDIARIES, SUB_MAX_LEVEL, SUB_SELL, CORP_PROJECTS, FIN_ASSETS, REPO_PCT,
+  BUDGET_PROFIT_SHARE, TRAINING_COST, CRUNCH_MULT, STAFF, STAFF_PP, STAFF_FP, STAFF_SALES_MAX, STAFF_SALES_K,
+  STAFF_MARGIN_MAX, STAFF_MARGIN_K, SEVERANCE_MONTHS, LIFE_PHASES, MODEL_VARIANTS, economyAt,
   futureName, futureCost, WORLD_REGIONS, LEGACY_KEY, PERKS, perkCost, ENDLESS_TECHS, lineTrend,
 } from './data.js';
 import { EVENTS, MAILS, DIALOGS, ON_MAIL_CHOICE, ON_DIALOG_DONE, ON_PROJECT_DONE, ENDLESS_EVENTS, SIDE_GOALS, warningVars } from './story.js';
@@ -36,8 +38,8 @@ function freshState(name, difficulty) {
     },
     shares: { price, owned: 0, history: Array.from({ length: 24 }, (_, i) => round2(price * (1 + Math.sin(i / 3) * 0.02 - (24 - i) * 0.001))) },
     upgrades: {},
-    projects: { active: null, offered: [], done: [], share: 0.5 },
-    team: { members: [], candidates: [], budget: TEAM_BUDGET, nextId: 1, dinnerMonth: -1, moraleMonths: 0, overBudget: 0 },
+    projects: { active: null, offered: [], done: [], share: 0.5, crunch: false },
+    team: { members: [], candidates: [], budget: TEAM_BUDGET, nextId: 1, dinnerMonth: -1, moraleMonths: 0, overBudget: 0, staff: { entw: 0, vertrieb: 0, labor: 0, service: 0 }, climate: 65 },
     lines: Object.fromEntries(Object.keys(LINES).map((id) => [id, { gen: 0, model: null, pending: null, devGen: null, marketing: 0, units: 0, revenue: 0, last: null }])),
     rd: { budget: 25000, pool: 0, current: null, done: [] },
     dept: { history: [], best: 0, posStreak: 0 },
@@ -155,10 +157,10 @@ export class Game {
   }
   passiveRate() {
     const perk = 1 + 0.1 * (this.s.perks?.fleiss || 0);
-    return (UPGRADES.reduce((sum, u) => sum + (this.owned(u.id) ? (u.passive || 0) : 0), BASE_PASSIVE) * perk) / this.F() + this.teamRate();
+    return (UPGRADES.reduce((sum, u) => sum + (this.owned(u.id) ? (u.passive || 0) : 0), BASE_PASSIVE) * perk) / this.F() + this.teamRateFor('tag');
   }
   perMonth(rate) { return rate * this.monthSeconds(); }
-  ownRate() { return this.passiveRate() - this.teamRate(); }
+  ownRate() { return this.passiveRate() - this.teamRateFor('tag'); }
   taskMult() {
     const f = this.s.story.flags;
     return UPGRADES.reduce((m, u) => m + (this.owned(u.id) ? (u.taskMult || 0) : 0), 1) + (f.cobol ? 0.15 : 0);
@@ -188,6 +190,7 @@ export class Game {
     if (!s || s.gameOver) return;
     this.syncCurrency();
     this.addWork(this.passiveRate() * dt);
+    this.addProjectWork(dt);
     s.time.monthProgress += dt;
 
     this.shareTimer += dt;
@@ -604,6 +607,26 @@ export class Game {
     if (act.pp >= act.need) this.finishProject();
   }
 
+  // Projektteam (Kernteam auf „Projekt“) und Entwicklung arbeiten nur am Projekt. Ohne Projekt helfen die Leute aus dem
+  // Kernteam beim Monatsziel, die Entwicklung macht Wartung.
+  projectBoostFor(act) { return 1 + (act.boost || 0) + (act.id === 'hc1' || act.id.startsWith('model-') ? this.creativeBonus() : 0); }
+  addProjectWork(dt) {
+    const act = this.s.projects.active;
+    const members = this.teamRateFor('proj') * dt;
+    if (!act) { this.s.player.perf += members; return; }
+    const pts = (members + this.staffPPRate() * dt) * (this.s.projects.crunch ? CRUNCH_MULT : 1);
+    if (pts <= 0) return;
+    act.pp += pts * this.projectBoostFor(act);
+    if (act.pp >= act.need) this.finishProject();
+  }
+  // Projektpunkte pro Monat, wenn alles so bleibt (für Planung und Restlaufzeit)
+  projectPerMonth(act = this.s.projects.active) {
+    const pr = this.s.projects;
+    const share = act ? pr.share : (pr.share || 0.5);
+    const direct = (this.teamRateFor('proj') + this.staffPPRate()) * (pr.crunch ? CRUNCH_MULT : 1);
+    return this.perMonth(this.passiveRate() * share + direct) * (act ? this.projectBoostFor(act) : 1 + this.creativeBonus());
+  }
+
   offerProject(proj) {
     const pr = this.s.projects;
     if (pr.offered.some((x) => x.id === proj.id) || pr.active?.id === proj.id || pr.done.some((d) => d.id === proj.id)) return;
@@ -712,13 +735,93 @@ export class Game {
     return (m.skill * TEAM_RATE_PER_SKILL * (0.5 + m.morale / 100) * (tr.mult || 1)) / this.F();
   }
   teamRate() { return this.s.team.members.reduce((a, m) => a + this.memberRate(m), 0) * (1 + this.corpBonus('team')); }
+  teamRateFor(task) { return this.s.team.members.filter((m) => (m.task || 'tag') === task).reduce((a, m) => a + this.memberRate(m), 0) * (1 + this.corpBonus('team')); }
+  assign(id, task) {
+    const m = this.member(id);
+    if (!m || !['tag', 'proj'].includes(task)) return false;
+    m.task = task;
+    this.emit('team');
+    this.emit('projects');
+    return true;
+  }
+  setCrunch(on) { this.s.projects.crunch = !!on; this.emit('projects'); this.emit('team'); }
+  trainingCost(m) { return Math.round((TRAINING_COST * m.skill * this.wageIndex()) / 10) * 10; }
+  canTrain(m) { return m.skill < 5 && (m.trained == null || this.s.time.totalMonths - m.trained >= 6); }
+  train(id) {
+    const m = this.member(id), p = this.s.player;
+    if (!m || !this.canTrain(m)) return false;
+    const cost = this.trainingCost(m);
+    if (p.stage >= 3) this.s.dept.extraCost = (this.s.dept.extraCost || 0) + cost;
+    else { if (p.cash < cost) return false; p.cash = round2(p.cash - cost); }
+    m.skill++;
+    m.salary = Math.round((m.salary * 1.12) / 10) * 10;
+    m.trained = this.s.time.totalMonths;
+    this.changeMorale(m, 5);
+    this.emit('team');
+    this.emit('change');
+    return cost;
+  }
+
+  // Belegschaft (ab Kapitel 4)
+  wageIndex() { return Math.pow(1.025, Math.max(0, this.s.time.year - 1987)); }
+  staffSalary(role) { return Math.round(STAFF[role].salary * this.wageIndex()); }
+  staff(role) { return this.s.team.staff?.[role] || 0; }
+  staffTotal() { return Object.keys(STAFF).reduce((a, r) => a + this.staff(r), 0); }
+  staffPayroll() { return Object.keys(STAFF).reduce((a, r) => a + this.staff(r) * this.staffSalary(r), 0); }
+  climateFactor() { return 0.5 + (this.s.team.climate ?? 65) / 100; }
+  staffPPRate() { return (this.staff('entw') * STAFF_PP * this.climateFactor()) / this.monthSeconds(); }
+  staffFP() { return Math.round(this.staff('labor') * STAFF_FP * this.climateFactor()); }
+  salesBoost() { return STAFF_SALES_MAX * (1 - Math.exp(-this.staff('vertrieb') / STAFF_SALES_K)) * this.climateFactor(); }
+  serviceMargin() { return STAFF_MARGIN_MAX * (1 - Math.exp(-this.staff('service') / STAFF_MARGIN_K)) * this.climateFactor(); }
+  hireStaff(role, n) {
+    const tm = this.s.team;
+    if (this.s.player.stage < 3 || !STAFF[role] || n <= 0) return false;
+    tm.staff = { entw: 0, vertrieb: 0, labor: 0, service: 0, ...tm.staff };
+    tm.staff[role] += n;
+    // sehr schnelles Wachstum kostet etwas Betriebsklima
+    tm.climate = Math.max(0, (tm.climate ?? 65) - Math.max(0, n - 10) / 30);
+    this.emit('team');
+    this.emit('change');
+    return n;
+  }
+  fireStaff(role, n) {
+    const tm = this.s.team;
+    const k = Math.min(n, this.staff(role));
+    if (k <= 0) return false;
+    const severance = k * this.staffSalary(role) * SEVERANCE_MONTHS;
+    tm.staff[role] -= k;
+    this.s.dept.extraCost = (this.s.dept.extraCost || 0) + severance;
+    tm.climate = Math.max(0, (tm.climate ?? 65) - 2 - k / 8);
+    this.emit('team');
+    this.emit('change');
+    return { n: k, severance };
+  }
+  // Personalbudget: Grundbudget aus der Story, ab Kapitel 4 plus Anteil am Rohertrag der letzten drei Monate
+  profitBudget() {
+    if (this.s.player.stage < 3) return 0;
+    const h = this.s.dept.history.slice(-3);
+    const gross = h.length ? h.reduce((a, x) => a + Math.max(0, x.gross), 0) / h.length : 0;
+    return Math.round((gross * BUDGET_PROFIT_SHARE) / 100) * 100;
+  }
+  personalBudget() { return this.s.team.budget + this.profitBudget(); }
+  staffMonth() {
+    const tm = this.s.team;
+    if (this.s.player.stage < 3) return;
+    const last = this.s.dept.history.at(-1);
+    let target = 60 + this.corpBonus('team') * 50;
+    if (last && last.result > 0) target += 5; else if (last) target -= 5;
+    if (this.payroll() > this.personalBudget()) target -= 12;
+    if (this.s.projects.crunch && this.s.projects.active) target -= 10;
+    tm.climate = Math.max(0, Math.min(100, (tm.climate ?? 65) + (target - (tm.climate ?? 65)) * 0.25));
+  }
   creativeBonus() {
     const all = this.teamRate();
     if (!all) return 0;
     const cre = this.s.team.members.filter((m) => m.trait === 'kreativ').reduce((a, m) => a + this.memberRate(m), 0);
     return 0.3 * (cre / all);
   }
-  payroll() { return this.s.team.members.reduce((a, m) => a + m.salary, 0); }
+  corePayroll() { return this.s.team.members.reduce((a, m) => a + m.salary, 0); }
+  payroll() { return this.corePayroll() + this.staffPayroll(); }
   avgMorale() {
     const ms = this.s.team.members;
     return ms.length ? ms.reduce((a, m) => a + m.morale, 0) / ms.length : 0;
@@ -786,9 +889,11 @@ export class Game {
   // Monatsende fürs Team: Moral, Kündigungen, Budget, Bewerber
   teamMonth(grade) {
     const tm = this.s.team;
-    if (!tm.members.length) return;
+    this.staffMonth();
+    if (!tm.members.length && !this.staffTotal()) return;
     const share = this.s.projects.active ? this.s.projects.share : 0;
-    const over = this.payroll() > tm.budget;
+    const crunch = this.s.projects.crunch && this.s.projects.active;
+    const over = this.payroll() > this.personalBudget();
     for (const m of [...tm.members]) {
       const tr = TRAITS[m.trait] || {};
       const base = tr.drift || 60;
@@ -797,6 +902,7 @@ export class Game {
       if (grade === 'A') d += 4;
       if (grade === 'D') d -= 6;
       if (over) d -= 3;
+      if (crunch && m.task === 'proj') d -= 6;
       this.changeMorale(m, d);
       if (m.morale < 25 && !tr.loyal && Math.random() < 0.5) {
         tm.members = tm.members.filter((x) => x.id !== m.id);
@@ -807,7 +913,7 @@ export class Game {
     if (over) {
       tm.overBudget++;
       this.addRep(-1, true);
-      this.mail('team_budget', { payroll: this.payroll(), budget: tm.budget });
+      this.mail('team_budget', { payroll: this.payroll(), budget: this.personalBudget() });
     }
     if (tm.members.length && this.avgMorale() >= 60) tm.moraleMonths++;
     this.refreshCandidates();
@@ -917,7 +1023,7 @@ export class Game {
     this.emit('dept');
     return true;
   }
-  rdPerMonth() { return Math.round(this.s.rd.budget * RD_FP_PER_DM * (1 + this.creativeBonus()) * (1 + this.corpBonus('fp'))); }
+  rdPerMonth() { return Math.round((this.s.rd.budget * RD_FP_PER_DM * (1 + this.creativeBonus()) + this.staffFP()) * (1 + this.corpBonus('fp'))); }
   tryResearch() {
     const rd = this.s.rd;
     if (rd.current === 'future') {
@@ -951,15 +1057,61 @@ export class Game {
     return Math.max(1, Math.min(this.qualityCap(), Math.round(LINES[id].baseQ + this.techQ(id) + (avg - 3) + this.corpBonus('q', id))));
   }
   modelName(id, gen) { return `${LINES[id].model} ${id === 'home' ? '-' + gen : gen}`.replace(' -', '-'); }
-  startModel(id) {
+  modelNeed(id, variant = 'std', gen = this.s.lines[id].gen + 1) {
+    return Math.round((LINES[id].devNeed * (1 + 0.2 * (gen - 1)) * MODEL_VARIANTS[variant].need) / 50) * 50;
+  }
+  variantQuality(id, variant = 'std') { return Math.max(1, Math.min(this.qualityCap(), this.lineQuality(id) + MODEL_VARIANTS[variant].q)); }
+  lineMargin(id, variant = 'std') {
+    const def = LINES[id], f = this.s.story.flags;
+    return (id === 'pc' && f.pc_compat ? def.marginCompat : def.margin) + this.corpBonus('margin') + this.serviceMargin() + (MODEL_VARIANTS[variant]?.margin || 0);
+  }
+  linePrices(id) {
+    const [a, b, c] = LINES[id].prices;
+    return [a, (a + b) / 2, b, (b + c) / 2, c];
+  }
+  lifePhase(months) { return LIFE_PHASES.find((ph) => months < ph.until); }
+  // Erwartung für einen Monat ohne Zufall: ahead = Monate ab jetzt (0 = Ende dieses Monats)
+  lineForecast(id, q, price, mk, months = 0, variant = 'std', ahead = 0) {
+    const def = LINES[id], f = this.s.story.flags;
+    const hype = PRODUCT_HYPE[Math.min(months + ahead, PRODUCT_HYPE.length - 1)];
+    const year = this.s.time.year + Math.floor((this.s.time.month + ahead) / 12);
+    const size = (id === 'pc' && f.pc_compat ? def.sizeCompat : def.size) * hype * economyAt(Math.floor(this.monthIndex()) + ahead)
+      * this.worldFactor() * lineTrend(id, year) * (1 + this.corpBonus('size'));
+    const sh = this.lineShare(id, q, price, mk);
+    const units = (size * sh.kb) / sh.total;
+    const revenue = units * price, gross = revenue * this.lineMargin(id, variant), mkt = MARKETING[mk].cost;
+    return { units, revenue, gross, mkt, contrib: gross - mkt, share: units / size };
+  }
+  // Planung der Abteilung für die nächsten n Monate bei unveränderten Einstellungen
+  deptForecast(n = 12) {
+    const out = [], net = this.s.net.history?.at(-1);
+    const netGross = net ? net.revenue - net.cost : 0;
+    for (let k = 0; k < n; k++) {
+      let revenue = 0, gross = 0, mkt = 0;
+      for (const [id] of this.linesVisible()) {
+        const ln = this.s.lines[id];
+        if (!ln.model) continue;
+        const fc = this.lineForecast(id, ln.model.q, ln.model.price, ln.marketing, ln.model.months, ln.model.variant, k);
+        revenue += fc.revenue; gross += fc.gross; mkt += fc.mkt;
+      }
+      revenue += net ? net.revenue : 0;
+      gross += netGross;
+      const payroll = this.payroll(), rd = this.s.rd.budget;
+      const m = (this.s.time.month + k) % 12, y = this.s.time.year + Math.floor((this.s.time.month + k) / 12);
+      out.push({ label: `${MONTH_NAMES[m].slice(0, 3)} ${y}`, revenue, gross, payroll, rd, mkt, result: gross - payroll - rd - mkt, eco: this.economyForecast(k) });
+    }
+    return out;
+  }
+  startModel(id, variant = 'std') {
     const ln = this.s.lines[id], def = LINES[id];
-    if (!this.lineUnlocked(id) || ln.devGen || ln.pending) return false;
+    if (!this.lineUnlocked(id) || ln.devGen || ln.pending || !MODEL_VARIANTS[variant]) return false;
     const gen = ln.gen + 1;
     ln.devGen = gen;
+    ln.devVariant = variant;
     const proj = {
       id: `model-${id}-${gen}`, name: `Entwicklung ${this.modelName(id, gen)}`, short: this.modelName(id, gen),
       sponsor: 'PC-Sparte', desc: `Neues Modell der Linie ${def.name}. Die Qualität hängt von den erforschten Technologien und vom Team ab.`,
-      need: Math.round((def.devNeed * (1 + 0.2 * (gen - 1))) / 50) * 50, months: 8, reward: 0, rep: 2, pp: 0, boost: 0,
+      need: this.modelNeed(id, variant, gen), months: Math.round(8 * Math.max(0.75, MODEL_VARIANTS[variant].need)), reward: 0, rep: 2, pp: 0, boost: 0,
     };
     this.s.projects.offered.unshift(proj);
     this.startProject(proj.id, true);
@@ -971,14 +1123,15 @@ export class Game {
     const ln = this.s.lines[id];
     if (!ln) return;
     ln.devGen = null;
-    ln.pending = { name: this.modelName(id, Number(gen)), q: this.lineQuality(id), gen: Number(gen) };
+    const variant = ln.devVariant || 'std';
+    ln.pending = { name: this.modelName(id, Number(gen)) + (variant === 'std' ? '' : variant === 'spar' ? ' Eco' : ' Pro'), q: this.variantQuality(id, variant), gen: Number(gen), variant };
     this.mail('model_ready', { name: ln.pending.name, q: ln.pending.q });
     this.emit('product');
   }
   launchModel(id, price) {
     const ln = this.s.lines[id];
     if (!ln.pending) return false;
-    ln.model = { name: ln.pending.name, q: ln.pending.q, price, months: 0 };
+    ln.model = { name: ln.pending.name, q: ln.pending.q, price, months: 0, variant: ln.pending.variant || 'std' };
     ln.gen = ln.pending.gen;
     ln.pending = null;
     this.emit('product');
@@ -987,8 +1140,7 @@ export class Game {
   }
   setLinePrice(id, price) { const ln = this.s.lines[id]; if (ln.model) { ln.model.price = price; this.emit('product'); } }
   setMarketing(id, lvl) { this.s.lines[id].marketing = lvl; this.emit('product'); }
-  orionQ(id) {
-    const y = this.s.time.year;
+  orionQ(id, y = this.s.time.year) {
     const cap = 9 + Math.max(0, Math.floor((y - 2009) / 2)); // im Endlosmodus forscht auch die Konkurrenz weiter
     return Math.min(cap, LINES[id].orionQ + Math.max(0, Math.floor((y - 1987) / 2)));
   }
@@ -999,7 +1151,7 @@ export class Game {
   attractRef(q, price, ref) { return Math.pow(q / 5, 1.5) * Math.pow(ref / price, 2); }
   lineShare(id, q, price, mk) {
     const ref = LINES[id].prices[1];
-    const kb = this.attractRef(q, price, ref) * (MARKETING[mk].mult + this.corpBonus('brand'));
+    const kb = this.attractRef(q, price, ref) * (MARKETING[mk].mult + this.corpBonus('brand')) * (1 + this.salesBoost());
     const orion = this.attractRef(this.orionQ(id), this.orionPrice(id), ref) * 1.2;
     const others = id === 'pc' && this.s.story.flags.pc_compat ? 1.2 : 0.6;
     return { kb, orion, total: kb + orion + others };
@@ -1020,7 +1172,7 @@ export class Game {
       const units = Math.round((size * sh.kb) / sh.total);
       const orionUnits = Math.round((size * sh.orion) / sh.total);
       const rev = units * ln.model.price;
-      const margin = (id === 'pc' && f.pc_compat ? def.marginCompat : def.margin) + this.corpBonus('margin');
+      const margin = this.lineMargin(id, ln.model.variant);
       ln.units += units;
       ln.revenue += rev;
       ln.last = { units, orion: orionUnits, share: units / size };
@@ -1133,7 +1285,12 @@ export class Game {
     return points.at(-1)[1];
   }
   hype() { return this.interp(HYPE_POINTS, this.monthIndex()); }
-  economy() { return this.interp(ECONOMY_POINTS, this.monthIndex()); }
+  economy() { return economyAt(this.monthIndex()); }
+  // Prognose der Wirtschaftsinstitute: je weiter voraus, desto ungenauer
+  economyForecast(k) {
+    const x = Math.floor(this.monthIndex());
+    return economyAt(x + k) * (1 + 0.012 * (k / 6) * Math.sin(x * 0.7 + k * 1.3));
+  }
   mood() {
     const h = this.hype();
     return h > 2.4 ? 'EUPHORIE' : h > 1.6 ? 'HAUSSE' : h > 1.05 ? 'FREUNDLICH' : h > 0.85 ? 'NERVÖS' : 'BAISSE';

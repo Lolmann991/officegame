@@ -4,7 +4,7 @@
 import {
   UPGRADES, STAGES, MONTH_NAMES, MONTH_SHORT, DIFFICULTIES, SHARES_OUTSTANDING, SHARE_DISCOUNT,
   DIVIDEND_PER_SHARE, PROJECT_SHARES, TRAITS, PRODUCT_SPEC, PRODUCT_PRICES, ORION_HOME,
-  TECHS, ENDLESS_TECHS, LINES, MARKETING, RD_BUDGETS, RD_BUDGETS_CEO, DEPT_COMMISSION,
+  TECHS, ENDLESS_TECHS, LINES, MARKETING, STAFF, STAFF_STEPS, MODEL_VARIANTS, SEVERANCE_MONTHS, CRUNCH_MULT, RD_BUDGETS, RD_BUDGETS_CEO, DEPT_COMMISSION,
   NET_CITIES, NET_NODE_COST, NET_NODE_UPKEEP, NET_TARIFFS, NET_UPGRADES,
   STARTUPS, DIVIDEND_POLICIES, CORP_LOAN_STEP, CORP_LOAN_RATE,
   TAKEOVER, ACHIEVEMENTS, WORLD_REGIONS, SUBSIDIARIES, SUB_MAX_LEVEL, SUB_SELL, CORP_PROJECTS, FIN_ASSETS, FIN_STEPS, REPO_PCT, futureName, futureCost, fromCur, fmtDM, fmtMoney, fmtCount, fmtNum, fmtInt, fmtPct, numAt,
@@ -172,7 +172,7 @@ export class PC {
       vote: fmtPct(s.shares.owned / SHARES_OUTSTANDING, 4),
       days: `${MONTH_NAMES[s.time.month]}: Tag ${g.day()}`,
       teamRate: `${fmtInt(g.perMonth(g.teamRate()))} Pkt/Monat (${s.team.members.length} Leute)`,
-      payroll: `${fmtDM(g.payroll())} / ${fmtDM(s.team.budget)}`,
+      payroll: `${fmtMoney(g.payroll())} VON ${fmtMoney(g.personalBudget())}`,
       morale: fmtPct(g.avgMorale() / 100),
       rushLeft: s.rush ? String(Math.max(0, Math.ceil(s.rush.left))) : '',
       projPP: s.projects.active ? `${fmtInt(s.projects.active.pp)} / ${fmtInt(s.projects.active.need)} (${fmtPct(s.projects.active.pp / s.projects.active.need)})` : '',
@@ -186,7 +186,7 @@ export class PC {
     set('[data-bar="perf"] > span', p.perf / target);
     set('[data-bar="month"] > span', s.time.monthProgress / g.monthSeconds());
     if (s.projects.active) set('[data-bar="proj"] > span', s.projects.active.pp / s.projects.active.need);
-    set('[data-bar="payroll"] > span', g.payroll() / (s.team.budget || 1));
+    set('[data-bar="payroll"] > span', g.payroll() / (g.personalBudget() || 1));
     if (s.rush) set('[data-bar="rush"] > span', s.rush.left / s.rush.total);
     set('[data-bar="morale"] > span', g.avgMorale() / 100);
     this.root.querySelectorAll('[data-bar="perf"]').forEach((el) => {
@@ -285,11 +285,31 @@ export class PC {
   }
 
   projEta() {
-    const g = this.game, pr = g.s.projects, act = pr.active;
-    const perMonth = g.perMonth(g.passiveRate()) * pr.share * (1 + (act.boost || 0));
+    const g = this.game, act = g.s.projects.active;
+    const perMonth = g.projectPerMonth(act);
     if (perMonth <= 0) return 'Ohne Arbeitszeit kommt das Projekt nicht voran.';
     const m = Math.ceil((act.need - act.pp) / perMonth);
-    return `Nur mit Grundleistung fertig in ca. ${m} Monat${m === 1 ? '' : 'en'}. Aufträge beschleunigen das.`;
+    return `Bei gleicher Arbeit fertig in ca. ${m} Monat${m === 1 ? '' : 'en'}. Aufträge beschleunigen das.`;
+  }
+
+  // Wer arbeitet am Projekt mit? (für PROJ und PROD)
+  projectTeamPanel() {
+    const g = this.game, pr = g.s.projects, tm = g.s.team;
+    const projMembers = tm.members.filter((m) => m.task === 'proj');
+    if (!tm.members.length && !g.staff('entw')) return '';
+    const parts = [
+      ['DU', g.perMonth(g.ownRate() * pr.share)],
+      [`KERNTEAM IM TAGESGESCHÄFT (${tm.members.length - projMembers.length})`, g.perMonth(g.teamRateFor('tag') * pr.share)],
+      [`PROJEKTTEAM (${projMembers.length})`, g.perMonth(g.teamRateFor('proj')) * (pr.crunch ? CRUNCH_MULT : 1)],
+      g.s.player.stage >= 3 ? [`ENTWICKLUNG (${fmtInt(g.staff('entw'))} LEUTE)`, g.perMonth(g.staffPPRate()) * (pr.crunch ? CRUNCH_MULT : 1)] : null,
+    ].filter(Boolean);
+    return `<h3>PROJEKTLEISTUNG <span class="dim">CA. ${fmtInt(g.projectPerMonth())} PKT IM MONAT</span></h3>
+      <div class="kv">${parts.map(([l, v]) => `<span>${l}</span><span>${fmtInt(v)} PKT/MONAT</span>`).join('')}</div>
+      <div class="row">
+        <button type="button" class="tbtn small ${pr.crunch ? 'chosen' : ''}" data-act="crunch" data-arg="${pr.crunch ? 0 : 1}">${pr.crunch ? 'SONDERSCHICHTEN AN' : 'SONDERSCHICHTEN'}</button>
+        <span class="dim">+${fmtPct(CRUNCH_MULT - 1)} für Projektteam und Entwicklung, kostet aber Moral und Betriebsklima</span>
+      </div>
+      <p class="dim">Leute aus dem Kernteam stellst du im Programm PERS ins Projekt ab. Sie arbeiten dann voll am Projekt statt am Monatsziel.</p>`;
   }
 
   app_proj() {
@@ -312,8 +332,8 @@ export class PC {
         </div>
         <h3>ARBEITSZEIT IM PROJEKT</h3>
         <div class="row">${PROJECT_SHARES.map((x) => `<button type="button" class="tbtn ${pr.share === x ? 'chosen' : ''}" data-act="share" data-arg="${x}">${fmtPct(x)}</button>`).join('')}</div>
-        <p class="dim">Dieser Anteil deiner Leistung fließt ins Projekt statt ins Monatsziel. <span data-live="projEta"></span></p>
-      </div>`;
+        <p class="dim">Dieser Anteil deiner Leistung und des Tagesgeschäfts fließt ins Projekt statt ins Monatsziel. <span data-live="projEta"></span></p>
+      </div>${this.projectTeamPanel()}`;
     } else {
       html += `<p class="dim">Kein aktives Projekt. Deine ganze Leistung zählt fürs Monatsziel.</p>`;
     }
@@ -337,14 +357,15 @@ export class PC {
   stars(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
 
   app_pers() {
-    const g = this.game, tm = g.s.team, now = g.s.time.totalMonths;
-    const over = g.payroll() > tm.budget;
+    const g = this.game, tm = g.s.team, now = g.s.time.totalMonths, st = g.s.player.stage;
+    const budget = g.personalBudget(), over = g.payroll() > budget;
     const dinnerDone = tm.dinnerMonth === now;
     const members = tm.members.map((m) => {
       const tr = TRAITS[m.trait] || {};
       const fire = this.confirmFire === m.id
         ? `<span class="err">WIRKLICH ENTLASSEN?</span> <button type="button" class="tbtn small" data-act="fire-yes" data-arg="${m.id}">JA</button> <button type="button" class="tbtn small" data-act="fire-no">NEIN</button>`
         : `<button type="button" class="tbtn small dimbtn" data-act="fire" data-arg="${m.id}">ENTLASSEN</button>`;
+      const task = m.task || 'tag';
       return `<div class="member">
         <div><b>${esc(m.name)}</b> <span class="stars">${this.stars(m.skill)}</span> <span class="dim">[${esc(tr.label || m.trait).toUpperCase()}: ${esc(tr.desc || '')}]</span></div>
         <div class="kv">
@@ -352,40 +373,73 @@ export class PC {
           <span>MORAL</span><span class="mrow">${bar(m.morale / 100, m.morale < 35 ? 'low' : '')} ${fmtInt(m.morale)} %</span>
         </div>
         <div class="row">
+          <span class="dim">EINSATZ</span>
+          <button type="button" class="tbtn small ${task === 'tag' ? 'chosen' : ''}" data-act="assign" data-arg="${m.id}" data-val="tag">TAGESGESCHÄFT</button>
+          <button type="button" class="tbtn small ${task === 'proj' ? 'chosen' : ''}" data-act="assign" data-arg="${m.id}" data-val="proj">PROJEKT</button>
+        </div>
+        <div class="row">
           <button type="button" class="tbtn small" data-act="praise" data-arg="${m.id}" ${m.praised === now ? 'disabled' : ''}>${m.praised === now ? 'GELOBT' : 'LOBEN'}</button>
           <button type="button" class="tbtn small" data-act="raise" data-arg="${m.id}">+10 % GEHALT (+${fmtDM(Math.round(m.salary * 0.1 / 10) * 10)})</button>
+          ${m.skill < 5 ? `<button type="button" class="tbtn small" data-act="train" data-arg="${m.id}" ${g.canTrain(m) && (st >= 3 || g.s.player.cash >= g.trainingCost(m)) ? '' : 'disabled'}>${g.canTrain(m) ? `WEITERBILDUNG · ${fmtDM(g.trainingCost(m))}${st >= 3 ? '' : ' PRIVAT'}` : 'WEITERBILDUNG IN ARBEIT'}</button>` : ''}
           ${fire}
         </div>
       </div>`;
     }).join('');
     const cands = tm.candidates.map((c) => {
       const tr = TRAITS[c.trait] || {};
-      const afterOver = g.payroll() + c.salary > tm.budget;
+      const afterOver = g.payroll() + c.salary > budget;
       return `<div class="shop-row">
         <div><b>${esc(c.name)}</b> <span class="stars">${this.stars(c.skill)}</span> <span class="dim">[${esc(tr.label || c.trait).toUpperCase()}: ${esc(tr.desc || '')}]</span><br>
           GEHALTSWUNSCH ${fmtDM(c.salary)}${afterOver ? ' <span class="err">· ÜBER BUDGET</span>' : ''}</div>
         <div class="r"><button type="button" class="tbtn" data-act="hire" data-arg="${c.id}" ${tm.members.length >= g.teamMax() ? 'disabled' : ''}>EINSTELLEN</button></div>
       </div>`;
     }).join('');
+    const effect = {
+      entw: () => `+${fmtInt(g.perMonth(g.staffPPRate()))} PKT/MONAT AUFS PROJEKT`,
+      vertrieb: () => `+${fmtPct(g.salesBoost())} ANZIEHUNGSKRAFT`,
+      labor: () => `+${fmtInt(g.staffFP())} FP/MONAT`,
+      service: () => `+${fmtPct(g.serviceMargin(), 1)} MARGE`,
+    };
+    const free = budget - g.payroll();
+    const staff = st >= 3 ? `<h3>BELEGSCHAFT <span class="dim">${fmtCount(g.staffTotal())} LEUTE · BETRIEBSKLIMA ${fmtInt(tm.climate ?? 65)} %</span></h3>
+      <p class="dim">Ganze Gruppen statt einzelner Leute. Ein gutes Betriebsklima steigert die Wirkung, Abbau kostet ${SEVERANCE_MONTHS} Monatsgehälter Abfindung je Kopf.</p>
+      ${Object.entries(STAFF).map(([id, d]) => {
+        const n = g.staff(id), sal = g.staffSalary(id);
+        return `<div class="member">
+          <div><b>${esc(d.name)}</b> <span class="dim">${esc(d.desc)}</span></div>
+          <div class="kv">
+            <span>LEUTE</span><span><b>${fmtCount(n)}</b> · ${fmtDM(sal)} JE KOPF · ${fmtMoney(n * sal)} IM MONAT</span>
+            <span>WIRKUNG</span><span class="${n ? 'ok' : 'dim'}">${effect[id]()}</span>
+          </div>
+          <div class="row">
+            ${STAFF_STEPS.map((k) => `<button type="button" class="tbtn small ${free < k * sal ? 'dimbtn' : ''}" data-act="staff-hire" data-arg="${id}" data-val="${k}" title="${free < k * sal ? 'Über dem Budget' : ''}">+${k}</button>`).join('')}
+            <span class="dim">·</span>
+            ${STAFF_STEPS.slice(0, 2).map((k) => `<button type="button" class="tbtn small dimbtn" data-act="staff-fire" data-arg="${id}" data-val="${k}" ${n < k ? 'disabled' : ''}>−${k}</button>`).join('')}
+          </div>
+        </div>`;
+      }).join('')}` : '';
     return `<h2>PERSONAL <span class="dim">${esc(g.stage.dept.toUpperCase())}</span></h2>
       ${tiles([
-        ['TEAM', `${tm.members.length}/${g.teamMax()}`, `${tm.candidates.length} BEWERBUNGEN`],
-        ['PERSONALKOSTEN', fmtMoney(g.payroll()), `BUDGET ${fmtMoney(tm.budget)}`, over ? 'bad' : ''],
-        ['Ø MORAL', fmtPct(g.avgMorale() / 100), g.avgMorale() >= 60 ? 'GUT' : g.avgMorale() < 35 ? 'KRITISCH' : 'MITTEL', g.avgMorale() < 35 ? 'bad' : ''],
-        ['TEAMLEISTUNG', fmtInt(g.perMonth(g.teamRate())), 'PKT PRO MONAT'],
+        ['KERNTEAM', `${tm.members.length}/${g.teamMax()}`, `${tm.members.filter((m) => m.task === 'proj').length} IM PROJEKT`],
+        st >= 3 ? ['BELEGSCHAFT', fmtCount(g.staffTotal()), `KLIMA ${fmtInt(tm.climate ?? 65)} %`, (tm.climate ?? 65) < 40 ? 'bad' : ''] : ['Ø MORAL', fmtPct(g.avgMorale() / 100), g.avgMorale() < 35 ? 'KRITISCH' : 'IM TEAM', g.avgMorale() < 35 ? 'bad' : ''],
+        ['PERSONALKOSTEN', fmtMoney(g.payroll()), `VON ${fmtMoney(budget)} BUDGET`, over ? 'bad' : ''],
+        ['FREI IM BUDGET', fmtMoney(free), over ? 'ÜBERSCHRITTEN' : 'FÜR NEUE LEUTE', over ? 'bad' : 'good'],
       ])}
       <div class="kv">
-        <span>PERSONALKOSTEN</span><span class="${over ? 'err' : ''}" data-live="payroll"></span>
+        <span>BUDGET</span><span class="${over ? 'err' : ''}" data-live="payroll"></span>
         <span></span><span class="tbar ${over ? 'low' : ''}" data-bar="payroll"><span></span></span>
-        <span>Ø MORAL</span><span data-live="morale"></span>
-        <span></span><span class="tbar" data-bar="morale"><span></span></span>
+        ${st >= 3 ? `<span>DAVON</span><span>GRUNDBUDGET ${fmtMoney(tm.budget)} + ${fmtPct(0.35)} VOM ROHERTRAG ${fmtMoney(g.profitBudget())}</span>` : ''}
+        ${tm.members.length ? `<span>Ø MORAL</span><span data-live="morale"></span>
+        <span></span><span class="tbar" data-bar="morale"><span></span></span>` : ''}
         <span>GUTE MONATE</span><span>${tm.moraleMonths} (Ø MORAL AB 60 %)</span>
       </div>
+      ${st >= 3 ? '<p class="dim">Mehr Gewinn bedeutet mehr Budget: 35 % des Rohertrags der letzten drei Monate fließen ins Personalbudget.</p>' : ''}
       <div class="row">
         <button type="button" class="tbtn" data-act="dinner" data-need="${g.dinnerCost()}" ${dinnerDone || !tm.members.length ? 'disabled' : ''}>${dinnerDone ? 'TEAMESSEN DIESEN MONAT ERLEDIGT' : `TEAMESSEN · ${fmtDM(g.dinnerCost())} PRIVAT`}</button>
       </div>
-      <h3>TEAM ${tm.members.length}/${g.teamMax()}</h3>
-      ${members || '<p class="dim">Noch niemand in der Gruppe.</p>'}
+      ${staff}
+      <h3>KERNTEAM ${tm.members.length}/${g.teamMax()}</h3>
+      ${members || '<p class="dim">Noch niemand im Kernteam.</p>'}
       <h3>BEWERBUNGEN <span class="dim">NEUE JEDEN MONAT</span></h3>
       ${cands || '<p class="dim">Keine Bewerbungen.</p>'}`;
   }
@@ -455,62 +509,81 @@ export class PC {
     return html;
   }
 
+  // Planungstabelle: Prognose je Preis für ein Modell
+  priceTable(id, q, months, variant, mk, current, act) {
+    const g = this.game;
+    const rows = g.linePrices(id).map((pr) => ({ pr, fc: g.lineForecast(id, q, pr, mk, months, variant, 0) }));
+    const best = rows.reduce((a, r) => (r.fc.contrib > a.fc.contrib ? r : a), rows[0]);
+    return table('<th>PREIS</th><th class="r">MARKTANTEIL</th><th class="r">STÜCK/MONAT</th><th class="r">UMSATZ</th><th class="r">DECKUNGSBEITRAG</th><th></th>',
+      rows.map(({ pr, fc }) => `<tr class="${current === pr ? 'sel' : ''}"><td>${fmtMoney(pr)}${best.pr === pr ? ' <span class="ok">★</span>' : ''}</td><td class="r">${fmtPct(fc.share)}</td><td class="r">${fmtCount(fc.units)}</td><td class="r">${fmtMoney(fc.revenue)}</td><td class="r ${fc.contrib >= 0 ? 'ok' : 'err'}">${fmtMoney(fc.contrib)}</td>
+        <td class="r">${current === pr ? '<span class="ok">AKTUELL</span>' : `<button type="button" class="tbtn small" data-act="${act}" data-line="${id}" data-arg="${pr}">${act === 'line-launch' ? 'EINFÜHREN' : 'WÄHLEN'}</button>`}</td></tr>`).join(''));
+  }
+
   app_lines() {
     const g = this.game, f = g.s.story.flags;
     const vis = g.linesVisible();
     const lastD = g.s.dept.history.at(-1);
     const active = vis.filter(([id]) => g.s.lines[id].model).length;
     const unitsLast = vis.reduce((a, [id]) => a + (g.s.lines[id].last?.units || 0), 0);
+    const eco = g.economy(), eco6 = g.economyForecast(6);
     let html = `<h2>PRODUKTLINIEN <span class="dim">${esc(g.stage.dept.toUpperCase())}</span></h2>
       ${tiles([
         ['IM HANDEL', `${active}/${vis.length}`, 'PRODUKTLINIEN'],
         ['VERKAUFT', fmtCount(unitsLast), 'STÜCK IM LETZTEN MONAT'],
         ['ABTEILUNG', lastD ? signed(lastD.result) : '–', 'ERGEBNIS LETZTER MONAT', lastD && lastD.result < 0 ? 'bad' : 'good'],
-        ['HÖCHSTQUALITÄT', String(g.qualityCap()), g.qualityCap() > 10 ? 'ÜBER 10 DURCH NEUE TECHNIK' : 'SKALA 1 BIS 10'],
-      ])}`;
+        ['KONJUNKTUR', fmtPct(eco), `IN 6 MONATEN ${eco6 > eco + 0.01 ? '▲' : eco6 < eco - 0.01 ? '▼' : '►'} ${fmtPct(eco6)}`, eco < 0.95 ? 'bad' : ''],
+      ])}
+      <p class="dim">DECKUNGSBEITRAG = ROHERTRAG MINUS MARKETING. ★ = BESTER PREIS NACH PROGNOSE. PROJEKTLEISTUNG ZURZEIT CA. ${fmtInt(g.projectPerMonth())} PKT IM MONAT.</p>`;
     for (const [id, def] of vis) {
       const ln = g.s.lines[id];
-      const unlocked = g.lineUnlocked(id);
       html += `<div class="member"><div><b>${esc(def.name.toUpperCase())}</b> <span class="dim">KONKURRENZ ${esc(def.orion)} · QUALITÄT ${g.orionQ(id)} · ${fmtMoney(g.orionPrice(id))}</span></div>`;
-      if (!unlocked) {
+      if (!g.lineUnlocked(id)) {
         const t = g.allTechs().find((x) => x.id === def.needs);
         html += `<p class="dim">GESPERRT · BRAUCHT DIE TECHNOLOGIE „${esc(t.name)}“${t.year ? ` (AB ${t.year})` : ''} IM PROGRAMM F&amp;E</p></div>`;
         continue;
       }
       if (id === 'pc' && f.pc_compat == null && !ln.model) html += '<p class="err">STANDARD NOCH NICHT ENTSCHIEDEN (SIEHE POST). OHNE ENTSCHEIDUNG GILT „EIGENER STANDARD“.</p>';
       if (ln.model) {
-        const m = ln.model, last = ln.last;
+        const m = ln.model, last = ln.last, ph = g.lifePhase(m.months);
+        const v = MODEL_VARIANTS[m.variant || 'std'];
         html += `<div class="kv">
-          <span>IM HANDEL</span><span><b>${esc(m.name)}</b> · QUALITÄT ${m.q}/10 · SEIT ${m.months} MONATEN</span>
+          <span>IM HANDEL</span><span><b>${esc(m.name)}</b> · ${esc(v.name.toUpperCase())} · QUALITÄT ${m.q} · MARGE ${fmtPct(g.lineMargin(id, m.variant), 1)}</span>
+          <span>LEBENSZYKLUS</span><span>${ph.name} · MONAT ${m.months + 1} <span class="dim">· ${esc(ph.hint)}</span></span>
           <span>LETZTER MONAT</span><span>${last ? `${fmtCount(last.units)} STÜCK · ORION ${fmtCount(last.orion)} · MARKTANTEIL ${fmtPct(last.share)}` : 'NOCH KEINE ZAHLEN'}</span>
           <span>GESAMT</span><span>${fmtCount(ln.units)} STÜCK · UMSATZ ${fmtMoney(ln.revenue)}</span>
         </div>
-        <div class="row"><span class="dim">PREIS</span>${def.prices.map((pr) => {
-          const sh = g.lineShare(id, m.q, pr, ln.marketing);
-          return `<button type="button" class="tbtn small ${m.price === pr ? 'chosen' : ''}" data-act="line-price" data-line="${id}" data-arg="${pr}">${fmtMoney(pr)} · ~${fmtPct(sh.kb / sh.total)} ANTEIL</button>`;
-        }).join('')}</div>
-        <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => `<button type="button" class="tbtn small ${ln.marketing === k ? 'chosen' : ''}" data-act="line-mk" data-line="${id}" data-arg="${k}">${mk.label}${mk.cost ? ` · ${fmtMoney(mk.cost)}/MONAT` : ''}</button>`).join('')}</div>`;
+        <h3>PREIS <span class="dim">PROGNOSE FÜR DIESEN MONAT</span></h3>
+        ${this.priceTable(id, m.q, m.months, m.variant, ln.marketing, m.price, 'line-price')}
+        <div class="row"><span class="dim">MARKETING</span>${MARKETING.map((mk, k) => {
+          const fc = g.lineForecast(id, m.q, m.price, k, m.months, m.variant, 0);
+          return `<button type="button" class="tbtn small ${ln.marketing === k ? 'chosen' : ''}" data-act="line-mk" data-line="${id}" data-arg="${k}">${mk.label}${mk.cost ? ` · ${fmtMoney(mk.cost)}` : ''} · DB ${fmtMoney(fc.contrib)}</button>`;
+        }).join('')}</div>`;
       }
       if (ln.devGen) {
         const a = g.s.projects.active;
         const pid = `model-${id}-${ln.devGen}`;
-        html += `<p>IN ENTWICKLUNG: <b>${esc(g.modelName(id, ln.devGen))}</b> ${a?.id === pid ? `· ${fmtInt(a.pp)}/${fmtInt(a.need)} PKT` : '<span class="err">· PAUSIERT, IN PROJ WIEDER ÜBERNEHMEN</span>'}</p>`;
+        const eta = a?.id === pid ? Math.ceil((a.need - a.pp) / Math.max(1, g.projectPerMonth(a))) : null;
+        html += `<p>IN ENTWICKLUNG: <b>${esc(g.modelName(id, ln.devGen))}</b> · ${esc(MODEL_VARIANTS[ln.devVariant || 'std'].name.toUpperCase())} ${a?.id === pid ? `· ${fmtInt(a.pp)}/${fmtInt(a.need)} PKT · FERTIG IN CA. ${eta} MONAT${eta === 1 ? '' : 'EN'}` : '<span class="err">· PAUSIERT, IN PROJ WIEDER ÜBERNEHMEN</span>'}</p>`;
       } else if (ln.pending) {
         const pn = ln.pending;
-        html += `<p class="ok">FERTIG: <b>${esc(pn.name)}</b> · QUALITÄT ${pn.q}/10. PREIS WÄHLEN UND IN DEN HANDEL BRINGEN:</p>
-          <div class="row">${def.prices.map((pr) => {
-            const sh = g.lineShare(id, pn.q, pr, ln.marketing);
-            return `<button type="button" class="tbtn small" data-act="line-launch" data-line="${id}" data-arg="${pr}">${fmtMoney(pr)} · ~${fmtPct(sh.kb / sh.total)} ANTEIL</button>`;
-          }).join('')}</div>`;
+        html += `<p class="ok">FERTIG: <b>${esc(pn.name)}</b> · QUALITÄT ${pn.q}. PREIS WÄHLEN UND IN DEN HANDEL BRINGEN:</p>
+          ${this.priceTable(id, pn.q, 0, pn.variant, ln.marketing, null, 'line-launch')}`;
       } else {
-        const gen = ln.gen + 1;
-        const need = Math.round((def.devNeed * (1 + 0.2 * (gen - 1))) / 50) * 50;
-        html += `<div class="row"><button type="button" class="tbtn" data-act="line-dev" data-line="${id}">${ln.model ? 'NACHFOLGER' : 'ERSTES MODELL'} ENTWICKELN: ${esc(g.modelName(id, gen))}</button>
-          <span class="dim">${fmtInt(need)} PKT · ERWARTETE QUALITÄT ${g.lineQuality(id)}/10</span></div>`;
+        const gen = ln.gen + 1, ppm = Math.max(1, g.projectPerMonth(null));
+        html += `<h3>${ln.model ? 'NACHFOLGER' : 'ERSTES MODELL'} PLANEN: ${esc(g.modelName(id, gen))} <span class="dim">KONKURRENZ IN 12 MONATEN: QUALITÄT ${g.orionQ(id, g.s.time.year + 1)}</span></h3>
+          <div class="variants">${Object.entries(MODEL_VARIANTS).map(([vid, v]) => {
+            const need = g.modelNeed(id, vid), q = g.variantQuality(id, vid), mo = Math.ceil(need / ppm);
+            const fc = g.lineForecast(id, q, LINES[id].prices[1], ln.marketing, 0, vid, 0);
+            return `<div class="variant"><b>${esc(v.name.toUpperCase())}</b><span class="dim">${esc(v.desc)}</span>
+              <span>QUALITÄT ${q} · MARGE ${fmtPct(g.lineMargin(id, vid), 1)}</span>
+              <span>${fmtInt(need)} PKT · CA. ${mo} MONAT${mo === 1 ? '' : 'E'}</span>
+              <span class="dim">DB IM 1. MONAT CA. ${fmtMoney(fc.contrib)}</span>
+              <button type="button" class="tbtn small" data-act="line-dev" data-line="${id}" data-arg="${vid}">ENTWICKELN</button></div>`;
+          }).join('')}</div>`;
       }
       html += '</div>';
     }
-    return html + '<p class="dim">Neue Modelle laufen als Projekt im Programm PROJ. Das alte Modell verkauft sich weiter, bis der Nachfolger im Handel ist.</p>';
+    return html + '<p class="dim">Neue Modelle laufen als Projekt im Programm PROJ. Das alte Modell verkauft sich weiter, bis der Nachfolger im Handel ist. Die Dauer hängt von der Projektleistung ab: Projektteam, Entwicklung und Sonderschichten verkürzen sie.</p>';
   }
 
   techRow(t) {
@@ -573,7 +646,20 @@ export class PC {
       ])}
       ${rows ? `<h3>LETZTE MONATE</h3>${table('<th>MONAT</th><th class="r">UMSATZ</th><th class="r">ROHERTRAG</th><th class="r">PERSONAL</th><th class="r">F&amp;E</th><th class="r">MARKETING</th><th class="r">ERGEBNIS</th>', rows)}`
         : '<p class="dim">Die erste Abrechnung der Abteilung kommt zum Monatsende.</p>'}
+      ${this.planTable()}
       <p class="dim">Rohertrag = Umsatz minus Material und Fertigung.</p>`;
+  }
+
+  // 12-Monats-Planung der Abteilung bei unveränderten Einstellungen
+  planTable() {
+    const g = this.game, fc = g.deptForecast(12);
+    const max = Math.max(1, ...fc.map((x) => Math.abs(x.result)));
+    const sum = fc.reduce((a, x) => a + x.result, 0);
+    const rows = fc.map((x) => `<tr><td>${esc(x.label)}</td><td class="r">${fmtPct(x.eco)}</td><td class="r">${fmtMoney(x.revenue)}</td><td class="r">${fmtMoney(x.gross)}</td><td class="r">${fmtMoney(x.payroll + x.rd + x.mkt)}</td><td class="r ${x.result >= 0 ? 'ok' : 'err'}">${fmtMoney(x.result)}</td>
+      <td class="plan-bar"><span class="${x.result >= 0 ? 'pos' : 'neg'}" style="width:${((Math.abs(x.result) / max) * 100).toFixed(0)}%"></span></td></tr>`).join('');
+    return `<h3>PLANUNG NÄCHSTE 12 MONATE <span class="dim">SUMME ${signed(sum)}</span></h3>
+      <p class="dim">Prognose ohne Zufall, mit Konjunkturprognose und Lebenszyklus der Modelle im Handel. Neue Modelle, Preisänderungen und Personal ändern die Planung sofort.</p>
+      ${table('<th>MONAT</th><th class="r">KONJUNKTUR</th><th class="r">UMSATZ</th><th class="r">ROHERTRAG</th><th class="r">KOSTEN</th><th class="r">ERGEBNIS</th><th></th>', rows)}`;
   }
 
   app_netz() {
@@ -1083,7 +1169,12 @@ export class PC {
       case 'hire': { const m = g.hire(Number(arg)); if (m) this.ui.toast(`${m.name} eingestellt`, 'good'); this.rerender(['pers', 'karr']); break; }
       case 'dinner': { const c = g.dinner(); if (c) this.ui.toast(`Teamessen beim Griechen: ${fmtDM(c)}`, 'good'); this.rerender(['pers']); break; }
       case 'spec': g.setSpec(arg, b.dataset.val); this.rerender(['prod']); break;
-      case 'line-dev': if (g.startModel(b.dataset.line)) this.ui.toast('Entwicklung gestartet', 'good'); this.rerender(['prod', 'proj']); break;
+      case 'line-dev': if (g.startModel(b.dataset.line, arg || 'std')) this.ui.toast('Entwicklung gestartet', 'good'); this.rerender(['prod', 'proj']); break;
+      case 'assign': g.assign(Number(arg), b.dataset.val); this.rerender(['pers', 'proj', 'prod', 'aufg']); break;
+      case 'train': { const v = g.train(Number(arg)); if (v) this.ui.toast(`Weiterbildung gebucht: ${fmtDM(v)}`, 'good'); this.rerender(['pers', 'abt']); break; }
+      case 'crunch': g.setCrunch(arg === '1'); this.ui.toast(arg === '1' ? 'Sonderschichten angeordnet' : 'Sonderschichten beendet'); this.rerender(['proj', 'prod', 'pers']); break;
+      case 'staff-hire': { const v = g.hireStaff(arg, Number(b.dataset.val)); if (v) this.ui.toast(`${v} Leute für ${STAFF[arg].name} eingestellt`, 'good'); this.rerender(['pers', 'proj', 'prod', 'abt', 'fue']); break; }
+      case 'staff-fire': { const v = g.fireStaff(arg, Number(b.dataset.val)); if (v) this.ui.toast(`${v.n} Stellen abgebaut, Abfindungen ${fmtMoney(v.severance)}`, 'bad'); this.rerender(['pers', 'proj', 'prod', 'abt', 'fue']); break; }
       case 'line-launch': if (g.launchModel(b.dataset.line, Number(arg))) this.ui.toast('Neues Modell im Handel', 'good'); this.rerender(['prod', 'karr']); break;
       case 'line-price': g.setLinePrice(b.dataset.line, Number(arg)); this.rerender(['prod']); break;
       case 'line-mk': g.setMarketing(b.dataset.line, Number(arg)); this.rerender(['prod']); break;

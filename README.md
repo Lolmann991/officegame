@@ -1,4 +1,4 @@
-# KONZERN (v0.10)
+# KONZERN (v0.11)
 
 Idle-Wirtschaftsspiel im Browser. Du beginnst 1978 als Junior-Sachbearbeiter bei der fiktiven
 Kessler & Brandt Rechenwerke AG und arbeitest dich hoch. Gespielt wird am Schreibtisch in einem
@@ -26,6 +26,23 @@ Das Spiel enthält die komplette Story in sieben Kapiteln und danach einen Endlo
 
 In jedem Kapitel gibt es außerdem Eilaufträge mit Zeitlimit, drei freiwillige Nebenziele mit Belohnung
 (im Programm KARR) und zusätzliche Ereignisse mit Entscheidungen.
+
+## Personal, Produkte und Planung
+
+- **Kernteam** mit Namen: bis zu 5 (Teamleiter), 8, 10, 12 und als CEO 15 Leute. Jede Person arbeitet im Tagesgeschäft
+  (zählt fürs Monatsziel) oder im **Projekt** (arbeitet voll am laufenden Projekt). Weiterbildung hebt die Fähigkeit um einen
+  Stern, kostet aber Geld und erhöht das Gehalt.
+- **Belegschaft** ab Kapitel 4: ganze Gruppen in Schritten von 5, 25 oder 100 Leuten. Entwicklung arbeitet am Projekt mit,
+  Vertrieb steigert den Marktanteil, das Labor bringt Forschungspunkte, Service & Fertigung erhöht die Marge. Jede weitere
+  Person bringt etwas weniger. Das Betriebsklima verstärkt oder schwächt die Wirkung. Abbau kostet drei Monatsgehälter Abfindung.
+- **Personalbudget wächst mit dem Gewinn**: Grundbudget plus 35 % vom Rohertrag der letzten drei Monate.
+- **Sonderschichten** im Programm PROJ: +40 % Projektleistung, kosten Moral und Betriebsklima.
+- **Produktplanung** im Programm PROD: fünf Preisstufen mit Prognose für Marktanteil, Stückzahl, Umsatz und
+  Deckungsbeitrag (★ = bester Preis), Marketing mit Prognose, Lebenszyklus der Modelle (Einführung, Wachstum, Reife, Rückgang).
+  Neue Modelle gibt es als Sparmodell, Standard oder Premium mit eigener Qualität, Marge und Entwicklungszeit.
+- **Planung** im Programm ABT: Ergebnisprognose für die nächsten zwölf Monate mit Konjunkturprognose.
+- **Konjunktur** über das ganze Spiel: Rezessionen 1981/82 und 1992/93, Dotcom-Krise, Finanzkrise und danach
+  Zyklen von etwa acht Jahren.
 
 ## Konzernkasse (ab dem Vorstand)
 

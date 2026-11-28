@@ -63,12 +63,32 @@ export const CHAPTERS = [
 ];
 
 // ---------------------------------------------------------------- Team (ab Kapitel 3)
-export const TEAM_MAX_BY_STAGE = [0, 0, 5, 8, 8, 8, 8];
+export const TEAM_MAX_BY_STAGE = [0, 0, 5, 8, 10, 12, 15]; // Kernteam mit Namen
 export const TEAM_MAX = 5;
 export const TEAM_BUDGET = 14000;          // Personalbudget der Gruppe in DM pro Monat
 export const DEPT_TEAM_BUDGET = 30000;     // Personalbudget der Abteilung ab Kapitel 4
 export const TEAM_RATE_PER_SKILL = 1.6;    // Leistung/s je Fähigkeitspunkt bei Moral 50
 export const DINNER_COST = 45;             // DM pro Person, privat bezahlt
+export const BUDGET_PROFIT_SHARE = 0.35;   // ab Kapitel 4: Personalbudget wächst mit 35 % des Rohertrags (Ø 3 Monate)
+export const TRAINING_COST = 2500;         // DM je Fähigkeitsstufe, Weiterbildung im Kernteam
+export const CRUNCH_MULT = 1.4;            // Sonderschichten: +40 % Projektleistung
+
+// Belegschaft ab Kapitel 4: viele Leute in Bereichen, eingestellt in Schritten.
+// salary = DM pro Kopf und Monat (Stand 1987, steigt 2,5 % im Jahr). Wirkung mit abnehmendem Zusatznutzen.
+export const STAFF = {
+  entw:     { name: 'Entwicklung', salary: 3800, desc: 'Arbeitet am laufenden Projekt mit, auch an neuen Modellen.', unit: 'PKT/MONAT' },
+  vertrieb: { name: 'Vertrieb', salary: 3400, desc: 'Mehr Marktanteil für alle Produkte.' },
+  labor:    { name: 'Labor', salary: 4200, desc: 'Zusätzliche Forschungspunkte.' },
+  service:  { name: 'Service & Fertigung', salary: 3000, desc: 'Höhere Marge auf alle Produkte.' },
+};
+export const STAFF_STEPS = [5, 25, 100];
+export const STAFF_PP = 45;            // Projektpunkte je Entwickler und Monat
+export const STAFF_FP = 18;            // Forschungspunkte je Laborkraft und Monat
+export const STAFF_SALES_MAX = 0.35;   // höchstens +35 % Anziehungskraft durch den Vertrieb
+export const STAFF_SALES_K = 120;      // Kopfzahl, bei der rund 63 % davon erreicht sind
+export const STAFF_MARGIN_MAX = 0.05;  // höchstens +5 Prozentpunkte Marge durch Service & Fertigung
+export const STAFF_MARGIN_K = 200;
+export const SEVERANCE_MONTHS = 3;     // Abfindung je Kopf bei Abbau
 
 export const TRAITS = {
   fleissig:    { label: 'fleißig', desc: '+20 % Leistung', mult: 1.2 },
@@ -103,6 +123,19 @@ export const PRODUCT_BASE_Q = 3;           // Qualität 3–10
 export const PRODUCT_PRICES = [1495, 1995, 2495];
 export const PRODUCT_MARKET = 9000;        // Heimcomputer-Käufer pro Monat in Deutschland (Spielwert)
 export const PRODUCT_HYPE = [1.5, 1.3, 1.15, 1.0, 0.9, 0.8, 0.7, 0.65, 0.6];
+// Lebenszyklus eines Modells nach Monaten im Handel
+export const LIFE_PHASES = [
+  { until: 2, name: 'EINFÜHRUNG', hint: 'Die Nachfrage ist am höchsten.' },
+  { until: 4, name: 'WACHSTUM', hint: 'Die Nachfrage sinkt langsam.' },
+  { until: 6, name: 'REIFE', hint: 'Jetzt den Nachfolger entwickeln.' },
+  { until: Infinity, name: 'RÜCKGANG', hint: 'Ein Nachfolger bringt die Nachfrage zurück.' },
+];
+// Ausführungen für neue Modelle der Produktlinien
+export const MODEL_VARIANTS = {
+  spar:    { name: 'Sparmodell', need: 0.7, q: -2, margin: 0.03, desc: 'Schneller fertig, billiger herzustellen' },
+  std:     { name: 'Standard', need: 1, q: 0, margin: 0, desc: 'Ausgewogen' },
+  premium: { name: 'Premium', need: 1.5, q: 2, margin: -0.02, desc: 'Beste Qualität, teurere Teile' },
+};
 export const PRODUCT_COMMISSION = 0.0004;  // Erfolgsbeteiligung am Umsatz
 export const ORION_HOME = { name: 'Orion OR-Home', price: 1795, q: 6 };
 
@@ -322,7 +355,23 @@ export const DIVIDEND_POLICIES = [
 // Börsenstimmung (Monatsindex ab Januar 1999) – Neuer-Markt-Hype und Crash
 export const HYPE_POINTS = [[0, 1.2], [14, 3.0], [20, 2.0], [26, 0.9], [32, 0.7], [41, 0.85], [53, 1.0], [108, 1.1], [116, 0.95], [118, 0.6], [123, 0.55], [134, 0.85], [150, 1.0]];
 // Wirtschaftslage für Absatz (1 = normal)
-export const ECONOMY_POINTS = [[0, 1], [20, 1], [26, 0.72], [36, 0.75], [48, 0.95], [56, 1], [116, 1], [119, 0.78], [128, 0.8], [140, 1]];
+// Konjunktur (1 = normal). x = Monate seit Januar 1999, negative Werte davor.
+// 1981/82 und 1992/93 Rezession, 2001-03 Dotcom-Krise, 2008/09 Finanzkrise, danach Zyklen von etwa acht Jahren.
+export const ECONOMY_POINTS = [[-240, 1], [-225, 0.97], [-212, 0.9], [-198, 0.93], [-186, 1], [-150, 1.04], [-114, 1.08], [-96, 1.06], [-84, 0.96], [-76, 0.9], [-64, 0.95], [-48, 1], [0, 1], [20, 1], [26, 0.72], [36, 0.75], [48, 0.95], [56, 1], [116, 1], [119, 0.78], [128, 0.8], [140, 1]];
+const interpPts = (pts, x) => {
+  if (x <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    const [x1, y1] = pts[i - 1], [x2, y2] = pts[i];
+    if (x <= x2) return y1 + ((y2 - y1) * (x - x1)) / (x2 - x1);
+  }
+  return pts.at(-1)[1];
+};
+export function economyAt(x) {
+  if (x <= 150) return interpPts(ECONOMY_POINTS, x);
+  let v = 1 + 0.07 * Math.sin((2 * Math.PI * (x - 150)) / 96);
+  if (x >= 254 && x < 266) v *= 0.86 + 0.14 * ((x - 254) / 12); // 2020: kurzer Einbruch
+  return v;
+}
 export const STARTUPS = [
   { id: 'klickfix', name: 'Klickfix AG', desc: 'Online-Kaufhaus, das nie Gewinn gemacht hat', base: 80e6, burn: 2.5e6 },
   { id: 'webwelt', name: 'WebWelt AG', desc: 'Internetportal mit Chat, Horoskop und Wetter', base: 120e6, burn: 3.5e6 },

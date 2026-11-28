@@ -404,7 +404,9 @@ willkommen in Ihrem eigenen Büro. Die Tür dürfen Sie schließen, ich tue es n
 
 Die PC-Sparte hat drei mögliche Produktlinien: Heimcomputer (dort läuft der HC-1 weiter), Bürocomputer und Tragbare. Für die beiden neuen fehlt uns noch die Technik. Die Forschung steuern Sie im Programm F&E, das Budget geht von Ihrem Ergebnis ab.
 
-Ihr Personalbudget steigt auf ${fmtDM(DEPT_TEAM_BUDGET)}. Holen Sie sich gute Leute.
+Ihr Grundbudget für Personal steigt auf ${fmtDM(DEPT_TEAM_BUDGET)}. Dazu kommt ab jetzt ein Anteil am Gewinn: 35 Prozent vom Rohertrag der Sparte fließen jeden Monat ins Personalbudget. Wer gut verkauft, darf wachsen.
+
+Neben Ihrem Kernteam können Sie im Programm PERS ganze Gruppen einstellen: Entwicklung für schnellere Projekte, Vertrieb, Labor und Service. Im Programm ABT finden Sie die Planung für die nächsten zwölf Monate.
 
 Und noch etwas: Der Vorstand hat einen neuen Finanzvorstand, Dr. Sauer. Er wird sich bei Ihnen melden.
 

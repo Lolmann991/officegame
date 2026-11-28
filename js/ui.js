@@ -70,8 +70,8 @@ export class UI {
     game.on('promotion', () => this.onPromotion());
     game.on('chapter', (no) => this.showChapterIntro(no));
     game.on('projects', () => this.pc.rerender(['proj', 'karr', 'prod']));
-    game.on('team', () => { this.pc.rerender(['pers', 'karr']); this.office.setTeam(this.game.s.player.stage, this.game.s.team.members); });
-    game.on('product', () => this.pc.rerender(['prod', 'karr', 'proj']));
+    game.on('team', () => { this.pc.rerender(['pers', 'karr', 'proj', 'abt']); this.office.setTeam(this.game.s.player.stage, this.game.s.team.members); });
+    game.on('product', () => this.pc.rerender(['prod', 'karr', 'proj', 'abt']));
     game.on('dept', () => this.pc.rerender(['abt', 'fue', 'karr', 'prod']));
     game.on('net', () => this.pc.rerender(['netz', 'karr']));
     game.on('corp', () => this.pc.rerender(['fin', 'karr', 'toch', 'inv']));
