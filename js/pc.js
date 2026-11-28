@@ -7,7 +7,7 @@ import {
   TECHS, ENDLESS_TECHS, LINES, MARKETING, RD_BUDGETS, RD_BUDGETS_CEO, DEPT_COMMISSION,
   NET_CITIES, NET_NODE_COST, NET_NODE_UPKEEP, NET_TARIFFS, NET_UPGRADES,
   STARTUPS, DIVIDEND_POLICIES, CORP_LOAN_STEP, CORP_LOAN_RATE,
-  TAKEOVER, ACHIEVEMENTS, WORLD_REGIONS, futureName, futureCost, fmtDM, fmtMoney, fmtCount, fmtNum, fmtInt, fmtPct, numAt,
+  TAKEOVER, ACHIEVEMENTS, WORLD_REGIONS, SUBSIDIARIES, SUB_MAX_LEVEL, SUB_SELL, CORP_PROJECTS, FIN_ASSETS, FIN_STEPS, REPO_PCT, futureName, futureCost, fromCur, fmtDM, fmtMoney, fmtCount, fmtNum, fmtInt, fmtPct, numAt,
 } from './data.js';
 import { sfx, setSound } from './sound.js';
 import { MISSIONS, SIDE_GOALS, missionsDone } from './story.js';
@@ -24,6 +24,8 @@ const APPS = [
   { id: 'abt', label: 'ABT', title: 'Abteilung', group: 'FIRMA', minStage: 3, help: 'Monatliche Erfolgsrechnung: Rohertrag aller Produkte minus Personal, Forschung und Marketing.' },
   { id: 'netz', label: 'NETZ', title: 'KB-Net', group: 'FIRMA', minStage: 4, help: 'Einwahlknoten bauen, Tarif wählen und Kunden gewinnen. Mehr Qualität und Reichweite schlagen die Konkurrenz.' },
   { id: 'fin', label: 'FIN', title: 'Finanzen', group: 'FIRMA', minStage: 5, help: 'Konzernkasse, Kredite, Dividende und Beteiligungen. Bleibt die Kasse drei Monate im Minus, droht die Abberufung.' },
+  { id: 'toch', label: 'TÖCHTER', title: 'Tochterfirmen', group: 'FIRMA', minStage: 5, help: 'Firmen kaufen, die jeden Monat Gewinn in die Konzernkasse bringen. Viele geben KB zusätzlich einen Vorteil. Ausbauen erhöht den Gewinn um 25 % je Stufe.' },
+  { id: 'inv', label: 'INVEST', title: 'Investitionen', group: 'FIRMA', minStage: 5, help: 'Konzernprojekte wirken dauerhaft. Finanzanlagen bringen Zinsen und Miete, das Geld lässt sich jederzeit wieder abziehen.' },
   { id: 'abwehr', label: 'ABWEHR', title: 'Übernahmeabwehr', group: 'FIRMA', minStage: 6, help: 'Orion braucht 50 % der Stimmen. Hoher Kurs, Rückkäufe und Kampagnen halten die Aktionäre bei KB.' },
   { id: 'welt', label: 'WELT', title: 'Weltmarkt', group: 'FIRMA', minStage: 6, help: 'Jede Niederlassung vergrößert den Markt aller Produktlinien und bringt zusätzliches Stammgeschäft.' },
   { id: 'lohn', label: 'LOHN', title: 'Abrechnungen', group: 'PRIVAT', help: 'Deine monatlichen Gehaltsabrechnungen mit Note, Brutto und Netto.' },
@@ -627,7 +629,9 @@ export class PC {
         KAUFPREIS ${M(v)} · VERBRENNT ${M(st.burn)} IM MONAT</div>
         <div class="r"><button type="button" class="tbtn small" data-act="buy-st" data-arg="${id}" ${c.cash < v ? 'disabled' : ''}>KAUFEN</button></div></div>`;
     }).join('');
-    const rows = c.history.slice(-6).reverse().map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${M(h.legacy)}</td><td class="r">${M(h.bereich)}</td><td class="r">${M(h.startups)}</td><td class="r">${M(-h.interest)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${M(h.result)}</td></tr>`).join('');
+    const hist = c.history.slice(-6).reverse();
+    const showSt = hist.some((h) => Math.abs(h.startups) >= 1);
+    const rows = hist.map((h) => `<tr><td>${esc(h.label)}</td><td class="r">${M(h.legacy)}</td><td class="r">${M(h.bereich)}</td><td class="r">${M(h.subs || 0)}</td><td class="r">${M(h.fin || 0)}</td>${showSt ? `<td class="r">${M(h.startups)}</td>` : ''}<td class="r">${M(-h.interest)}</td><td class="r ${h.result >= 0 ? 'ok' : 'err'}">${M(h.result)}</td></tr>`).join('');
     return `<h2>FINANZEN <span class="dim">KONZERN · RESSORT ${esc(g.stage.title.toUpperCase())}</span></h2>
       ${tiles([
         ['KONZERNKASSE', M(c.cash), c.negMonths ? `${c.negMonths} MONAT(E) IM MINUS` : 'VERFÜGBAR', c.cash < 0 ? 'bad' : ''],
@@ -650,7 +654,106 @@ export class PC {
       <p class="dim">Eine Kapitalerhöhung bringt Geld, verwässert aber deinen Stimmanteil und drückt kurz den Kurs. Einmal pro Jahr möglich.</p>
       ${owned ? `<h3>BETEILIGUNGEN</h3>${owned}` : ''}
       ${offers ? `<h3>ANGEBOTE VOM NEUEN MARKT</h3>${offers}` : ''}
-      ${rows ? `<h3>KONZERNERGEBNIS</h3>${table('<th>MONAT</th><th class="r">STAMMGESCHÄFT</th><th class="r">BEREICHE</th><th class="r">BETEILIGUNGEN</th><th class="r">ZINSEN</th><th class="r">ERGEBNIS</th>', rows)}` : '<p class="dim">Das erste Konzernergebnis kommt zum Monatsende.</p>'}`;
+      ${rows ? `<h3>KONZERNERGEBNIS</h3>${table(`<th>MONAT</th><th class="r">STAMMGESCHÄFT</th><th class="r">BEREICHE</th><th class="r">TÖCHTER</th><th class="r">ANLAGEN</th>${showSt ? '<th class="r">START-UPS</th>' : ''}<th class="r">ZINSEN</th><th class="r">ERGEBNIS</th>`, rows)}` : '<p class="dim">Das erste Konzernergebnis kommt zum Monatsende.</p>'}`;
+  }
+
+  app_toch() {
+    const g = this.game, c = g.s.corp;
+    if (!c.active) return '<h2>TOCHTERFIRMEN</h2><p class="dim">Erst im Vorstand verfügbar.</p>';
+    const owned = c.subs.map((o) => {
+      const d = g.subDef(o.id), val = g.subValue(o), prof = g.subProfit(o);
+      const trend = o.drift >= 1.1 ? '<span class="ok">▲ LÄUFT SEHR GUT</span>' : o.drift < 0.85 ? '<span class="err">▼ IN SCHWIERIGKEITEN</span>' : '<span class="dim">● STABIL</span>';
+      const up = o.level < SUB_MAX_LEVEL
+        ? `<button type="button" class="tbtn small" data-act="sub-up" data-arg="${o.id}" ${c.cash < g.subUpgradeCost(o) ? 'disabled' : ''}>AUSBAUEN AUF STUFE ${o.level + 1} · ${fmtMoney(g.subUpgradeCost(o))}</button>`
+        : '<span class="ok">VOLL AUSGEBAUT</span>';
+      const fix = o.drift < 0.85 ? `<button type="button" class="tbtn small" data-act="sub-fix" data-arg="${o.id}" ${c.cash < g.subFixCost(o) ? 'disabled' : ''}>SANIEREN · ${fmtMoney(g.subFixCost(o))}</button>` : '';
+      const sell = this.confirmSell === o.id
+        ? `<span class="err">FÜR ${fmtMoney(val * SUB_SELL)} VERKAUFEN?</span> <button type="button" class="tbtn small" data-act="sub-sell-yes" data-arg="${o.id}">JA</button> <button type="button" class="tbtn small" data-act="sub-sell-no">NEIN</button>`
+        : `<button type="button" class="tbtn small dimbtn" data-act="sub-sell" data-arg="${o.id}">VERKAUFEN · ${fmtMoney(val * SUB_SELL)}</button>`;
+      return `<div class="member">
+        <div><b>${esc(d.name)}</b> <span class="dim">${esc(d.sector.toUpperCase())} · STUFE ${o.level}/${SUB_MAX_LEVEL}</span> ${trend}</div>
+        <div class="kv">
+          <span>GEWINN</span><span class="${prof < 0 ? 'err' : ''}"><b>${signed(prof)}</b> IM MONAT</span>
+          <span>WERT</span><span>${fmtMoney(val)} <span class="dim">· GEKAUFT FÜR ${fmtMoney(o.paid)}</span></span>
+          ${d.bonusText ? `<span>VORTEIL</span><span class="ok">${esc(d.bonusText)}</span>` : ''}
+        </div>
+        <div class="row">${up}${fix}${sell}</div>
+      </div>`;
+    }).join('');
+    const market = SUBSIDIARIES.filter((d) => g.subAvailable(d)).map((d) => {
+      const price = g.subPrice(d.id);
+      return `<div class="shop-row">
+        <div><b>${esc(d.name)}</b> <span class="dim">${esc(d.sector.toUpperCase())}</span><br>
+          <span class="dim">${esc(d.desc)}</span><br>
+          GEWINN CA. ${fmtMoney((price * d.yield) / 12)} IM MONAT · ${fmtPct(d.yield)} IM JAHR · ${d.vol >= 0.1 ? '<span class="err">STARK SCHWANKEND</span>' : d.vol <= 0.03 ? '<span class="ok">SEHR STABIL</span>' : 'MITTLERES RISIKO'}
+          ${d.bonusText ? `<br><span class="ok">VORTEIL: ${esc(d.bonusText)}</span>` : ''}</div>
+        <div class="r"><button type="button" class="tbtn" data-act="sub-buy" data-arg="${d.id}" ${c.cash < price ? 'disabled' : ''}>KAUFEN · ${fmtMoney(price)}</button></div>
+      </div>`;
+    }).join('');
+    const next = SUBSIDIARIES.filter((d) => d.year > g.s.time.year).slice(0, 3);
+    const totalVal = c.subs.reduce((a, o) => a + g.subValue(o), 0);
+    return `<h2>TOCHTERFIRMEN <span class="dim">BETEILIGUNGSMANAGEMENT</span></h2>
+      ${tiles([
+        ['TÖCHTER', `${c.subs.length}`, `VON ${SUBSIDIARIES.length} FIRMEN`],
+        ['GEWINN', signed(c.lastSubs || 0), 'LETZTER MONAT', (c.lastSubs || 0) < 0 ? 'bad' : c.lastSubs ? 'good' : ''],
+        ['WERT', fmtMoney(totalVal), 'ALLER TÖCHTER'],
+        ['KONZERNKASSE', fmtMoney(c.cash), 'VERFÜGBAR', c.cash < 0 ? 'bad' : ''],
+      ])}
+      <h3>IM BESITZ</h3>${owned || '<p class="dim">Noch keine Tochterfirmen. Unten stehen Firmen zum Verkauf.</p>'}
+      <h3>ZU VERKAUFEN <span class="dim">PREISE STEIGEN MIT DER BÖRSENSTIMMUNG</span></h3>${market || '<p class="dim">Zurzeit nichts im Angebot.</p>'}
+      ${next.length ? `<p class="dim">SPÄTER AUF DEM MARKT: ${next.map((d) => `${esc(d.name)} (${d.year})`).join(' · ')}</p>` : ''}`;
+  }
+
+  app_inv() {
+    const g = this.game, c = g.s.corp;
+    if (!c.active) return '<h2>INVESTITIONEN</h2><p class="dim">Erst im Vorstand verfügbar.</p>';
+    const built = CORP_PROJECTS.filter((p) => c.projects[p.id]).length;
+    const projects = CORP_PROJECTS.map((p) => {
+      const done = !!c.projects[p.id], avail = g.projectAvailable(p);
+      const early = !done && g.s.time.year < p.year;
+      const reqName = p.req && !c.projects[p.req] ? CORP_PROJECTS.find((x) => x.id === p.req).name : '';
+      const state = done ? '<span class="ok">IN BETRIEB</span>'
+        : avail ? `<button type="button" class="tbtn" data-act="proj-build" data-arg="${p.id}" ${c.cash < p.cost ? 'disabled' : ''}>BAUEN · ${fmtMoney(p.cost)}</button>`
+          : `<span class="dim">${early ? `AB ${p.year}` : `BRAUCHT ERST: ${esc(reqName.toUpperCase())}`}</span>`;
+      return `<div class="shop-row ${done ? 'owned' : !avail ? 'locked' : ''}">
+        <div><b>${esc(p.name)}</b> <span class="dim">${fmtMoney(p.cost)}</span><br><span class="dim">${esc(p.desc)}</span> <span class="ok">${esc(p.bonusText)}</span></div>
+        <div class="r">${state}</div></div>`;
+    }).join('');
+    const a = c.assets;
+    const fondsGain = (a.fonds || 0) - (c.fondsIn || 0);
+    const steps = FIN_STEPS.map((v) => Math.round(fromCur(v)));
+    const assets = FIN_ASSETS.map((x) => {
+      const have = a[x.id] || 0;
+      const income = x.id === 'anleihen' ? have * 0.04 / 12 : x.id === 'immo' ? have * 0.05 / 12 : 0;
+      return `<div class="member">
+        <div><b>${esc(x.name)}</b> <span class="dim">${esc(x.desc)}</span></div>
+        <div class="kv">
+          <span>ANGELEGT</span><span><b>${fmtMoney(have)}</b>${x.id === 'fonds' && have ? ` <span class="${fondsGain >= 0 ? 'ok' : 'err'}">${signed(fondsGain)} SEIT KAUF</span>` : ''}</span>
+          ${income ? `<span>ERTRAG</span><span class="ok">${signed(income)} IM MONAT</span>` : ''}
+        </div>
+        <div class="row">
+          ${steps.map((v) => `<button type="button" class="tbtn small" data-act="fin-in" data-arg="${x.id}" data-val="${v}" ${c.cash < v ? 'disabled' : ''}>+${fmtMoney(v)}</button>`).join('')}
+          <span class="dim">·</span>
+          ${steps.slice(0, 2).map((v) => `<button type="button" class="tbtn small dimbtn" data-act="fin-out" data-arg="${x.id}" data-val="${v}" ${have < v ? 'disabled' : ''}>−${fmtMoney(v)}</button>`).join('')}
+          <button type="button" class="tbtn small dimbtn" data-act="fin-out" data-arg="${x.id}" data-val="all" ${have < 1 ? 'disabled' : ''}>ALLES ABZIEHEN</button>
+        </div>
+      </div>`;
+    }).join('');
+    const to = g.s.takeover;
+    const repoBlocked = to?.active && !to.done;
+    return `<h2>INVESTITIONEN <span class="dim">KONZERNKASSE</span></h2>
+      ${tiles([
+        ['KONZERNKASSE', fmtMoney(c.cash), 'FREI VERFÜGBAR', c.cash < 0 ? 'bad' : ''],
+        ['ANLAGEN', fmtMoney(g.finTotal()), 'ANLEIHEN, IMMOBILIEN, FONDS'],
+        ['ERTRAG', signed(c.lastFin || 0), 'ZINSEN UND MIETE IM MONAT', c.lastFin ? 'good' : ''],
+        ['PROJEKTE', `${built}/${CORP_PROJECTS.length}`, 'IN BETRIEB'],
+      ])}
+      <h3>KONZERNPROJEKTE <span class="dim">EINMAL BEZAHLEN, DAUERHAFT NUTZEN</span></h3>${projects}
+      <h3>FINANZANLAGEN</h3>${assets}
+      <h3>AKTIENRÜCKKAUF</h3>
+      <p class="dim">KB kauft ${fmtPct(REPO_PCT)} der eigenen Aktien zurück. Es gibt danach weniger Aktien, jede einzelne ist mehr wert. Einmal pro Monat.</p>
+      <div class="row">${repoBlocked ? '<span class="dim">WÄHREND DER ÜBERNAHMESCHLACHT IM PROGRAMM ABWEHR</span>'
+        : `<button type="button" class="tbtn" data-act="repo" ${g.canRepo() ? '' : 'disabled'}>${fmtInt(Math.round(c.shares * REPO_PCT))} AKTIEN ZURÜCKKAUFEN · ${fmtMoney(g.repoCost())}</button>${c.repoMonth === g.s.time.totalMonths ? '<span class="dim">DIESEN MONAT ERLEDIGT</span>' : ''}`}</div>`;
   }
 
   app_abwehr() {
@@ -991,6 +1094,16 @@ export class PC {
       case 'tariff': g.setTariff(Number(arg)); this.rerender(['netz']); break;
       case 'policy': g.setPolicy(arg); this.rerender(['fin']); break;
       case 'region': if (g.openRegion(arg)) this.ui.toast('Niederlassung im Aufbau', 'good'); this.rerender(['welt', 'fin']); break;
+      case 'sub-buy': { const v = g.buySubsidiary(arg); if (v) this.ui.toast(`Tochterfirma gekauft: ${fmtMoney(v)}`, 'good'); this.rerender(['toch', 'fin', 'inv', 'prod', 'fue']); break; }
+      case 'sub-up': { const v = g.upgradeSubsidiary(arg); if (v) this.ui.toast(`Ausgebaut für ${fmtMoney(v)}: +25 % Gewinn`, 'good'); this.rerender(['toch', 'fin', 'inv']); break; }
+      case 'sub-fix': { const v = g.fixSubsidiary(arg); if (v) this.ui.toast(`Sanierung für ${fmtMoney(v)} abgeschlossen`, 'good'); this.rerender(['toch', 'fin', 'inv']); break; }
+      case 'sub-sell': this.confirmSell = arg; this.rerender(['toch']); break;
+      case 'sub-sell-no': this.confirmSell = null; this.rerender(['toch']); break;
+      case 'sub-sell-yes': { const v = g.sellSubsidiary(arg); this.confirmSell = null; if (v) this.ui.toast(`Tochterfirma verkauft: ${fmtMoney(v)}`); this.rerender(['toch', 'fin', 'inv', 'prod', 'fue']); break; }
+      case 'proj-build': { const v = g.buildProject(arg); if (v) this.ui.toast(`Konzernprojekt gestartet: ${fmtMoney(v)}`, 'good'); this.rerender(['inv', 'fin', 'toch', 'prod', 'fue', 'pers']); break; }
+      case 'fin-in': { const v = g.invest(arg, b.dataset.val); if (v) this.ui.toast(`${fmtMoney(v)} angelegt`, 'good'); this.rerender(['inv', 'fin', 'toch']); break; }
+      case 'fin-out': { const v = g.divest(arg, b.dataset.val); if (v) this.ui.toast(`${fmtMoney(v)} zurück in der Konzernkasse`); this.rerender(['inv', 'fin', 'toch']); break; }
+      case 'repo': { const v = g.repurchase(); if (v) this.ui.toast(`Aktienrückkauf: ${fmtMoney(v)}`, 'good'); this.rerender(['inv', 'fin', 'depot']); break; }
       case 'retire': this.confirmRetire = true; this.rerender(['karr']); break;
       case 'retire-no': this.confirmRetire = false; this.rerender(['karr']); break;
       case 'retire-yes': this.confirmRetire = false; this.ui.retire(); break;

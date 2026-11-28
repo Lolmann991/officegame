@@ -186,6 +186,7 @@ export const EURO_RATE = 1.95583;
 export const CURRENCY = { euro: false };
 export const cur = () => (CURRENCY.euro ? '€' : 'DM');
 export const toCur = (v) => (CURRENCY.euro ? v / EURO_RATE : v);
+export const fromCur = (v) => (CURRENCY.euro ? v * EURO_RATE : v); // Betrag in der Anzeigewährung → intern DM
 // Gut lesbare Beträge: 950 DM · 35.000 DM · 1,25 Mio. DM · 2,4 Mrd. DM (ohne Abkürzungen wie TDM)
 const dec = (v, d) => new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: d }).format(v);
 export const fmtMoney = (v) => {
@@ -329,6 +330,54 @@ export const STARTUPS = [
   { id: 'mobilnet', name: 'MobilNet AG', desc: 'Software für Handys. Klein, aber die Entwickler sind gut', base: 60e6, burn: 0.8e6, future: true },
 ];
 
+// ---------------------------------------------------------------- Konzern: Tochterfirmen und Investitionen
+// price in DM (Stand im Jahr `year`), yield = Gewinn pro Jahr bezogen auf den Kaufpreis,
+// vol = monatliche Schwankung, cyc = Abhängigkeit von der Konjunktur, bonus = Vorteil für KB, solange die Firma dazugehört.
+// bonus-Arten: margin (Marge aller Produkte), size (Käufer), brand (wie mehr Marketing), q (Qualität einer Linie),
+// net (Qualität KB-Net), fp (Forschungspunkte), team (Teamleistung), perf (Aktienkurs)
+export const SUBSIDIARIES = [
+  { id: 'druck', name: 'Hessen-Druck GmbH', sector: 'Druckerei', year: 1999, price: 60e6, yield: 0.10, vol: 0.03, cyc: 0.6, desc: 'Druckt Handbücher und Verpackungen.', bonus: [{ kind: 'margin', v: 0.01 }], bonusText: '+1 % Marge auf alle Produkte' },
+  { id: 'kabel', name: 'Nordkabel AG', sector: 'Kabel und Stecker', year: 1999, price: 140e6, yield: 0.11, vol: 0.04, cyc: 0.9, desc: 'Solider Zulieferer aus Bremen.', bonus: [{ kind: 'margin', v: 0.01 }], bonusText: '+1 % Marge auf alle Produkte' },
+  { id: 'softhaus', name: 'Softhaus Mainz', sector: 'Buchhaltungssoftware', year: 1999, price: 110e6, yield: 0.13, vol: 0.05, cyc: 0.5, desc: 'Jeder zweite Steuerberater nutzt ihr Programm.', bonus: [{ kind: 'q', line: 'pc', v: 1 }], bonusText: '+1 Qualität Bürocomputer' },
+  { id: 'service', name: 'Datenservice Rhein-Main', sector: 'IT-Wartung', year: 2000, price: 180e6, yield: 0.12, vol: 0.03, cyc: 0.4, desc: 'Wartungsverträge mit Banken und Versicherungen.', bonus: [], bonusText: '' },
+  { id: 'callcenter', name: 'Callcenter Ost GmbH', sector: 'Kundenservice', year: 2001, price: 45e6, yield: 0.14, vol: 0.08, cyc: 0.7, desc: 'Billig, schnell, manchmal unfreundlich.', bonus: [{ kind: 'net', v: 1 }], bonusText: '+1 Qualität KB-Net' },
+  { id: 'chip', name: 'Dresdner Halbleiter AG', sector: 'Chipfertigung', year: 2003, price: 520e6, yield: 0.09, vol: 0.07, cyc: 1.3, desc: 'Eigene Chips machen KB unabhängiger von Zulieferern.', bonus: [{ kind: 'margin', v: 0.03 }], bonusText: '+3 % Marge auf alle Produkte' },
+  { id: 'logistik', name: 'TransLog AG', sector: 'Versandlogistik', year: 2004, price: 240e6, yield: 0.11, vol: 0.04, cyc: 0.9, desc: 'Liefert in 24 Stunden in ganz Europa.', bonus: [{ kind: 'size', v: 0.05 }], bonusText: '+5 % Käufer für alle Produkte' },
+  { id: 'pixel', name: 'Pixelwerk Studios', sector: 'Computerspiele', year: 2005, price: 160e6, yield: 0.17, vol: 0.12, cyc: 0.6, desc: 'Ein Hit, dann zwei Flops, dann wieder ein Hit.', bonus: [{ kind: 'q', line: 'home', v: 1 }], bonusText: '+1 Qualität Heimcomputer' },
+  { id: 'funk', name: 'Funknetz Süd AG', sector: 'Mobilfunk', year: 2007, price: 800e6, yield: 0.10, vol: 0.05, cyc: 0.7, desc: 'Drei Millionen Kunden in Bayern und Baden-Württemberg.', bonus: [{ kind: 'q', line: 'smartphone', v: 1 }], bonusText: '+1 Qualität Smartphones' },
+  { id: 'securon', name: 'Securon GmbH', sector: 'IT-Sicherheit', year: 2009, price: 320e6, yield: 0.15, vol: 0.06, cyc: 0.4, desc: 'Schützt Banken vor Hackern.', bonus: [{ kind: 'q', line: 'cloud', v: 1 }], bonusText: '+1 Qualität Cloud-Dienste' },
+  { id: 'appfabrik', name: 'Appfabrik Berlin', sector: 'Apps', year: 2011, price: 130e6, yield: 0.19, vol: 0.14, cyc: 0.7, desc: 'Junge Leute, Tischkicker, gute Apps.', bonus: [{ kind: 'q', line: 'smartphone', v: 1 }], bonusText: '+1 Qualität Smartphones' },
+  { id: 'nordlicht', name: 'Nordlicht Rechenzentren', sector: 'Rechenzentren', year: 2013, price: 950e6, yield: 0.11, vol: 0.04, cyc: 0.5, desc: 'Gekühlt mit Ostseewasser.', bonus: [{ kind: 'q', line: 'cloud', v: 1 }, { kind: 'q', line: 'ki', v: 1 }], bonusText: '+1 Qualität Cloud und KI' },
+  { id: 'sonne', name: 'Sonnenstrom AG', sector: 'Solarparks', year: 2014, price: 600e6, yield: 0.08, vol: 0.02, cyc: 0.2, desc: 'Sicher, aber langweilig.', bonus: [], bonusText: '' },
+  { id: 'deepkassel', name: 'DeepKassel', sector: 'KI-Labor', year: 2019, price: 700e6, yield: 0.13, vol: 0.12, cyc: 0.5, desc: 'Zwanzig Doktoranden und sehr viele Grafikkarten.', bonus: [{ kind: 'fp', v: 0.25 }], bonusText: '+25 % Forschungspunkte' },
+  { id: 'robotik', name: 'Robotik Bayern AG', sector: 'Industrieroboter', year: 2021, price: 900e6, yield: 0.12, vol: 0.06, cyc: 1.1, desc: 'Roboterarme für Autowerke und Fabriken.', bonus: [{ kind: 'margin', v: 0.02 }], bonusText: '+2 % Marge auf alle Produkte' },
+  { id: 'qlabs', name: 'Q-Labs', sector: 'Quantensoftware', year: 2027, price: 1.6e9, yield: 0.14, vol: 0.15, cyc: 0.5, desc: 'Software für Rechner, die es kaum gibt.', bonus: [{ kind: 'q', line: 'ki', v: 1 }, { kind: 'fp', v: 0.2 }], bonusText: '+1 Qualität KI, +20 % Forschungspunkte' },
+];
+export const SUB_MAX_LEVEL = 3;       // Ausbaustufen je Tochter, jede +25 % Gewinn
+export const SUB_SELL = 0.92;         // Verkauf zu 92 % des Werts
+
+// Konzernprojekte: einmalig gebaut, wirken dauerhaft
+export const CORP_PROJECTS = [
+  { id: 'fertigung', name: 'Automatisierte Fertigung', cost: 250e6, year: 1999, desc: 'Neue Fertigungsstraßen in Kassel.', bonus: [{ kind: 'margin', v: 0.03 }], bonusText: '+3 % Marge auf alle Produkte' },
+  { id: 'fzentrum', name: 'Forschungszentrum Kassel', cost: 200e6, year: 1999, desc: 'Ein eigenes Gebäude für die Labore.', bonus: [{ kind: 'fp', v: 0.4 }], bonusText: '+40 % Forschungspunkte' },
+  { id: 'marke', name: 'Weltweite Markenkampagne', cost: 180e6, year: 2000, desc: 'Ein Logo, ein Slogan, überall.', bonus: [{ kind: 'brand', v: 0.15 }], bonusText: 'Alle Produkte verkaufen sich wie mit 15 % mehr Werbung' },
+  { id: 'campus', name: 'KB-Campus mit Kita und Kantine', cost: 120e6, year: 2000, desc: 'Gute Leute bleiben, wenn es ihnen gut geht.', bonus: [{ kind: 'team', v: 0.1 }], bonusText: '+10 % Teamleistung, Ruf +5', rep: 5 },
+  { id: 'laeden', name: 'Eigene KB-Läden', cost: 300e6, year: 2001, desc: 'Vierzig Läden in den Innenstädten.', bonus: [{ kind: 'size', v: 0.1 }], bonusText: '+10 % Käufer für alle Produkte' },
+  { id: 'zentrale', name: 'Neue Konzernzentrale', cost: 450e6, year: 2003, desc: 'Glas, Stahl und ein Hubschrauberlandeplatz.', bonus: [{ kind: 'perf', v: 0.05 }], bonusText: 'Aktienkurs dauerhaft +5 %, Ruf +10', rep: 10 },
+  { id: 'rz', name: 'Eigenes Rechenzentrum', cost: 400e6, year: 2008, desc: 'Server statt Mietfläche.', bonus: [{ kind: 'q', line: 'cloud', v: 1 }, { kind: 'q', line: 'ki', v: 1 }, { kind: 'net', v: 1 }], bonusText: '+1 Qualität Cloud, KI und KB-Net' },
+  { id: 'roboter', name: 'Roboterfertigung', cost: 600e6, year: 2015, req: 'fertigung', desc: 'Die Fabrik läuft auch nachts.', bonus: [{ kind: 'margin', v: 0.03 }], bonusText: '+3 % Marge zusätzlich' },
+  { id: 'kicampus', name: 'KI-Forschungscampus', cost: 800e6, year: 2020, req: 'fzentrum', desc: 'Die besten Köpfe aus aller Welt.', bonus: [{ kind: 'fp', v: 0.5 }], bonusText: '+50 % Forschungspunkte zusätzlich' },
+];
+
+// Finanzanlagen der Konzernkasse
+export const FIN_ASSETS = [
+  { id: 'anleihen', name: 'Bundesanleihen', rate: 0.04, fee: 0, desc: 'Sicher. 4 % Zinsen im Jahr.' },
+  { id: 'immo', name: 'Büroimmobilien', rate: 0.05, grow: 0.02, fee: 0.05, desc: '5 % Miete im Jahr, der Wert steigt um etwa 2 % im Jahr. 5 % Gebühr beim Verkauf.' },
+  { id: 'fonds', name: 'Aktienfonds', fee: 0.01, desc: 'Schwankt mit der Börse, im Schnitt etwa 7 % im Jahr. 1 % Gebühr beim Verkauf.' },
+];
+export const FIN_STEPS = [50e6, 250e6, 1e9]; // in der Anzeigewährung (DM, ab 2002 Euro)
+export const REPO_PCT = 0.01;         // Aktienrückkauf außerhalb der Übernahme: 1 % der Aktien pro Monat
+
 // ---------------------------------------------------------------- Kapitel 7: Übernahmeschlacht
 export const TAKEOVER = {
   orionStart: 15,          // Prozent, die Orion heimlich gesammelt hat
@@ -360,6 +409,9 @@ export const ACHIEVEMENTS = [
   { id: 'ceo', name: 'Ganz oben', desc: 'Vorstandsvorsitzender werden' },
   { id: 'unabhaengig', name: 'Unabhängig', desc: 'Die Übernahme durch Orion abwehren' },
   { id: 'pacman', name: 'Den Spieß umgedreht', desc: 'Orion selbst übernehmen' },
+  { id: 'mischkonzern', name: 'Mischkonzern', desc: 'Fünf Tochterfirmen gleichzeitig besitzen' },
+  { id: 'bauherr', name: 'Bauherr', desc: 'Fünf Konzernprojekte bauen' },
+  { id: 'anleger', name: 'Großanleger', desc: 'Finanzanlagen über 1 Mrd. DM (511 Mio. €) halten' },
 ];
 
 // ---------------------------------------------------------------- Endlosmodus: Zukunftsforschung

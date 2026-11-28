@@ -1,4 +1,4 @@
-# KONZERN (v0.9)
+# KONZERN (v0.10)
 
 Idle-Wirtschaftsspiel im Browser. Du beginnst 1978 als Junior-Sachbearbeiter bei der fiktiven
 Kessler & Brandt Rechenwerke AG und arbeitest dich hoch. Gespielt wird am Schreibtisch in einem
@@ -26,6 +26,19 @@ Das Spiel enthält die komplette Story in sieben Kapiteln und danach einen Endlo
 
 In jedem Kapitel gibt es außerdem Eilaufträge mit Zeitlimit, drei freiwillige Nebenziele mit Belohnung
 (im Programm KARR) und zusätzliche Ereignisse mit Entscheidungen.
+
+## Konzernkasse (ab dem Vorstand)
+
+- **Tochterfirmen** (Programm TÖCHTER): 16 Firmen von der Druckerei 1999 bis zum Quantensoftware-Labor 2027 kommen nach und
+  nach auf den Markt. Jede bringt monatlich Gewinn in die Konzernkasse, viele geben KB einen Vorteil (mehr Marge, mehr
+  Qualität einer Produktlinie, mehr Forschungspunkte). Ausbauen in drei Stufen bringt je +25 % Gewinn. Gewinne schwanken,
+  es gibt Großaufträge und Krisen (Sanieren hilft) und gelegentlich Kaufangebote über dem Wert.
+- **Konzernprojekte** (Programm INVEST): Automatisierte Fertigung, Forschungszentrum, Markenkampagne, KB-Campus, eigene Läden,
+  neue Zentrale, Rechenzentrum, Roboterfertigung und KI-Campus. Einmal bezahlt, wirken sie dauerhaft.
+- **Finanzanlagen** (Programm INVEST): Bundesanleihen (4 % Zinsen), Büroimmobilien (5 % Miete, Wertzuwachs) und Aktienfonds
+  (schwankt mit der Börse). Das Geld lässt sich jederzeit wieder abziehen, etwa für die Übernahmeabwehr.
+- **Aktienrückkauf** (Programm INVEST): einmal im Monat 1 % der eigenen Aktien, danach ist jede Aktie mehr wert.
+- Im Programm FIN zeigt das Konzernergebnis die Gewinne der Töchter und die Erträge der Anlagen als eigene Spalten.
 
 ## Endlosmodus
 
@@ -111,7 +124,7 @@ gebraucht. Nur die Schriften kommen von Google Fonts; ohne Internet greifen Ersa
 | `js/data.js` | Balancing und Konstanten: Stufen, Upgrades, Schwierigkeitsgrade, Auftragsvorlagen |
 | `js/story.js` | Story: Figuren, Projekte, Mails, Dialoge, Ereignisse, Missionen, Entscheidungen |
 | `js/office.js` | Three.js-Büro: Geometrie, Canvas-Pixeltexturen, Kamera, Figuren |
-| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, PERS, PROD, F&E, ABT, NETZ, FIN, ABWEHR, WELT, LOHN, DEPOT, BEDARF, KARR, ERFOLGE, SYS |
+| `js/pc.js` | PC-Programme: POST, AUFG, PROJ, PERS, PROD, F&E, ABT, NETZ, FIN, TÖCHTER, INVEST, ABWEHR, WELT, LOHN, DEPOT, BEDARF, KARR, ERFOLGE, SYS |
 | `js/sound.js` | Kleine Geräusche über die Web Audio API, ohne Audiodateien |
 | `js/ui.js` | Titel, HUD, Dialogablauf, Entgeltabrechnung, Offline-Zusammenfassung, Game Over |
 

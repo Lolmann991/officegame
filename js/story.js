@@ -817,6 +817,47 @@ Pressestelle`,
 Personalvorstand`,
     choices: ['Auflegen (50 Mio. DM)', 'Nein'],
   },
+  corp_invest_intro: {
+    from: 'Konzern-Controlling',
+    subject: 'Was tun mit der Konzernkasse?',
+    body: () => `Die Konzernkasse ist gut gefüllt. Geld, das nur auf dem Konto liegt, verdient nichts. Der Vorstand hat drei Möglichkeiten:
+
+1. Tochterfirmen kaufen (Programm TÖCHTER). Jede bringt jeden Monat Gewinn und oft einen Vorteil für unsere Produkte. Ausbauen erhöht den Gewinn, gute Firmen lassen sich später teurer verkaufen.
+2. Konzernprojekte bauen (Programm INVEST): Fertigung, Forschungszentrum, Läden. Sie kosten einmal und wirken dauerhaft.
+3. Geld anlegen (Programm INVEST): Anleihen, Immobilien oder Aktienfonds. Das Geld bleibt verfügbar.
+
+Bitte achten Sie darauf, dass die Kasse nicht ins Minus rutscht. Drei Monate im Minus übersteht kein Vorstand.
+
+Konzern-Controlling`,
+  },
+  sub_crisis: {
+    from: 'Beteiligungsmanagement',
+    subject: (g, v) => `Probleme bei ${v.name}`,
+    body: (g, v) => `Bei ${v.name} (${v.sector}) läuft es schlecht. Ein wichtiger Kunde ist abgesprungen, der Gewinn bricht ein.
+
+Eine Sanierung im Programm TÖCHTER bringt die Firma schnell wieder auf Kurs. Ohne Hilfe erholt sie sich nur langsam.
+
+Beteiligungsmanagement`,
+  },
+  sub_boom: {
+    from: 'Beteiligungsmanagement',
+    subject: (g, v) => `Großauftrag für ${v.name}`,
+    body: (g, v) => `Gute Nachrichten: ${v.name} (${v.sector}) hat einen Großauftrag gewonnen. Der Gewinn steigt deutlich.
+
+Beteiligungsmanagement`,
+  },
+  sub_offer: {
+    from: 'Investmentbank Löwe & Partner',
+    subject: (g, v) => `Kaufangebot für ${v.name}`,
+    body: (g, v) => `Sehr geehrte Damen und Herren,
+
+ein Mandant von uns möchte ${v.name} übernehmen und bietet ${fmtDM(v.amount)}. Das liegt deutlich über dem aktuellen Wert.
+
+Das Angebot gilt nur kurz.
+
+Löwe & Partner`,
+    choices: ['Verkaufen', 'Ablehnen'],
+  },
   world_open: {
     from: 'Auslandsvertrieb',
     subject: 'Neuer Markt erschlossen',
@@ -1547,6 +1588,11 @@ export const EVENTS = [
 
 // ---------------------------------------------------------------- Reaktionen auf Entscheidungen
 export const ON_MAIL_CHOICE = {
+  sub_offer: (g, i, m) => {
+    if (i !== 0 || !m.meta) return;
+    if (!g.s.corp.subs.some((o) => o.id === m.meta.id)) return; // schon verkauft
+    g.sellSubsidiary(m.meta.id, m.meta.amount);
+  },
   x_ausflug: (g, i) => { if (i === 0) { g.s.player.cash -= 30; g.addRep(1); } else g.addWork(120); },
   x_lotto: (g, i) => { if (i === 0) { g.s.story.flags.lotto = t(g).totalMonths; g.s.player.cash -= 5; } },
   x_messe: (g, i) => { if (i === 0) { g.s.player.perf = Math.max(0, g.s.player.perf - 200); g.addRep(2); } },

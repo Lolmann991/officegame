@@ -74,7 +74,7 @@ export class UI {
     game.on('product', () => this.pc.rerender(['prod', 'karr', 'proj']));
     game.on('dept', () => this.pc.rerender(['abt', 'fue', 'karr', 'prod']));
     game.on('net', () => this.pc.rerender(['netz', 'karr']));
-    game.on('corp', () => this.pc.rerender(['fin', 'karr']));
+    game.on('corp', () => this.pc.rerender(['fin', 'karr', 'toch', 'inv']));
     game.on('era', () => { this.office.setEra(this.game.era()); if (this.pc.open) this.pc.build(); });
     game.on('gameover', (go) => this.showGameOver(go));
   }
